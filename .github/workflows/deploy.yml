@@ -39,12 +39,8 @@ jobs:
           username: ${{ secrets.HOST_USER }}
           key: ${{ secrets.HOST_SSH_KEY }}
           port: ${{ secrets.HOST_PORT }}
-          source: |
-            publish/*
-            docker-compose.yml
-            deploy/eu5modplanner.service
-            deploy/.env.vps.example
-          strip_components: 1
+          source: "Controllers,Models,Properties,Services,Views,wwwroot,appsettings.json,Eu5ModPlanner.csproj,Program.cs,NuGet.Config,Dockerfile,.dockerignore,docker-compose.yml,deploy/.env.vps.example"
+          strip_components: 0
           target: ${{ vars.DEPLOY_PATH }}/
 
       - name: Deploy on VPS
