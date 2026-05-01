@@ -1,0 +1,1003 @@
+using Eu5ModPlanner.Models;
+using Npgsql;
+using System.Text.Json;
+
+namespace Eu5ModPlanner.Services;
+
+public sealed class PostgresPlannerRepository : IPlannerRepository
+{
+    private const string EventRequirementJsonPrefix = "json:";
+    private static readonly JsonSerializerOptions EventRequirementJsonOptions = new(JsonSerializerDefaults.Web);
+    private readonly string _connectionString;
+
+    public PostgresPlannerRepository(IConfiguration configuration)
+    {
+        _connectionString = configuration.GetConnectionString("PlannerDatabase")
+            ?? throw new InvalidOperationException("Connection string 'PlannerDatabase' is missing.");
+
+        EnsureSchema();
+    }
+
+    public ModPlannerData GetData()
+    {
+        var data = new ModPlannerData();
+        using var connection = OpenConnection();
+
+        using (var command = new NpgsqlCommand(
+                   """
+                   select id, name, tag
+                   from countries
+                   order by tag, name;
+                   """,
+                   connection))
+        using (var reader = command.ExecuteReader())
+        {
+            while (reader.Read())
+            {
+                data.Countries.Add(new Country
+                {
+                    Id = reader.GetGuid(0),
+                    Name = reader.GetString(1),
+                    Tag = reader.GetString(2)
+                });
+            }
+        }
+
+        using (var command = new NpgsqlCommand(
+                   """
+                   select id, type, name, modifier_key, modifier_amount, modifier_unit, is_major_reform,
+                          nobility_estate_name, burghers_estate_name, clergy_estate_name, peasants_estate_name,
+                          food_consumption_per_thousand, assimilation_conversion_speed,
+                          estate_class, can_promote, promotion_speed, migration_speed,
+                          privilege_estate_target, privilege_custom_estate_name, satisfaction_bonus_percent, estate_power_percent,
+                          law_category_name, law_subcategory_name, law_estate_preference_target, law_custom_estate_name,
+                          value_left_label, value_right_label,
+                          building_construction_scope, building_ducat_cost, building_time_months,
+                          event_description, event_year_start, event_year_end, event_trigger_mode, event_scenario_name, event_monthly_chance
+                   from content_entries
+                   order by name;
+                   """,
+                   connection))
+        using (var reader = command.ExecuteReader())
+        {
+            while (reader.Read())
+            {
+                var entry = new ContentEntry
+                {
+                    Id = reader.GetGuid(0),
+                    Type = (ContentType)reader.GetInt32(1),
+                    Name = reader.GetString(2),
+                    IsMajorReform = !reader.IsDBNull(6) && reader.GetBoolean(6),
+                    NobilityEstateName = reader.IsDBNull(7) ? string.Empty : reader.GetString(7),
+                    BurghersEstateName = reader.IsDBNull(8) ? string.Empty : reader.GetString(8),
+                    ClergyEstateName = reader.IsDBNull(9) ? string.Empty : reader.GetString(9),
+                    PeasantsEstateName = reader.IsDBNull(10) ? string.Empty : reader.GetString(10),
+                    FoodConsumptionPerThousand = reader.IsDBNull(11) ? 0 : decimal.ToInt32(reader.GetDecimal(11)),
+                    AssimilationConversionSpeed = reader.IsDBNull(12) ? 0m : reader.GetDecimal(12),
+                    EstateClass = reader.IsDBNull(13) ? EstateClass.Upper : (EstateClass)reader.GetInt32(13),
+                    CanPromote = !reader.IsDBNull(14) && reader.GetBoolean(14),
+                    PromotionSpeed = reader.IsDBNull(15) ? 0m : reader.GetDecimal(15),
+                    MigrationSpeed = reader.IsDBNull(16) ? 0m : reader.GetDecimal(16),
+                    PrivilegeEstateTarget = reader.IsDBNull(17) ? PrivilegeEstateTarget.Nobles : (PrivilegeEstateTarget)reader.GetInt32(17),
+                    PrivilegeCustomEstateName = reader.IsDBNull(18) ? string.Empty : reader.GetString(18),
+                    SatisfactionBonusPercent = reader.IsDBNull(19) ? 0 : reader.GetInt32(19),
+                    EstatePowerPercent = reader.IsDBNull(20) ? 0 : reader.GetInt32(20),
+                    LawCategoryName = reader.IsDBNull(21) ? string.Empty : reader.GetString(21),
+                    LawSubcategoryName = reader.IsDBNull(22) ? string.Empty : reader.GetString(22),
+                    LawEstatePreferenceTarget = reader.IsDBNull(23) ? PrivilegeEstateTarget.Nobles : (PrivilegeEstateTarget)reader.GetInt32(23),
+                    LawCustomEstateName = reader.IsDBNull(24) ? string.Empty : reader.GetString(24),
+                    ValueLeftLabel = reader.IsDBNull(25) ? string.Empty : reader.GetString(25),
+                    ValueRightLabel = reader.IsDBNull(26) ? string.Empty : reader.GetString(26),
+                    BuildingConstructionScope = reader.IsDBNull(27) ? BuildingConstructionScope.AllLocations : (BuildingConstructionScope)reader.GetInt32(27),
+                    BuildingDucatCost = reader.IsDBNull(28) ? 0m : reader.GetDecimal(28),
+                    BuildingTimeMonths = reader.IsDBNull(29) ? 0 : reader.GetInt32(29),
+                    EventDescription = reader.IsDBNull(30) ? string.Empty : reader.GetString(30),
+                    EventYearStart = reader.IsDBNull(31) ? null : reader.GetInt32(31),
+                    EventYearEnd = reader.IsDBNull(32) ? null : reader.GetInt32(32),
+                    EventTriggerMode = reader.IsDBNull(33) ? EventTriggerMode.MonthlyChance : (EventTriggerMode)reader.GetInt32(33),
+                    EventScenarioName = reader.IsDBNull(34) ? string.Empty : reader.GetString(34),
+                    EventMonthlyChance = reader.IsDBNull(35) ? 0m : reader.GetDecimal(35)
+                };
+
+                if (!reader.IsDBNull(3))
+                {
+                    entry.Effects.Add(new ContentEffect
+                    {
+                        Label = reader.GetString(3),
+                        ValueType = EffectValueType.Numeric,
+                        NumericAmount = reader.IsDBNull(4) ? 0m : reader.GetDecimal(4),
+                        NumericUnit = reader.IsDBNull(5) ? ModifierUnit.Flat : (ModifierUnit)reader.GetInt32(5)
+                    });
+                }
+
+                data.ContentEntries.Add(entry);
+            }
+        }
+
+        using (var command = new NpgsqlCommand(
+                   """
+                   select id, content_entry_id, label, value_type, numeric_amount, numeric_unit, bool_value, value_side, sort_order
+                   from content_effects
+                   order by content_entry_id, sort_order, id;
+                   """,
+                   connection))
+        using (var reader = command.ExecuteReader())
+        {
+            var entriesById = data.ContentEntries.ToDictionary(entry => entry.Id);
+            while (reader.Read())
+            {
+                var contentEntryId = reader.GetGuid(1);
+                if (!entriesById.TryGetValue(contentEntryId, out var entry))
+                {
+                    continue;
+                }
+
+                if (entry.Effects.Count == 1 && string.IsNullOrWhiteSpace(entry.Effects[0].Label) == false)
+                {
+                    var legacy = entry.Effects[0];
+                    if (legacy.Label == reader.GetString(2))
+                    {
+                        entry.Effects.Clear();
+                    }
+                }
+
+                entry.Effects.Add(new ContentEffect
+                {
+                    Id = reader.GetGuid(0),
+                    Label = reader.GetString(2),
+                    ValueType = (EffectValueType)reader.GetInt32(3),
+                    NumericAmount = reader.IsDBNull(4) ? 0m : reader.GetDecimal(4),
+                    NumericUnit = reader.IsDBNull(5) ? ModifierUnit.Flat : (ModifierUnit)reader.GetInt32(5),
+                    BoolValue = !reader.IsDBNull(6) && reader.GetBoolean(6),
+                    Side = reader.IsDBNull(7) ? ValueEffectSide.Default : (ValueEffectSide)reader.GetInt32(7)
+                });
+            }
+        }
+
+        using (var command = new NpgsqlCommand(
+                   """
+                   select id, content_entry_id, resource_name, amount, sort_order
+                   from content_build_costs
+                   order by content_entry_id, sort_order, id;
+                   """,
+                   connection))
+        using (var reader = command.ExecuteReader())
+        {
+            var entriesById = data.ContentEntries.ToDictionary(entry => entry.Id);
+            while (reader.Read())
+            {
+                var contentEntryId = reader.GetGuid(1);
+                if (!entriesById.TryGetValue(contentEntryId, out var entry))
+                {
+                    continue;
+                }
+
+                entry.ConstructionCosts.Add(new ContentResourceAmount
+                {
+                    Id = reader.GetGuid(0),
+                    ResourceName = reader.GetString(2),
+                    Amount = reader.GetDecimal(3)
+                });
+            }
+        }
+
+        using (var command = new NpgsqlCommand(
+                   """
+                   select id, content_entry_id, name, sort_order
+                   from content_production_methods
+                   order by content_entry_id, sort_order, id;
+                   """,
+                   connection))
+        using (var reader = command.ExecuteReader())
+        {
+            var entriesById = data.ContentEntries.ToDictionary(entry => entry.Id);
+            while (reader.Read())
+            {
+                var contentEntryId = reader.GetGuid(1);
+                if (!entriesById.TryGetValue(contentEntryId, out var entry))
+                {
+                    continue;
+                }
+
+                entry.ProductionMethods.Add(new ContentProductionMethod
+                {
+                    Id = reader.GetGuid(0),
+                    Name = reader.GetString(2)
+                });
+            }
+        }
+
+        using (var command = new NpgsqlCommand(
+                   """
+                   select id, production_method_id, resource_name, amount, is_output, sort_order
+                   from content_production_resources
+                   order by production_method_id, is_output, sort_order, id;
+                   """,
+                   connection))
+        using (var reader = command.ExecuteReader())
+        {
+            var methodsById = data.ContentEntries
+                .SelectMany(entry => entry.ProductionMethods)
+                .ToDictionary(method => method.Id);
+            while (reader.Read())
+            {
+                var methodId = reader.GetGuid(1);
+                if (!methodsById.TryGetValue(methodId, out var method))
+                {
+                    continue;
+                }
+
+                var resource = new ContentResourceAmount
+                {
+                    Id = reader.GetGuid(0),
+                    ResourceName = reader.GetString(2),
+                    Amount = reader.GetDecimal(3)
+                };
+
+                if (!reader.IsDBNull(4) && reader.GetBoolean(4))
+                {
+                    method.Outputs.Add(resource);
+                }
+                else
+                {
+                    method.Inputs.Add(resource);
+                }
+            }
+        }
+
+        using (var command = new NpgsqlCommand(
+                   """
+                   select id, content_entry_id, expression, sort_order
+                   from content_event_requirements
+                   order by content_entry_id, sort_order, id;
+                   """,
+                   connection))
+        using (var reader = command.ExecuteReader())
+        {
+            var entriesById = data.ContentEntries.ToDictionary(entry => entry.Id);
+            while (reader.Read())
+            {
+                var contentEntryId = reader.GetGuid(1);
+                if (!entriesById.TryGetValue(contentEntryId, out var entry))
+                {
+                    continue;
+                }
+
+                entry.EventRequirements.Add(ParseStoredEventRequirement(reader.GetGuid(0), reader.GetString(2)));
+            }
+        }
+
+        using (var command = new NpgsqlCommand(
+                   """
+                   select id, content_entry_id, option_text, sort_order
+                   from content_event_options
+                   order by content_entry_id, sort_order, id;
+                   """,
+                   connection))
+        using (var reader = command.ExecuteReader())
+        {
+            var entriesById = data.ContentEntries.ToDictionary(entry => entry.Id);
+            while (reader.Read())
+            {
+                var contentEntryId = reader.GetGuid(1);
+                if (!entriesById.TryGetValue(contentEntryId, out var entry))
+                {
+                    continue;
+                }
+
+                entry.EventOptions.Add(new EventOption
+                {
+                    Id = reader.GetGuid(0),
+                    Text = reader.GetString(2)
+                });
+            }
+        }
+
+        using (var command = new NpgsqlCommand(
+                   """
+                   select id, event_option_id, label, value_type, numeric_amount, numeric_unit, bool_value, sort_order
+                   from content_event_option_effects
+                   order by event_option_id, sort_order, id;
+                   """,
+                   connection))
+        using (var reader = command.ExecuteReader())
+        {
+            var optionsById = data.ContentEntries
+                .SelectMany(entry => entry.EventOptions)
+                .ToDictionary(option => option.Id);
+            while (reader.Read())
+            {
+                var eventOptionId = reader.GetGuid(1);
+                if (!optionsById.TryGetValue(eventOptionId, out var option))
+                {
+                    continue;
+                }
+
+                option.Effects.Add(new ContentEffect
+                {
+                    Id = reader.GetGuid(0),
+                    Label = reader.GetString(2),
+                    ValueType = (EffectValueType)reader.GetInt32(3),
+                    NumericAmount = reader.IsDBNull(4) ? 0m : reader.GetDecimal(4),
+                    NumericUnit = reader.IsDBNull(5) ? ModifierUnit.Flat : (ModifierUnit)reader.GetInt32(5),
+                    BoolValue = !reader.IsDBNull(6) && reader.GetBoolean(6)
+                });
+            }
+        }
+
+        using (var command = new NpgsqlCommand(
+                   """
+                   select content_entry_id, required_content_entry_id, sort_order
+                   from content_event_prerequisites
+                   order by content_entry_id, sort_order, required_content_entry_id;
+                   """,
+                   connection))
+        using (var reader = command.ExecuteReader())
+        {
+            var entriesById = data.ContentEntries.ToDictionary(entry => entry.Id);
+            while (reader.Read())
+            {
+                var contentEntryId = reader.GetGuid(0);
+                var requiredContentEntryId = reader.GetGuid(1);
+                if (!entriesById.TryGetValue(contentEntryId, out var entry) || !entriesById.TryGetValue(requiredContentEntryId, out var prerequisiteEntry))
+                {
+                    continue;
+                }
+
+                entry.EventPrerequisites.Add(new EventPrerequisiteLink
+                {
+                    RequiredEventId = requiredContentEntryId,
+                    RequiredEventName = prerequisiteEntry.Name
+                });
+            }
+        }
+
+        using (var command = new NpgsqlCommand(
+                   """
+                   select country_id, content_entry_id
+                   from country_content_entries;
+                   """,
+                   connection))
+        using (var reader = command.ExecuteReader())
+        {
+            var countriesById = data.Countries.ToDictionary(country => country.Id);
+            while (reader.Read())
+            {
+                var countryId = reader.GetGuid(0);
+                var contentEntryId = reader.GetGuid(1);
+                if (countriesById.TryGetValue(countryId, out var country))
+                {
+                    country.ContentEntryIds.Add(contentEntryId);
+                }
+            }
+        }
+
+        return data;
+    }
+
+    public Country AddCountry(Country country)
+    {
+        using var connection = OpenConnection();
+        using var command = new NpgsqlCommand(
+            """
+            insert into countries (id, name, tag)
+            values (@id, @name, @tag);
+            """,
+            connection);
+
+        command.Parameters.AddWithValue("id", country.Id);
+        command.Parameters.AddWithValue("name", country.Name);
+        command.Parameters.AddWithValue("tag", country.Tag);
+        command.ExecuteNonQuery();
+
+        return country;
+    }
+
+    public ContentEntry AddContentEntry(ContentEntry entry)
+    {
+        using var connection = OpenConnection();
+        using var transaction = connection.BeginTransaction();
+
+        InsertContentEntry(entry, connection, transaction);
+        InsertEffects(entry, connection, transaction);
+        InsertConstructionCosts(entry, connection, transaction);
+        InsertProductionMethods(entry, connection, transaction);
+        InsertEventRequirements(entry, connection, transaction);
+        InsertEventOptions(entry, connection, transaction);
+        InsertEventPrerequisites(entry, connection, transaction);
+
+        transaction.Commit();
+        return entry;
+    }
+
+    public ContentEntry UpdateContentEntry(ContentEntry entry)
+    {
+        using var connection = OpenConnection();
+        using var transaction = connection.BeginTransaction();
+
+        using (var deleteEffectsCommand = new NpgsqlCommand("delete from content_effects where content_entry_id = @contentEntryId;", connection, transaction))
+        {
+            deleteEffectsCommand.Parameters.AddWithValue("contentEntryId", entry.Id);
+            deleteEffectsCommand.ExecuteNonQuery();
+        }
+
+        using (var deleteBuildCostsCommand = new NpgsqlCommand("delete from content_build_costs where content_entry_id = @contentEntryId;", connection, transaction))
+        {
+            deleteBuildCostsCommand.Parameters.AddWithValue("contentEntryId", entry.Id);
+            deleteBuildCostsCommand.ExecuteNonQuery();
+        }
+
+        using (var deleteProductionMethodsCommand = new NpgsqlCommand("delete from content_production_methods where content_entry_id = @contentEntryId;", connection, transaction))
+        {
+            deleteProductionMethodsCommand.Parameters.AddWithValue("contentEntryId", entry.Id);
+            deleteProductionMethodsCommand.ExecuteNonQuery();
+        }
+
+        using (var deleteEventRequirementsCommand = new NpgsqlCommand("delete from content_event_requirements where content_entry_id = @contentEntryId;", connection, transaction))
+        {
+            deleteEventRequirementsCommand.Parameters.AddWithValue("contentEntryId", entry.Id);
+            deleteEventRequirementsCommand.ExecuteNonQuery();
+        }
+
+        using (var deleteEventOptionsCommand = new NpgsqlCommand("delete from content_event_options where content_entry_id = @contentEntryId;", connection, transaction))
+        {
+            deleteEventOptionsCommand.Parameters.AddWithValue("contentEntryId", entry.Id);
+            deleteEventOptionsCommand.ExecuteNonQuery();
+        }
+
+        using (var deleteEventPrerequisitesCommand = new NpgsqlCommand("delete from content_event_prerequisites where content_entry_id = @contentEntryId;", connection, transaction))
+        {
+            deleteEventPrerequisitesCommand.Parameters.AddWithValue("contentEntryId", entry.Id);
+            deleteEventPrerequisitesCommand.ExecuteNonQuery();
+        }
+
+        using (var updateCommand = new NpgsqlCommand(
+                   """
+                   update content_entries
+                   set type = @type,
+                       name = @name,
+                       is_major_reform = @isMajorReform,
+                       nobility_estate_name = @nobilityEstateName,
+                       burghers_estate_name = @burghersEstateName,
+                       clergy_estate_name = @clergyEstateName,
+                       peasants_estate_name = @peasantsEstateName,
+                       food_consumption_per_thousand = @foodConsumptionPerThousand,
+                       assimilation_conversion_speed = @assimilationConversionSpeed,
+                       estate_class = @estateClass,
+                       can_promote = @canPromote,
+                       promotion_speed = @promotionSpeed,
+                       migration_speed = @migrationSpeed,
+                       privilege_estate_target = @privilegeEstateTarget,
+                       privilege_custom_estate_name = @privilegeCustomEstateName,
+                       satisfaction_bonus_percent = @satisfactionBonusPercent,
+                       estate_power_percent = @estatePowerPercent,
+                       law_category_name = @lawCategoryName,
+                       law_subcategory_name = @lawSubcategoryName,
+                       law_estate_preference_target = @lawEstatePreferenceTarget,
+                       law_custom_estate_name = @lawCustomEstateName,
+                       value_left_label = @valueLeftLabel,
+                       value_right_label = @valueRightLabel,
+                       building_construction_scope = @buildingConstructionScope,
+                       building_ducat_cost = @buildingDucatCost,
+                       building_time_months = @buildingTimeMonths,
+                       event_description = @eventDescription,
+                       event_year_start = @eventYearStart,
+                       event_year_end = @eventYearEnd,
+                       event_trigger_mode = @eventTriggerMode,
+                       event_scenario_name = @eventScenarioName,
+                       event_monthly_chance = @eventMonthlyChance
+                   where id = @id;
+                   """,
+                   connection,
+                   transaction))
+        {
+            AddContentEntryParameters(updateCommand, entry);
+            updateCommand.ExecuteNonQuery();
+        }
+
+        InsertEffects(entry, connection, transaction);
+        InsertConstructionCosts(entry, connection, transaction);
+        InsertProductionMethods(entry, connection, transaction);
+        InsertEventRequirements(entry, connection, transaction);
+        InsertEventOptions(entry, connection, transaction);
+        InsertEventPrerequisites(entry, connection, transaction);
+
+        transaction.Commit();
+        return entry;
+    }
+
+    public bool DeleteContentEntry(Guid id)
+    {
+        using var connection = OpenConnection();
+        using var command = new NpgsqlCommand("delete from content_entries where id = @id;", connection);
+        command.Parameters.AddWithValue("id", id);
+        return command.ExecuteNonQuery() > 0;
+    }
+
+    public bool AssignContentToCountry(Guid countryId, Guid contentEntryId)
+    {
+        using var connection = OpenConnection();
+        using var command = new NpgsqlCommand(
+            """
+            insert into country_content_entries (country_id, content_entry_id)
+            values (@countryId, @contentEntryId)
+            on conflict do nothing;
+            """,
+            connection);
+
+        command.Parameters.AddWithValue("countryId", countryId);
+        command.Parameters.AddWithValue("contentEntryId", contentEntryId);
+        return command.ExecuteNonQuery() > 0;
+    }
+
+    private void EnsureSchema()
+    {
+        using var connection = OpenConnection();
+        using var command = new NpgsqlCommand(
+            """
+            create table if not exists countries (
+                id uuid primary key,
+                name varchar(80) not null,
+                tag varchar(12) not null
+            );
+
+            alter table countries add column if not exists name varchar(80);
+            alter table countries add column if not exists tag varchar(12);
+
+            create table if not exists content_entries (
+                id uuid primary key,
+                type integer not null,
+                name varchar(100) not null
+            );
+
+            alter table content_entries add column if not exists modifier_key varchar(100);
+            alter table content_entries add column if not exists modifier_amount numeric(12,2);
+            alter table content_entries add column if not exists modifier_unit integer not null default 0;
+            alter table content_entries add column if not exists is_major_reform boolean not null default false;
+            alter table content_entries add column if not exists nobility_estate_name varchar(80);
+            alter table content_entries add column if not exists burghers_estate_name varchar(80);
+            alter table content_entries add column if not exists clergy_estate_name varchar(80);
+            alter table content_entries add column if not exists peasants_estate_name varchar(80);
+            alter table content_entries add column if not exists food_consumption_per_thousand numeric(12,2) not null default 0;
+            alter table content_entries add column if not exists assimilation_speed numeric(5,2) not null default 0;
+            alter table content_entries add column if not exists conversion_speed numeric(5,2) not null default 0;
+            alter table content_entries add column if not exists assimilation_conversion_speed numeric(5,2) not null default 0;
+            alter table content_entries add column if not exists estate_class integer not null default 0;
+            alter table content_entries add column if not exists can_promote boolean not null default false;
+            alter table content_entries add column if not exists promotion_speed numeric(12,2) not null default 0;
+            alter table content_entries add column if not exists migration_speed numeric(12,2) not null default 0;
+            alter table content_entries add column if not exists privilege_estate_target integer not null default 0;
+            alter table content_entries add column if not exists privilege_custom_estate_name varchar(100);
+            alter table content_entries add column if not exists satisfaction_bonus_percent integer not null default 0;
+            alter table content_entries add column if not exists estate_power_percent integer not null default 0;
+            alter table content_entries add column if not exists law_category_name varchar(100);
+            alter table content_entries add column if not exists law_subcategory_name varchar(150);
+            alter table content_entries add column if not exists law_estate_preference_target integer not null default 0;
+            alter table content_entries add column if not exists law_custom_estate_name varchar(100);
+            alter table content_entries add column if not exists value_left_label varchar(100);
+            alter table content_entries add column if not exists value_right_label varchar(100);
+            alter table content_entries add column if not exists building_construction_scope integer not null default 0;
+            alter table content_entries add column if not exists building_ducat_cost numeric(12,2) not null default 0;
+            alter table content_entries add column if not exists building_time_months integer not null default 0;
+            alter table content_entries add column if not exists event_description varchar(4000);
+            alter table content_entries add column if not exists event_year_start integer;
+            alter table content_entries add column if not exists event_year_end integer;
+            alter table content_entries add column if not exists event_trigger_mode integer not null default 0;
+            alter table content_entries add column if not exists event_scenario_name varchar(150);
+            alter table content_entries add column if not exists event_monthly_chance numeric(7,2) not null default 0;
+
+            update content_entries
+            set assimilation_conversion_speed = greatest(coalesce(assimilation_speed, 0), coalesce(conversion_speed, 0))
+            where assimilation_conversion_speed = 0
+              and (coalesce(assimilation_speed, 0) <> 0 or coalesce(conversion_speed, 0) <> 0);
+
+            create table if not exists content_effects (
+                id uuid primary key,
+                content_entry_id uuid not null references content_entries(id) on delete cascade,
+                label varchar(120) not null,
+                value_type integer not null default 0,
+                numeric_amount numeric(12,2),
+                numeric_unit integer not null default 0,
+                bool_value boolean not null default false,
+                value_side integer not null default 0,
+                sort_order integer not null default 0
+            );
+
+            alter table content_effects add column if not exists value_side integer not null default 0;
+
+            create table if not exists country_content_entries (
+                country_id uuid not null references countries(id) on delete cascade,
+                content_entry_id uuid not null references content_entries(id) on delete cascade,
+                primary key (country_id, content_entry_id)
+            );
+
+            create table if not exists content_build_costs (
+                id uuid primary key,
+                content_entry_id uuid not null references content_entries(id) on delete cascade,
+                resource_name varchar(120) not null,
+                amount numeric(12,2) not null,
+                sort_order integer not null default 0
+            );
+
+            create table if not exists content_production_methods (
+                id uuid primary key,
+                content_entry_id uuid not null references content_entries(id) on delete cascade,
+                name varchar(120) not null,
+                sort_order integer not null default 0
+            );
+
+            create table if not exists content_production_resources (
+                id uuid primary key,
+                production_method_id uuid not null references content_production_methods(id) on delete cascade,
+                resource_name varchar(120) not null,
+                amount numeric(12,2) not null,
+                is_output boolean not null default false,
+                sort_order integer not null default 0
+            );
+
+            create table if not exists content_event_requirements (
+                id uuid primary key,
+                content_entry_id uuid not null references content_entries(id) on delete cascade,
+                expression varchar(200) not null,
+                sort_order integer not null default 0
+            );
+
+            create table if not exists content_event_options (
+                id uuid primary key,
+                content_entry_id uuid not null references content_entries(id) on delete cascade,
+                option_text varchar(250) not null,
+                sort_order integer not null default 0
+            );
+
+            create table if not exists content_event_option_effects (
+                id uuid primary key,
+                event_option_id uuid not null references content_event_options(id) on delete cascade,
+                label varchar(120) not null,
+                value_type integer not null default 0,
+                numeric_amount numeric(12,2),
+                numeric_unit integer not null default 0,
+                bool_value boolean not null default false,
+                sort_order integer not null default 0
+            );
+
+            create table if not exists content_event_prerequisites (
+                content_entry_id uuid not null references content_entries(id) on delete cascade,
+                required_content_entry_id uuid not null references content_entries(id) on delete cascade,
+                sort_order integer not null default 0,
+                primary key (content_entry_id, required_content_entry_id)
+            );
+            """,
+            connection);
+
+        command.ExecuteNonQuery();
+    }
+
+    private NpgsqlConnection OpenConnection()
+    {
+        var connection = new NpgsqlConnection(_connectionString);
+        connection.Open();
+        return connection;
+    }
+
+    private static void InsertContentEntry(ContentEntry entry, NpgsqlConnection connection, NpgsqlTransaction transaction)
+    {
+        using var command = new NpgsqlCommand(
+            """
+            insert into content_entries (
+                id, type, name, is_major_reform,
+                nobility_estate_name, burghers_estate_name, clergy_estate_name, peasants_estate_name,
+                food_consumption_per_thousand, assimilation_conversion_speed,
+                estate_class, can_promote, promotion_speed, migration_speed,
+                privilege_estate_target, privilege_custom_estate_name, satisfaction_bonus_percent, estate_power_percent,
+                law_category_name, law_subcategory_name, law_estate_preference_target, law_custom_estate_name,
+                value_left_label, value_right_label,
+                building_construction_scope, building_ducat_cost, building_time_months,
+                event_description, event_year_start, event_year_end, event_trigger_mode, event_scenario_name, event_monthly_chance)
+            values (
+                @id, @type, @name, @isMajorReform,
+                @nobilityEstateName, @burghersEstateName, @clergyEstateName, @peasantsEstateName,
+                @foodConsumptionPerThousand, @assimilationConversionSpeed,
+                @estateClass, @canPromote, @promotionSpeed, @migrationSpeed,
+                @privilegeEstateTarget, @privilegeCustomEstateName, @satisfactionBonusPercent, @estatePowerPercent,
+                @lawCategoryName, @lawSubcategoryName, @lawEstatePreferenceTarget, @lawCustomEstateName,
+                @valueLeftLabel, @valueRightLabel,
+                @buildingConstructionScope, @buildingDucatCost, @buildingTimeMonths,
+                @eventDescription, @eventYearStart, @eventYearEnd, @eventTriggerMode, @eventScenarioName, @eventMonthlyChance);
+            """,
+            connection,
+            transaction);
+
+        AddContentEntryParameters(command, entry);
+        command.ExecuteNonQuery();
+    }
+
+    private static void InsertEffects(ContentEntry entry, NpgsqlConnection connection, NpgsqlTransaction transaction)
+    {
+        for (var index = 0; index < entry.Effects.Count; index++)
+        {
+            var effect = entry.Effects[index];
+            using var command = new NpgsqlCommand(
+                """
+                insert into content_effects (id, content_entry_id, label, value_type, numeric_amount, numeric_unit, bool_value, value_side, sort_order)
+                values (@id, @contentEntryId, @label, @valueType, @numericAmount, @numericUnit, @boolValue, @valueSide, @sortOrder);
+                """,
+                connection,
+                transaction);
+
+            command.Parameters.AddWithValue("id", effect.Id);
+            command.Parameters.AddWithValue("contentEntryId", entry.Id);
+            command.Parameters.AddWithValue("label", effect.Label);
+            command.Parameters.AddWithValue("valueType", (int)effect.ValueType);
+            command.Parameters.AddWithValue("numericAmount", effect.NumericAmount);
+            command.Parameters.AddWithValue("numericUnit", (int)effect.NumericUnit);
+            command.Parameters.AddWithValue("boolValue", effect.BoolValue);
+            command.Parameters.AddWithValue("valueSide", (int)effect.Side);
+            command.Parameters.AddWithValue("sortOrder", index);
+            command.ExecuteNonQuery();
+        }
+    }
+
+    private static void InsertConstructionCosts(ContentEntry entry, NpgsqlConnection connection, NpgsqlTransaction transaction)
+    {
+        for (var index = 0; index < entry.ConstructionCosts.Count; index++)
+        {
+            var cost = entry.ConstructionCosts[index];
+            using var command = new NpgsqlCommand(
+                """
+                insert into content_build_costs (id, content_entry_id, resource_name, amount, sort_order)
+                values (@id, @contentEntryId, @resourceName, @amount, @sortOrder);
+                """,
+                connection,
+                transaction);
+
+            command.Parameters.AddWithValue("id", cost.Id);
+            command.Parameters.AddWithValue("contentEntryId", entry.Id);
+            command.Parameters.AddWithValue("resourceName", cost.ResourceName);
+            command.Parameters.AddWithValue("amount", cost.Amount);
+            command.Parameters.AddWithValue("sortOrder", index);
+            command.ExecuteNonQuery();
+        }
+    }
+
+    private static void InsertProductionMethods(ContentEntry entry, NpgsqlConnection connection, NpgsqlTransaction transaction)
+    {
+        for (var methodIndex = 0; methodIndex < entry.ProductionMethods.Count; methodIndex++)
+        {
+            var method = entry.ProductionMethods[methodIndex];
+            using (var methodCommand = new NpgsqlCommand(
+                       """
+                       insert into content_production_methods (id, content_entry_id, name, sort_order)
+                       values (@id, @contentEntryId, @name, @sortOrder);
+                       """,
+                       connection,
+                       transaction))
+            {
+                methodCommand.Parameters.AddWithValue("id", method.Id);
+                methodCommand.Parameters.AddWithValue("contentEntryId", entry.Id);
+                methodCommand.Parameters.AddWithValue("name", method.Name);
+                methodCommand.Parameters.AddWithValue("sortOrder", methodIndex);
+                methodCommand.ExecuteNonQuery();
+            }
+
+            InsertProductionResources(method, method.Inputs, false, connection, transaction);
+            InsertProductionResources(method, method.Outputs, true, connection, transaction);
+        }
+    }
+
+    private static void InsertProductionResources(ContentProductionMethod method, IReadOnlyList<ContentResourceAmount> resources, bool isOutput, NpgsqlConnection connection, NpgsqlTransaction transaction)
+    {
+        for (var resourceIndex = 0; resourceIndex < resources.Count; resourceIndex++)
+        {
+            var resource = resources[resourceIndex];
+            using var command = new NpgsqlCommand(
+                """
+                insert into content_production_resources (id, production_method_id, resource_name, amount, is_output, sort_order)
+                values (@id, @productionMethodId, @resourceName, @amount, @isOutput, @sortOrder);
+                """,
+                connection,
+                transaction);
+
+            command.Parameters.AddWithValue("id", resource.Id);
+            command.Parameters.AddWithValue("productionMethodId", method.Id);
+            command.Parameters.AddWithValue("resourceName", resource.ResourceName);
+            command.Parameters.AddWithValue("amount", resource.Amount);
+            command.Parameters.AddWithValue("isOutput", isOutput);
+            command.Parameters.AddWithValue("sortOrder", resourceIndex);
+            command.ExecuteNonQuery();
+        }
+    }
+
+    private static void InsertEventRequirements(ContentEntry entry, NpgsqlConnection connection, NpgsqlTransaction transaction)
+    {
+        for (var index = 0; index < entry.EventRequirements.Count; index++)
+        {
+            var requirement = entry.EventRequirements[index];
+            using var command = new NpgsqlCommand(
+                """
+                insert into content_event_requirements (id, content_entry_id, expression, sort_order)
+                values (@id, @contentEntryId, @expression, @sortOrder);
+                """,
+                connection,
+                transaction);
+
+            command.Parameters.AddWithValue("id", requirement.Id);
+            command.Parameters.AddWithValue("contentEntryId", entry.Id);
+            command.Parameters.AddWithValue("expression", SerializeStoredEventRequirement(requirement));
+            command.Parameters.AddWithValue("sortOrder", index);
+            command.ExecuteNonQuery();
+        }
+    }
+
+    private static EventRequirement ParseStoredEventRequirement(Guid id, string storedValue)
+    {
+        if (storedValue.StartsWith(EventRequirementJsonPrefix, StringComparison.Ordinal))
+        {
+            try
+            {
+                var parsed = JsonSerializer.Deserialize<EventRequirement>(
+                    storedValue[EventRequirementJsonPrefix.Length..],
+                    EventRequirementJsonOptions);
+
+                return NormalizeStoredRequirement(parsed, id);
+            }
+            catch (JsonException)
+            {
+            }
+        }
+
+        return new EventRequirement
+        {
+            Id = id,
+            NodeType = EventRequirementNodeType.Condition,
+            Expression = storedValue
+        };
+    }
+
+    private static EventRequirement NormalizeStoredRequirement(EventRequirement? requirement, Guid fallbackId)
+    {
+        if (requirement is null)
+        {
+            return new EventRequirement
+            {
+                Id = fallbackId,
+                NodeType = EventRequirementNodeType.Condition,
+                Expression = string.Empty
+            };
+        }
+
+        if (requirement.NodeType == EventRequirementNodeType.Group)
+        {
+            return new EventRequirement
+            {
+                Id = requirement.Id == Guid.Empty ? fallbackId : requirement.Id,
+                NodeType = EventRequirementNodeType.Group,
+                GroupOperator = requirement.GroupOperator,
+                Children = (requirement.Children ?? [])
+                    .Select(child => NormalizeStoredRequirement(child, child.Id == Guid.Empty ? Guid.NewGuid() : child.Id))
+                    .ToList()
+            };
+        }
+
+        return new EventRequirement
+        {
+            Id = requirement.Id == Guid.Empty ? fallbackId : requirement.Id,
+            NodeType = EventRequirementNodeType.Condition,
+            Expression = requirement.Expression ?? string.Empty
+        };
+    }
+
+    private static string SerializeStoredEventRequirement(EventRequirement requirement)
+    {
+        if (requirement.NodeType == EventRequirementNodeType.Condition && requirement.Children.Count == 0)
+        {
+            return requirement.Expression;
+        }
+
+        return $"{EventRequirementJsonPrefix}{JsonSerializer.Serialize(requirement, EventRequirementJsonOptions)}";
+    }
+
+    private static void InsertEventOptions(ContentEntry entry, NpgsqlConnection connection, NpgsqlTransaction transaction)
+    {
+        for (var optionIndex = 0; optionIndex < entry.EventOptions.Count; optionIndex++)
+        {
+            var option = entry.EventOptions[optionIndex];
+            using (var optionCommand = new NpgsqlCommand(
+                       """
+                       insert into content_event_options (id, content_entry_id, option_text, sort_order)
+                       values (@id, @contentEntryId, @optionText, @sortOrder);
+                       """,
+                       connection,
+                       transaction))
+            {
+                optionCommand.Parameters.AddWithValue("id", option.Id);
+                optionCommand.Parameters.AddWithValue("contentEntryId", entry.Id);
+                optionCommand.Parameters.AddWithValue("optionText", option.Text);
+                optionCommand.Parameters.AddWithValue("sortOrder", optionIndex);
+                optionCommand.ExecuteNonQuery();
+            }
+
+            for (var effectIndex = 0; effectIndex < option.Effects.Count; effectIndex++)
+            {
+                var effect = option.Effects[effectIndex];
+                using var effectCommand = new NpgsqlCommand(
+                    """
+                    insert into content_event_option_effects (id, event_option_id, label, value_type, numeric_amount, numeric_unit, bool_value, sort_order)
+                    values (@id, @eventOptionId, @label, @valueType, @numericAmount, @numericUnit, @boolValue, @sortOrder);
+                    """,
+                    connection,
+                    transaction);
+
+                effectCommand.Parameters.AddWithValue("id", effect.Id);
+                effectCommand.Parameters.AddWithValue("eventOptionId", option.Id);
+                effectCommand.Parameters.AddWithValue("label", effect.Label);
+                effectCommand.Parameters.AddWithValue("valueType", (int)effect.ValueType);
+                effectCommand.Parameters.AddWithValue("numericAmount", effect.NumericAmount);
+                effectCommand.Parameters.AddWithValue("numericUnit", (int)effect.NumericUnit);
+                effectCommand.Parameters.AddWithValue("boolValue", effect.BoolValue);
+                effectCommand.Parameters.AddWithValue("sortOrder", effectIndex);
+                effectCommand.ExecuteNonQuery();
+            }
+        }
+    }
+
+    private static void InsertEventPrerequisites(ContentEntry entry, NpgsqlConnection connection, NpgsqlTransaction transaction)
+    {
+        for (var index = 0; index < entry.EventPrerequisites.Count; index++)
+        {
+            var prerequisite = entry.EventPrerequisites[index];
+            using var command = new NpgsqlCommand(
+                """
+                insert into content_event_prerequisites (content_entry_id, required_content_entry_id, sort_order)
+                values (@contentEntryId, @requiredContentEntryId, @sortOrder)
+                on conflict do nothing;
+                """,
+                connection,
+                transaction);
+
+            command.Parameters.AddWithValue("contentEntryId", entry.Id);
+            command.Parameters.AddWithValue("requiredContentEntryId", prerequisite.RequiredEventId);
+            command.Parameters.AddWithValue("sortOrder", index);
+            command.ExecuteNonQuery();
+        }
+    }
+
+    private static void AddContentEntryParameters(NpgsqlCommand command, ContentEntry entry)
+    {
+        command.Parameters.AddWithValue("id", entry.Id);
+        command.Parameters.AddWithValue("type", (int)entry.Type);
+        command.Parameters.AddWithValue("name", entry.Name);
+        command.Parameters.AddWithValue("isMajorReform", entry.IsMajorReform);
+        command.Parameters.AddWithValue("nobilityEstateName", ToDbValue(entry.NobilityEstateName));
+        command.Parameters.AddWithValue("burghersEstateName", ToDbValue(entry.BurghersEstateName));
+        command.Parameters.AddWithValue("clergyEstateName", ToDbValue(entry.ClergyEstateName));
+        command.Parameters.AddWithValue("peasantsEstateName", ToDbValue(entry.PeasantsEstateName));
+        command.Parameters.AddWithValue("foodConsumptionPerThousand", entry.FoodConsumptionPerThousand);
+        command.Parameters.AddWithValue("assimilationConversionSpeed", entry.AssimilationConversionSpeed);
+        command.Parameters.AddWithValue("estateClass", (int)entry.EstateClass);
+        command.Parameters.AddWithValue("canPromote", entry.CanPromote);
+        command.Parameters.AddWithValue("promotionSpeed", entry.PromotionSpeed);
+        command.Parameters.AddWithValue("migrationSpeed", entry.MigrationSpeed);
+        command.Parameters.AddWithValue("privilegeEstateTarget", (int)entry.PrivilegeEstateTarget);
+        command.Parameters.AddWithValue("privilegeCustomEstateName", ToDbValue(entry.PrivilegeCustomEstateName));
+        command.Parameters.AddWithValue("satisfactionBonusPercent", entry.SatisfactionBonusPercent);
+        command.Parameters.AddWithValue("estatePowerPercent", entry.EstatePowerPercent);
+        command.Parameters.AddWithValue("lawCategoryName", ToDbValue(entry.LawCategoryName));
+        command.Parameters.AddWithValue("lawSubcategoryName", ToDbValue(entry.LawSubcategoryName));
+        command.Parameters.AddWithValue("lawEstatePreferenceTarget", (int)entry.LawEstatePreferenceTarget);
+        command.Parameters.AddWithValue("lawCustomEstateName", ToDbValue(entry.LawCustomEstateName));
+        command.Parameters.AddWithValue("valueLeftLabel", ToDbValue(entry.ValueLeftLabel));
+        command.Parameters.AddWithValue("valueRightLabel", ToDbValue(entry.ValueRightLabel));
+        command.Parameters.AddWithValue("buildingConstructionScope", (int)entry.BuildingConstructionScope);
+        command.Parameters.AddWithValue("buildingDucatCost", entry.BuildingDucatCost);
+        command.Parameters.AddWithValue("buildingTimeMonths", entry.BuildingTimeMonths);
+        command.Parameters.AddWithValue("eventDescription", ToDbValue(entry.EventDescription));
+        command.Parameters.AddWithValue("eventYearStart", entry.EventYearStart.HasValue ? entry.EventYearStart.Value : DBNull.Value);
+        command.Parameters.AddWithValue("eventYearEnd", entry.EventYearEnd.HasValue ? entry.EventYearEnd.Value : DBNull.Value);
+        command.Parameters.AddWithValue("eventTriggerMode", (int)entry.EventTriggerMode);
+        command.Parameters.AddWithValue("eventScenarioName", ToDbValue(entry.EventScenarioName));
+        command.Parameters.AddWithValue("eventMonthlyChance", entry.EventMonthlyChance);
+    }
+
+    private static object ToDbValue(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? DBNull.Value : value;
+}

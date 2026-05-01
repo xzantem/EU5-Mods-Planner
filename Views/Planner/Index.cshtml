@@ -1,0 +1,1237 @@
+@model Eu5ModPlanner.Models.PlannerIndexViewModel
+@{
+    ViewData["Title"] = "Planner";
+    var availableCustomEstates = Model.SelectedCountryContent
+        .Where(entry => entry.Type == Eu5ModPlanner.Models.ContentType.CustomEstate)
+        .Select(entry => entry.Name)
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(name => name)
+        .ToList();
+    var availableEventEntries = Model.SelectedCountryContent
+        .Where(entry => entry.Type == Eu5ModPlanner.Models.ContentType.Event)
+        .OrderBy(entry => entry.Name)
+        .ToList();
+}
+
+<section class="planner-shell">
+    <aside class="planner-pane pane-countries">
+        <div class="pane-header">
+            <div>
+                <p class="pane-kicker" data-i18n="countries-kicker">Countries</p>
+                <h1 data-i18n="countries-title">Available tags</h1>
+            </div>
+            <button type="button" class="icon-button" data-bs-toggle="modal" data-bs-target="#addCountryModal" aria-label="Add country">
+                +
+            </button>
+        </div>
+
+        @if (Model.Countries.Count == 0)
+        {
+            <div class="empty-panel">
+                <p data-i18n="countries-empty">No countries yet. Add your first tag to begin.</p>
+            </div>
+        }
+        else
+        {
+            <div class="country-stack">
+                @foreach (var country in Model.Countries)
+                {
+                    var isSelected = Model.SelectedCountry?.Id == country.Id;
+                    <a class="country-tile @(isSelected ? "is-selected" : null)"
+                       asp-action="Index"
+                       asp-route-countryId="@country.Id">
+                        <div class="country-tag">@country.Tag</div>
+                        <div class="country-copy">
+                            <strong>@country.Name</strong>
+                            <span>@country.ContentEntryIds.Count <span data-i18n="content-label-inline">entries</span></span>
+                        </div>
+                    </a>
+                }
+            </div>
+        }
+    </aside>
+
+    <section class="planner-pane pane-content">
+        <div class="pane-header">
+            <div>
+                <p class="pane-kicker" data-i18n="content-kicker">Country content</p>
+                <h2>
+                    @if (Model.SelectedCountry is null)
+                    {
+                        <span data-i18n="content-title-empty">Pick a country</span>
+                    }
+                    else
+                    {
+                        <span>@Model.SelectedCountry.Tag</span>
+                    }
+                </h2>
+            </div>
+            <button type="button"
+                    class="material-button primary-button"
+                    data-bs-toggle="modal"
+                    data-bs-target="#addContentModal"
+                    data-add-content-button
+                    disabled="@(Model.SelectedCountry is null)">
+                <span data-i18n="add-content">Add content</span>
+            </button>
+        </div>
+
+        @if (Model.SelectedCountry is null)
+        {
+            <div class="empty-panel">
+                <p data-i18n="select-country-empty">Create or select a country to manage its unique content.</p>
+            </div>
+        }
+        else if (Model.SelectedCountryContent.Count == 0)
+        {
+            <div class="empty-panel">
+                <p data-i18n="content-empty">This country has no unique content yet.</p>
+            </div>
+        }
+        else
+        {
+            <div class="content-stack">
+                @foreach (var item in Model.SelectedCountryContent)
+                {
+                    var isSelected = Model.SelectedContent?.Id == item.Id;
+                    <a class="content-tile @(isSelected ? "is-selected" : null)"
+                       asp-action="Index"
+                       asp-route-countryId="@Model.SelectedCountry.Id"
+                       asp-route-contentId="@item.Id">
+                        <div class="content-meta">
+                            <div class="content-chip-row">
+                                <span class="type-chip" data-i18n="@item.TypeTranslationKey">@(item.Type switch { Eu5ModPlanner.Models.ContentType.Reform => "Reform", Eu5ModPlanner.Models.ContentType.DefaultEstateRename => "Default Estate Rename", Eu5ModPlanner.Models.ContentType.CustomEstate => "Custom Estate", Eu5ModPlanner.Models.ContentType.Privilege => "Privilege", Eu5ModPlanner.Models.ContentType.Law => "Law", Eu5ModPlanner.Models.ContentType.Value => "Value", Eu5ModPlanner.Models.ContentType.Building => "Building", Eu5ModPlanner.Models.ContentType.Event => "Event", _ => "Advance" })</span>
+                                @if (item.Type == Eu5ModPlanner.Models.ContentType.Reform && item.IsMajorReform)
+                                {
+                                    <span class="type-chip major-chip" data-i18n="major-reform">Major Reform</span>
+                                }
+                            </div>
+                            <strong>@item.Name</strong>
+                        </div>
+                    </a>
+                }
+            </div>
+        }
+    </section>
+
+    <aside class="planner-pane pane-detail">
+        <div class="pane-header">
+            <div>
+                <p class="pane-kicker" data-i18n="detail-kicker">Details</p>
+                <h2 data-i18n="detail-title">Selected content</h2>
+            </div>
+            @if (Model.SelectedCountry is not null && Model.SelectedContent is not null)
+            {
+                <div class="content-chip-row">
+                    <button type="button" class="material-button ghost-button" data-edit-content-button data-bs-toggle="modal" data-bs-target="#addContentModal">
+                        <span data-i18n="edit-content">Edit</span>
+                    </button>
+                    <form asp-action="DeleteContent" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="countryId" value="@Model.SelectedCountry.Id" />
+                        <input type="hidden" name="contentId" value="@Model.SelectedContent.Id" />
+                        <button type="submit" class="material-button danger-button">
+                            <span data-i18n="delete-content">Delete</span>
+                        </button>
+                    </form>
+                </div>
+            }
+        </div>
+
+        @if (Model.SelectedContent is null)
+        {
+            <div class="empty-panel">
+                <p data-i18n="detail-empty">Select a content piece to inspect its effect.</p>
+            </div>
+        }
+        else
+        {
+            <div class="detail-card">
+                <div class="detail-topline">
+                    <div class="content-chip-row">
+                        <span class="type-chip" data-i18n="@Model.SelectedContent.TypeTranslationKey">@(Model.SelectedContent.Type switch { Eu5ModPlanner.Models.ContentType.Reform => "Reform", Eu5ModPlanner.Models.ContentType.DefaultEstateRename => "Default Estate Rename", Eu5ModPlanner.Models.ContentType.CustomEstate => "Custom Estate", Eu5ModPlanner.Models.ContentType.Privilege => "Privilege", Eu5ModPlanner.Models.ContentType.Law => "Law", Eu5ModPlanner.Models.ContentType.Value => "Value", Eu5ModPlanner.Models.ContentType.Building => "Building", Eu5ModPlanner.Models.ContentType.Event => "Event", _ => "Advance" })</span>
+                        @if (Model.SelectedContent.Type == Eu5ModPlanner.Models.ContentType.Reform && Model.SelectedContent.IsMajorReform)
+                        {
+                            <span class="type-chip major-chip" data-i18n="major-reform">Major Reform</span>
+                        }
+                    </div>
+                    <h3>@Model.SelectedContent.Name</h3>
+                </div>
+                <div class="effect-detail-list">
+                    @foreach (var effect in Model.SelectedContent.DisplayLines)
+                    {
+                        <div class="effect-detail-item">@effect</div>
+                    }
+                </div>
+            </div>
+        }
+    </aside>
+</section>
+
+<div class="modal fade" id="addCountryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content planner-modal">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" data-i18n="country-modal-title">Add country</h2>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form asp-action="AddCountry" method="post">
+                @Html.AntiForgeryToken()
+                <div class="modal-body modal-form">
+                    <label>
+                        <span data-i18n="country-name">Country name</span>
+                        <input asp-for="CountryForm.Name" class="form-control" data-i18n-placeholder="country-name-placeholder" />
+                    </label>
+                    <label>
+                        <span data-i18n="country-tag">Country tag</span>
+                        <input asp-for="CountryForm.Tag" class="form-control text-uppercase" maxlength="12" data-i18n-placeholder="country-tag-placeholder" />
+                    </label>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="material-button ghost-button" data-bs-dismiss="modal" data-i18n="cancel">Cancel</button>
+                    <button type="submit" class="material-button primary-button" data-i18n="save-country">Save country</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addContentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content planner-modal">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" data-i18n="content-modal-title" data-content-modal-title data-add-title-key="content-modal-title" data-edit-title-key="content-modal-title-edit">Add new content</h2>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form asp-action="AddContent" method="post" id="contentForm" data-add-action="@Url.Action("AddContent", "Planner")" data-edit-action="@Url.Action("EditContent", "Planner")">
+                @Html.AntiForgeryToken()
+                <input asp-for="AdvanceForm.ContentId" type="hidden" data-content-id-input />
+                <input asp-for="AdvanceForm.CountryId" type="hidden" value="@Model.SelectedCountry?.Id" />
+                <div class="modal-body modal-form">
+                    <label>
+                        <span data-i18n="content-type">Content type</span>
+                        <select asp-for="AdvanceForm.Type" class="form-select" data-content-type-select>
+                            <option value="@Eu5ModPlanner.Models.ContentType.Advance" data-i18n-option="type-advance">Advance</option>
+                            <option value="@Eu5ModPlanner.Models.ContentType.Reform" data-i18n-option="type-reform">Reform</option>
+                            <option value="@Eu5ModPlanner.Models.ContentType.DefaultEstateRename" data-i18n-option="type-default-estate-rename">Default Estate Rename</option>
+                            <option value="@Eu5ModPlanner.Models.ContentType.CustomEstate" data-i18n-option="type-custom-estate">Custom Estate</option>
+                            <option value="@Eu5ModPlanner.Models.ContentType.Privilege" data-i18n-option="type-privilege">Privilege</option>
+                            <option value="@Eu5ModPlanner.Models.ContentType.Law" data-i18n-option="type-law">Law</option>
+                            <option value="@Eu5ModPlanner.Models.ContentType.Value" data-i18n-option="type-value">Value</option>
+                            <option value="@Eu5ModPlanner.Models.ContentType.Building" data-i18n-option="type-building">Building</option>
+                            <option value="@Eu5ModPlanner.Models.ContentType.Event" data-i18n-option="type-event">Event</option>
+                        </select>
+                    </label>
+
+                    <label data-content-name-row>
+                        <span data-content-name-label data-i18n="advance-name">Advance name</span>
+                        <input asp-for="AdvanceForm.Name" class="form-control" data-content-name-input data-i18n-placeholder="advance-name-placeholder" />
+                    </label>
+
+                    <div data-reform-options hidden>
+                        <label class="checkbox-row">
+                            <input asp-for="AdvanceForm.IsMajorReform" class="form-check-input" type="checkbox" />
+                            <span data-i18n="major-reform-toggle">Major Reform</span>
+                        </label>
+                    </div>
+
+                    <div data-privilege-panel hidden class="content-type-panel">
+                        <label>
+                            <span data-i18n="privilege-estate">Estate</span>
+                            <select asp-for="AdvanceForm.PrivilegeEstateTarget" class="form-select" data-privilege-estate-select>
+                                <option value="@Eu5ModPlanner.Models.PrivilegeEstateTarget.Nobles" data-i18n-option="privilege-estate-nobles">Nobles</option>
+                                <option value="@Eu5ModPlanner.Models.PrivilegeEstateTarget.Burghers" data-i18n-option="privilege-estate-burghers">Burghers</option>
+                                <option value="@Eu5ModPlanner.Models.PrivilegeEstateTarget.Peasants" data-i18n-option="privilege-estate-peasants">Peasants</option>
+                                <option value="@Eu5ModPlanner.Models.PrivilegeEstateTarget.Clergy" data-i18n-option="privilege-estate-clergy">Clergy</option>
+                                <option value="@Eu5ModPlanner.Models.PrivilegeEstateTarget.Tribes" data-i18n-option="privilege-estate-tribes">Tribes</option>
+                                <option value="@Eu5ModPlanner.Models.PrivilegeEstateTarget.Custom" data-i18n-option="privilege-estate-custom">Custom Estate</option>
+                            </select>
+                        </label>
+                        <label data-privilege-custom-estate-row hidden>
+                            <span data-i18n="privilege-custom-estate">Custom Estate</span>
+                            <select asp-for="AdvanceForm.PrivilegeCustomEstateName" class="form-select">
+                                <option value="" data-i18n-option="privilege-custom-estate-placeholder">Select custom estate</option>
+                                @foreach (var customEstateName in availableCustomEstates)
+                                {
+                                    <option value="@customEstateName">@customEstateName</option>
+                                }
+                            </select>
+                        </label>
+                        <label>
+                            <span data-i18n="privilege-satisfaction-bonus">Satisfaction Bonus (%)</span>
+                            <input asp-for="AdvanceForm.SatisfactionBonusPercent" class="form-control" type="number" step="1" />
+                        </label>
+                        <label>
+                            <span data-i18n="privilege-estate-power">Estate Power (%)</span>
+                            <input asp-for="AdvanceForm.EstatePowerPercent" class="form-control" type="number" step="1" />
+                        </label>
+                    </div>
+
+                    <div data-law-panel hidden class="content-type-panel">
+                        <label>
+                            <span data-i18n="law-category">Category</span>
+                            <select asp-for="AdvanceForm.LawCategory" class="form-select" data-law-category-select>
+                                <option value="Religious">Religious</option>
+                                <option value="Military">Military</option>
+                                <option value="Administrative">Administrative</option>
+                                <option value="Socioeconomic">Socioeconomic</option>
+                                <option value="Estate">Estate</option>
+                                <option value="Custom" data-i18n-option="law-category-custom">Custom Category</option>
+                            </select>
+                        </label>
+                        <label data-law-custom-category-row hidden>
+                            <span data-i18n="law-custom-category">Custom Category</span>
+                            <input asp-for="AdvanceForm.LawCustomCategory" class="form-control" data-i18n-placeholder="law-custom-category-placeholder" />
+                        </label>
+                        <label data-law-subcategory-row>
+                            <span data-i18n="law-subcategory">Subcategory</span>
+                            <select asp-for="AdvanceForm.LawSubcategory" class="form-select" data-law-subcategory-select></select>
+                        </label>
+                        <label data-law-custom-subcategory-row hidden>
+                            <span data-i18n="law-custom-subcategory">Custom Subcategory</span>
+                            <input asp-for="AdvanceForm.LawCustomSubcategory" class="form-control" data-i18n-placeholder="law-custom-subcategory-placeholder" />
+                        </label>
+                        <label>
+                            <span data-i18n="law-estate-preference">Preferred Estate</span>
+                            <select asp-for="AdvanceForm.LawEstatePreferenceTarget" class="form-select" data-law-estate-select>
+                                <option value="@Eu5ModPlanner.Models.PrivilegeEstateTarget.Nobles" data-i18n-option="privilege-estate-nobles">Nobles</option>
+                                <option value="@Eu5ModPlanner.Models.PrivilegeEstateTarget.Burghers" data-i18n-option="privilege-estate-burghers">Burghers</option>
+                                <option value="@Eu5ModPlanner.Models.PrivilegeEstateTarget.Peasants" data-i18n-option="privilege-estate-peasants">Peasants</option>
+                                <option value="@Eu5ModPlanner.Models.PrivilegeEstateTarget.Clergy" data-i18n-option="privilege-estate-clergy">Clergy</option>
+                                <option value="@Eu5ModPlanner.Models.PrivilegeEstateTarget.Tribes" data-i18n-option="privilege-estate-tribes">Tribes</option>
+                                <option value="@Eu5ModPlanner.Models.PrivilegeEstateTarget.Custom" data-i18n-option="privilege-estate-custom">Custom Estate</option>
+                            </select>
+                        </label>
+                        <label data-law-custom-estate-row hidden>
+                            <span data-i18n="law-custom-estate">Custom Estate</span>
+                            <select asp-for="AdvanceForm.LawCustomEstateName" class="form-select">
+                                <option value="" data-i18n-option="law-custom-estate-placeholder">Select custom estate</option>
+                                @foreach (var customEstateName in availableCustomEstates)
+                                {
+                                    <option value="@customEstateName">@customEstateName</option>
+                                }
+                            </select>
+                        </label>
+                    </div>
+
+                    <div data-value-panel hidden class="content-type-panel">
+                        <label>
+                            <span data-i18n="value-left-label">Left side</span>
+                            <input asp-for="AdvanceForm.ValueLeftLabel" class="form-control" data-i18n-placeholder="value-left-placeholder" />
+                        </label>
+                        <label>
+                            <span data-i18n="value-right-label">Right side</span>
+                            <input asp-for="AdvanceForm.ValueRightLabel" class="form-control" data-i18n-placeholder="value-right-placeholder" />
+                        </label>
+
+                        <div class="effects-editor">
+                            <div class="effects-editor-header">
+                                <h3 data-i18n="value-left-effects">Left-side effects</h3>
+                                <button type="button" class="material-button ghost-button" data-add-left-effect>
+                                    <span data-i18n="add-effect">Add effect</span>
+                                </button>
+                            </div>
+
+                            <div data-left-effects-container>
+                                @for (var i = 0; i < Model.AdvanceForm.LeftEffects.Count; i++)
+                                {
+                                    <div class="effect-editor-card" data-effect-row>
+                                        <div class="effect-editor-grid">
+                                            <label class="effect-editor-wide">
+                                                <span data-i18n="effect-label">Effect label</span>
+                                                <input name="AdvanceForm.LeftEffects[@i].Label"
+                                                       value="@Model.AdvanceForm.LeftEffects[i].Label"
+                                                       class="form-control"
+                                                       data-i18n-placeholder="effect-label-placeholder"
+                                                       list="effect-label-suggestions" />
+                                            </label>
+                                            <label>
+                                                <span data-i18n="effect-value-type">Effect kind</span>
+                                                <select name="AdvanceForm.LeftEffects[@i].ValueType" class="form-select" data-effect-value-type>
+                                                    <option value="@Eu5ModPlanner.Models.EffectValueType.Numeric" selected="@(Model.AdvanceForm.LeftEffects[i].ValueType == Eu5ModPlanner.Models.EffectValueType.Numeric)" data-i18n-option="effect-kind-numeric">Numeric</option>
+                                                    <option value="@Eu5ModPlanner.Models.EffectValueType.Boolean" selected="@(Model.AdvanceForm.LeftEffects[i].ValueType == Eu5ModPlanner.Models.EffectValueType.Boolean)" data-i18n-option="effect-kind-boolean">Boolean</option>
+                                                    <option value="@Eu5ModPlanner.Models.EffectValueType.Text" selected="@(Model.AdvanceForm.LeftEffects[i].ValueType == Eu5ModPlanner.Models.EffectValueType.Text)" data-i18n-option="effect-kind-text">Custom text</option>
+                                                </select>
+                                            </label>
+                                            <label data-effect-numeric>
+                                                <span data-i18n="advance-modifier-amount">Modifier amount</span>
+                                                <input name="AdvanceForm.LeftEffects[@i].NumericAmount" value="@Model.AdvanceForm.LeftEffects[i].NumericAmount" class="form-control" type="number" step="0.01" />
+                                                <input name="__Invariant" type="hidden" value="AdvanceForm.LeftEffects[@i].NumericAmount" />
+                                            </label>
+                                            <label data-effect-numeric>
+                                                <span data-i18n="advance-modifier-unit">Value type</span>
+                                                <select name="AdvanceForm.LeftEffects[@i].NumericUnit" class="form-select">
+                                                    @if (Model.AdvanceForm.LeftEffects[i].NumericUnit == Eu5ModPlanner.Models.ModifierUnit.Flat)
+                                                    {
+                                                        <option value="@Eu5ModPlanner.Models.ModifierUnit.Flat" selected data-i18n-option="unit-flat">Flat value</option>
+                                                        <option value="@Eu5ModPlanner.Models.ModifierUnit.Percent" data-i18n-option="unit-percent">Percentage</option>
+                                                    }
+                                                    else
+                                                    {
+                                                        <option value="@Eu5ModPlanner.Models.ModifierUnit.Flat" data-i18n-option="unit-flat">Flat value</option>
+                                                        <option value="@Eu5ModPlanner.Models.ModifierUnit.Percent" selected data-i18n-option="unit-percent">Percentage</option>
+                                                    }
+                                                </select>
+                                            </label>
+                                            <label data-effect-boolean hidden>
+                                                <span data-i18n="bool-value">Boolean value</span>
+                                                <select name="AdvanceForm.LeftEffects[@i].BoolValue" class="form-select">
+                                                    @if (Model.AdvanceForm.LeftEffects[i].BoolValue)
+                                                    {
+                                                        <option value="true" selected data-i18n-option="bool-true">True</option>
+                                                        <option value="false" data-i18n-option="bool-false">False</option>
+                                                    }
+                                                    else
+                                                    {
+                                                        <option value="true" data-i18n-option="bool-true">True</option>
+                                                        <option value="false" selected data-i18n-option="bool-false">False</option>
+                                                    }
+                                                </select>
+                                            </label>
+                                        </div>
+                                        <button type="button" class="material-button danger-button small-button" data-remove-effect>
+                                            <span data-i18n="remove-effect">Remove</span>
+                                        </button>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="effects-editor">
+                            <div class="effects-editor-header">
+                                <h3 data-i18n="value-right-effects">Right-side effects</h3>
+                                <button type="button" class="material-button ghost-button" data-add-right-effect>
+                                    <span data-i18n="add-effect">Add effect</span>
+                                </button>
+                            </div>
+
+                            <div data-right-effects-container>
+                                @for (var i = 0; i < Model.AdvanceForm.RightEffects.Count; i++)
+                                {
+                                    <div class="effect-editor-card" data-effect-row>
+                                        <div class="effect-editor-grid">
+                                            <label class="effect-editor-wide">
+                                                <span data-i18n="effect-label">Effect label</span>
+                                                <input name="AdvanceForm.RightEffects[@i].Label"
+                                                       value="@Model.AdvanceForm.RightEffects[i].Label"
+                                                       class="form-control"
+                                                       data-i18n-placeholder="effect-label-placeholder"
+                                                       list="effect-label-suggestions" />
+                                            </label>
+                                            <label>
+                                                <span data-i18n="effect-value-type">Effect kind</span>
+                                                <select name="AdvanceForm.RightEffects[@i].ValueType" class="form-select" data-effect-value-type>
+                                                    <option value="@Eu5ModPlanner.Models.EffectValueType.Numeric" selected="@(Model.AdvanceForm.RightEffects[i].ValueType == Eu5ModPlanner.Models.EffectValueType.Numeric)" data-i18n-option="effect-kind-numeric">Numeric</option>
+                                                    <option value="@Eu5ModPlanner.Models.EffectValueType.Boolean" selected="@(Model.AdvanceForm.RightEffects[i].ValueType == Eu5ModPlanner.Models.EffectValueType.Boolean)" data-i18n-option="effect-kind-boolean">Boolean</option>
+                                                    <option value="@Eu5ModPlanner.Models.EffectValueType.Text" selected="@(Model.AdvanceForm.RightEffects[i].ValueType == Eu5ModPlanner.Models.EffectValueType.Text)" data-i18n-option="effect-kind-text">Custom text</option>
+                                                </select>
+                                            </label>
+                                            <label data-effect-numeric>
+                                                <span data-i18n="advance-modifier-amount">Modifier amount</span>
+                                                <input name="AdvanceForm.RightEffects[@i].NumericAmount" value="@Model.AdvanceForm.RightEffects[i].NumericAmount" class="form-control" type="number" step="0.01" />
+                                                <input name="__Invariant" type="hidden" value="AdvanceForm.RightEffects[@i].NumericAmount" />
+                                            </label>
+                                            <label data-effect-numeric>
+                                                <span data-i18n="advance-modifier-unit">Value type</span>
+                                                <select name="AdvanceForm.RightEffects[@i].NumericUnit" class="form-select">
+                                                    @if (Model.AdvanceForm.RightEffects[i].NumericUnit == Eu5ModPlanner.Models.ModifierUnit.Flat)
+                                                    {
+                                                        <option value="@Eu5ModPlanner.Models.ModifierUnit.Flat" selected data-i18n-option="unit-flat">Flat value</option>
+                                                        <option value="@Eu5ModPlanner.Models.ModifierUnit.Percent" data-i18n-option="unit-percent">Percentage</option>
+                                                    }
+                                                    else
+                                                    {
+                                                        <option value="@Eu5ModPlanner.Models.ModifierUnit.Flat" data-i18n-option="unit-flat">Flat value</option>
+                                                        <option value="@Eu5ModPlanner.Models.ModifierUnit.Percent" selected data-i18n-option="unit-percent">Percentage</option>
+                                                    }
+                                                </select>
+                                            </label>
+                                            <label data-effect-boolean hidden>
+                                                <span data-i18n="bool-value">Boolean value</span>
+                                                <select name="AdvanceForm.RightEffects[@i].BoolValue" class="form-select">
+                                                    @if (Model.AdvanceForm.RightEffects[i].BoolValue)
+                                                    {
+                                                        <option value="true" selected data-i18n-option="bool-true">True</option>
+                                                        <option value="false" data-i18n-option="bool-false">False</option>
+                                                    }
+                                                    else
+                                                    {
+                                                        <option value="true" data-i18n-option="bool-true">True</option>
+                                                        <option value="false" selected data-i18n-option="bool-false">False</option>
+                                                    }
+                                                </select>
+                                            </label>
+                                        </div>
+                                        <button type="button" class="material-button danger-button small-button" data-remove-effect>
+                                            <span data-i18n="remove-effect">Remove</span>
+                                        </button>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    <div data-building-panel hidden class="content-type-panel">
+                        <label>
+                            <span data-i18n="building-scope">Construction requirement</span>
+                            <select asp-for="AdvanceForm.BuildingConstructionScope" class="form-select">
+                                <option value="@Eu5ModPlanner.Models.BuildingConstructionScope.AllLocations" data-i18n-option="building-scope-all">All locations</option>
+                                <option value="@Eu5ModPlanner.Models.BuildingConstructionScope.RuralOnly" data-i18n-option="building-scope-rural">Rural only</option>
+                                <option value="@Eu5ModPlanner.Models.BuildingConstructionScope.TownOnly" data-i18n-option="building-scope-town">Town only</option>
+                                <option value="@Eu5ModPlanner.Models.BuildingConstructionScope.CapitalOnly" data-i18n-option="building-scope-capital">Capital only</option>
+                            </select>
+                        </label>
+                        <label>
+                            <span data-i18n="building-ducat-cost">Build cost (ducats)</span>
+                            <input asp-for="AdvanceForm.BuildingDucatCost" class="form-control" type="number" min="0" step="0.01" />
+                        </label>
+                        <label>
+                            <span data-i18n="building-time-months">Build time (months)</span>
+                            <input asp-for="AdvanceForm.BuildingTimeMonths" class="form-control" type="number" min="0" step="1" />
+                        </label>
+
+                        <div class="effects-editor">
+                            <div class="effects-editor-header">
+                                <h3 data-i18n="building-construction-costs">Construction resources</h3>
+                                <button type="button" class="material-button ghost-button" data-add-construction-cost>
+                                    <span data-i18n="add-resource-cost">Add resource</span>
+                                </button>
+                            </div>
+                            <div data-construction-costs-container>
+                                @for (var i = 0; i < Model.AdvanceForm.ConstructionCosts.Count; i++)
+                                {
+                                    <div class="effect-editor-card" data-resource-row>
+                                        <div class="effect-editor-grid">
+                                            <label class="effect-editor-wide">
+                                                <span data-i18n="resource-name">Resource</span>
+                                                <input name="AdvanceForm.ConstructionCosts[@i].ResourceName" value="@Model.AdvanceForm.ConstructionCosts[i].ResourceName" class="form-control" data-i18n-placeholder="resource-name-placeholder" />
+                                            </label>
+                                            <label>
+                                                <span data-i18n="resource-amount">Amount</span>
+                                                <input name="AdvanceForm.ConstructionCosts[@i].Amount" value="@Model.AdvanceForm.ConstructionCosts[i].Amount" class="form-control" type="number" min="0" step="0.01" />
+                                            </label>
+                                        </div>
+                                        <button type="button" class="material-button danger-button small-button" data-remove-resource>
+                                            <span data-i18n="remove-resource">Remove</span>
+                                        </button>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="effects-editor">
+                            <div class="effects-editor-header">
+                                <h3 data-i18n="building-production-methods">Production methods</h3>
+                                <button type="button" class="material-button ghost-button" data-add-production-method>
+                                    <span data-i18n="add-production-method">Add method</span>
+                                </button>
+                            </div>
+                            <div data-production-methods-container>
+                                @for (var i = 0; i < Model.AdvanceForm.ProductionMethods.Count; i++)
+                                {
+                                    <div class="effect-editor-card" data-production-method-row>
+                                        <div class="effects-editor">
+                                            <div class="effects-editor-header">
+                                                <h3 data-i18n="production-method-name">Production method</h3>
+                                                <button type="button" class="material-button danger-button small-button" data-remove-production-method>
+                                                    <span data-i18n="remove-production-method">Remove method</span>
+                                                </button>
+                                            </div>
+                                            <label>
+                                                <span data-i18n="production-method-name">Production method</span>
+                                                <input name="AdvanceForm.ProductionMethods[@i].Name" value="@Model.AdvanceForm.ProductionMethods[i].Name" class="form-control" data-i18n-placeholder="production-method-name-placeholder" />
+                                            </label>
+                                            <div class="effects-editor">
+                                                <div class="effects-editor-header">
+                                                    <h3 data-i18n="production-inputs">Monthly inputs</h3>
+                                                    <button type="button" class="material-button ghost-button" data-add-production-input>
+                                                        <span data-i18n="add-resource-cost">Add resource</span>
+                                                    </button>
+                                                </div>
+                                                <div data-production-inputs-container>
+                                                    @for (var j = 0; j < Model.AdvanceForm.ProductionMethods[i].Inputs.Count; j++)
+                                                    {
+                                                        <div class="effect-editor-card" data-resource-row>
+                                                            <div class="effect-editor-grid">
+                                                                <label class="effect-editor-wide">
+                                                                    <span data-i18n="resource-name">Resource</span>
+                                                                    <input name="AdvanceForm.ProductionMethods[@i].Inputs[@j].ResourceName" value="@Model.AdvanceForm.ProductionMethods[i].Inputs[j].ResourceName" class="form-control" data-i18n-placeholder="resource-name-placeholder" />
+                                                                </label>
+                                                                <label>
+                                                                    <span data-i18n="resource-amount">Amount</span>
+                                                                    <input name="AdvanceForm.ProductionMethods[@i].Inputs[@j].Amount" value="@Model.AdvanceForm.ProductionMethods[i].Inputs[j].Amount" class="form-control" type="number" min="0" step="0.01" />
+                                                                </label>
+                                                            </div>
+                                                            <button type="button" class="material-button danger-button small-button" data-remove-resource>
+                                                                <span data-i18n="remove-resource">Remove</span>
+                                                            </button>
+                                                        </div>
+                                                    }
+                                                </div>
+                                            </div>
+                                            <div class="effects-editor">
+                                                <div class="effects-editor-header">
+                                                    <h3 data-i18n="production-outputs">Monthly outputs</h3>
+                                                    <button type="button" class="material-button ghost-button" data-add-production-output>
+                                                        <span data-i18n="add-resource-cost">Add resource</span>
+                                                    </button>
+                                                </div>
+                                                <div data-production-outputs-container>
+                                                    @for (var j = 0; j < Model.AdvanceForm.ProductionMethods[i].Outputs.Count; j++)
+                                                    {
+                                                        <div class="effect-editor-card" data-resource-row>
+                                                            <div class="effect-editor-grid">
+                                                                <label class="effect-editor-wide">
+                                                                    <span data-i18n="resource-name">Resource</span>
+                                                                    <input name="AdvanceForm.ProductionMethods[@i].Outputs[@j].ResourceName" value="@Model.AdvanceForm.ProductionMethods[i].Outputs[j].ResourceName" class="form-control" data-i18n-placeholder="resource-name-placeholder" />
+                                                                </label>
+                                                                <label>
+                                                                    <span data-i18n="resource-amount">Amount</span>
+                                                                    <input name="AdvanceForm.ProductionMethods[@i].Outputs[@j].Amount" value="@Model.AdvanceForm.ProductionMethods[i].Outputs[j].Amount" class="form-control" type="number" min="0" step="0.01" />
+                                                                </label>
+                                                            </div>
+                                                            <button type="button" class="material-button danger-button small-button" data-remove-resource>
+                                                                <span data-i18n="remove-resource">Remove</span>
+                                                            </button>
+                                                        </div>
+                                                    }
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    <div data-event-panel hidden class="content-type-panel">
+                        <label>
+                            <span data-i18n="event-description">Description / narrative</span>
+                            <textarea asp-for="AdvanceForm.EventDescription" class="form-control" rows="4" data-i18n-placeholder="event-description-placeholder"></textarea>
+                        </label>
+
+                        <div class="effects-editor">
+                            <div class="effects-editor-header">
+                                <h3 data-i18n="event-requirements">Requirements</h3>
+                            </div>
+                            <input asp-for="AdvanceForm.EventRequirementTreeJson" type="hidden" data-event-requirement-tree-input />
+                            <div class="event-requirement-builder" data-event-requirement-builder></div>
+                        </div>
+
+                        <div class="effect-editor-grid">
+                            <label>
+                                <span data-i18n="event-year-start">Year start</span>
+                                <input asp-for="AdvanceForm.EventYearStart" class="form-control" type="number" step="1" min="0" />
+                            </label>
+                            <label>
+                                <span data-i18n="event-year-end">Year end</span>
+                                <input asp-for="AdvanceForm.EventYearEnd" class="form-control" type="number" step="1" min="0" />
+                            </label>
+                        </div>
+
+                        <label>
+                            <span data-i18n="event-trigger-mode">Trigger mode</span>
+                            <select asp-for="AdvanceForm.EventTriggerMode" class="form-select" data-event-trigger-mode-select>
+                                <option value="@Eu5ModPlanner.Models.EventTriggerMode.MonthlyChance" data-i18n-option="event-trigger-monthly">Monthly chance</option>
+                                <option value="@Eu5ModPlanner.Models.EventTriggerMode.Instant" data-i18n-option="event-trigger-instant">Instant</option>
+                            </select>
+                        </label>
+                        <label data-event-monthly-chance-row>
+                            <span data-i18n="event-monthly-chance">Monthly chance (%)</span>
+                            <input asp-for="AdvanceForm.EventMonthlyChance" class="form-control" type="number" min="0" max="100" step="0.01" />
+                            <input name="__Invariant" type="hidden" value="AdvanceForm.EventMonthlyChance" />
+                        </label>
+
+                        <div class="effects-editor">
+                            <div class="effects-editor-header">
+                                <h3 data-i18n="event-prerequisites">Previous events required</h3>
+                            </div>
+                            <div class="checkbox-stack" data-event-prerequisites-container>
+                                @if (availableEventEntries.Count == 0)
+                                {
+                                    <p class="helper-copy" data-i18n="event-prerequisites-empty">No events available yet.</p>
+                                }
+                                else
+                                {
+                                    @foreach (var eventEntry in availableEventEntries)
+                                    {
+                                        var isChecked = Model.AdvanceForm.EventPrerequisiteIds.Contains(eventEntry.Id);
+                                        <label class="checkbox-row" data-event-prerequisite-row data-event-id="@eventEntry.Id">
+                                            <input class="form-check-input" type="checkbox" name="AdvanceForm.EventPrerequisiteIds" value="@eventEntry.Id" @(isChecked ? "checked" : null) />
+                                            <span>@eventEntry.Name</span>
+                                        </label>
+                                    }
+                                }
+                            </div>
+                        </div>
+
+                        <div class="effects-editor">
+                            <div class="effects-editor-header">
+                                <h3 data-i18n="event-options">Options</h3>
+                                <button type="button" class="material-button ghost-button" data-add-event-option>
+                                    <span data-i18n="add-option">Add option</span>
+                                </button>
+                            </div>
+                            <div data-event-options-container>
+                                @for (var i = 0; i < Model.AdvanceForm.EventOptions.Count; i++)
+                                {
+                                    <div class="effect-editor-card" data-event-option-row>
+                                        <div class="effects-editor">
+                                            <div class="effects-editor-header">
+                                                <h3 data-i18n="event-option-title">Option</h3>
+                                                <button type="button" class="material-button danger-button small-button" data-remove-event-option>
+                                                    <span data-i18n="remove-option">Remove option</span>
+                                                </button>
+                                            </div>
+                                            <label>
+                                                <span data-i18n="event-option-text">Option text</span>
+                                                <input name="AdvanceForm.EventOptions[@i].Text" value="@Model.AdvanceForm.EventOptions[i].Text" class="form-control" data-i18n-placeholder="event-option-placeholder" />
+                                            </label>
+                                            <div class="effects-editor">
+                                                <div class="effects-editor-header">
+                                                    <h3 data-i18n="event-option-effects">Option effects</h3>
+                                                    <button type="button" class="material-button ghost-button" data-add-event-option-effect>
+                                                        <span data-i18n="add-effect">Add effect</span>
+                                                    </button>
+                                                </div>
+                                                <div data-event-option-effects-container>
+                                                    @for (var j = 0; j < Model.AdvanceForm.EventOptions[i].Effects.Count; j++)
+                                                    {
+                                                        <div class="effect-editor-card" data-effect-row>
+                                                            <div class="effect-editor-grid">
+                                                                <label class="effect-editor-wide">
+                                                                    <span data-i18n="effect-label">Effect label</span>
+                                                                    <input name="AdvanceForm.EventOptions[@i].Effects[@j].Label" value="@Model.AdvanceForm.EventOptions[i].Effects[j].Label" class="form-control" data-i18n-placeholder="effect-label-placeholder" list="effect-label-suggestions" />
+                                                                </label>
+                                                                <label>
+                                                                    <span data-i18n="effect-value-type">Effect kind</span>
+                                                                    <select name="AdvanceForm.EventOptions[@i].Effects[@j].ValueType" class="form-select" data-effect-value-type>
+                                                                        <option value="@Eu5ModPlanner.Models.EffectValueType.Numeric" selected="@(Model.AdvanceForm.EventOptions[i].Effects[j].ValueType == Eu5ModPlanner.Models.EffectValueType.Numeric)" data-i18n-option="effect-kind-numeric">Numeric</option>
+                                                                        <option value="@Eu5ModPlanner.Models.EffectValueType.Boolean" selected="@(Model.AdvanceForm.EventOptions[i].Effects[j].ValueType == Eu5ModPlanner.Models.EffectValueType.Boolean)" data-i18n-option="effect-kind-boolean">Boolean</option>
+                                                                        <option value="@Eu5ModPlanner.Models.EffectValueType.Text" selected="@(Model.AdvanceForm.EventOptions[i].Effects[j].ValueType == Eu5ModPlanner.Models.EffectValueType.Text)" data-i18n-option="effect-kind-text">Custom text</option>
+                                                                    </select>
+                                                                </label>
+                                                                <label data-effect-numeric>
+                                                                    <span data-i18n="advance-modifier-amount">Modifier amount</span>
+                                                                    <input name="AdvanceForm.EventOptions[@i].Effects[@j].NumericAmount" value="@Model.AdvanceForm.EventOptions[i].Effects[j].NumericAmount" class="form-control" type="number" step="0.01" />
+                                                                    <input name="__Invariant" type="hidden" value="AdvanceForm.EventOptions[@i].Effects[@j].NumericAmount" />
+                                                                </label>
+                                                                <label data-effect-numeric>
+                                                                    <span data-i18n="advance-modifier-unit">Value type</span>
+                                                                    <select name="AdvanceForm.EventOptions[@i].Effects[@j].NumericUnit" class="form-select">
+                                                                        <option value="@Eu5ModPlanner.Models.ModifierUnit.Flat" selected="@(Model.AdvanceForm.EventOptions[i].Effects[j].NumericUnit == Eu5ModPlanner.Models.ModifierUnit.Flat)" data-i18n-option="unit-flat">Flat value</option>
+                                                                        <option value="@Eu5ModPlanner.Models.ModifierUnit.Percent" selected="@(Model.AdvanceForm.EventOptions[i].Effects[j].NumericUnit == Eu5ModPlanner.Models.ModifierUnit.Percent)" data-i18n-option="unit-percent">Percentage</option>
+                                                                    </select>
+                                                                </label>
+                                                                <label data-effect-boolean hidden>
+                                                                    <span data-i18n="bool-value">Boolean value</span>
+                                                                    <select name="AdvanceForm.EventOptions[@i].Effects[@j].BoolValue" class="form-select">
+                                                                        <option value="true" selected="@(Model.AdvanceForm.EventOptions[i].Effects[j].BoolValue)" data-i18n-option="bool-true">True</option>
+                                                                        <option value="false" selected="@(!Model.AdvanceForm.EventOptions[i].Effects[j].BoolValue)" data-i18n-option="bool-false">False</option>
+                                                                    </select>
+                                                                </label>
+                                                            </div>
+                                                            <button type="button" class="material-button danger-button small-button" data-remove-effect>
+                                                                <span data-i18n="remove-effect">Remove</span>
+                                                            </button>
+                                                        </div>
+                                                    }
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    <div data-effects-panel class="content-type-panel">
+                        <div class="effects-editor">
+                            <div class="effects-editor-header">
+                                <h3 data-i18n="effects-title">Effects</h3>
+                                <button type="button" class="material-button ghost-button" data-add-effect>
+                                    <span data-i18n="add-effect">Add effect</span>
+                                </button>
+                            </div>
+
+                            <div data-effects-container>
+                                @for (var i = 0; i < Model.AdvanceForm.Effects.Count; i++)
+                                {
+                                    <div class="effect-editor-card" data-effect-row>
+                                        <div class="effect-editor-grid">
+                                            <label class="effect-editor-wide">
+                                                <span data-i18n="effect-label">Effect label</span>
+                                                <input name="AdvanceForm.Effects[@i].Label"
+                                                       value="@Model.AdvanceForm.Effects[i].Label"
+                                                       class="form-control"
+                                                       data-i18n-placeholder="effect-label-placeholder"
+                                                       list="effect-label-suggestions" />
+                                            </label>
+                                            <label>
+                                                <span data-i18n="effect-value-type">Effect kind</span>
+                                                <select name="AdvanceForm.Effects[@i].ValueType" class="form-select" data-effect-value-type>
+                                                    <option value="@Eu5ModPlanner.Models.EffectValueType.Numeric" selected="@(Model.AdvanceForm.Effects[i].ValueType == Eu5ModPlanner.Models.EffectValueType.Numeric)" data-i18n-option="effect-kind-numeric">Numeric</option>
+                                                    <option value="@Eu5ModPlanner.Models.EffectValueType.Boolean" selected="@(Model.AdvanceForm.Effects[i].ValueType == Eu5ModPlanner.Models.EffectValueType.Boolean)" data-i18n-option="effect-kind-boolean">Boolean</option>
+                                                    <option value="@Eu5ModPlanner.Models.EffectValueType.Text" selected="@(Model.AdvanceForm.Effects[i].ValueType == Eu5ModPlanner.Models.EffectValueType.Text)" data-i18n-option="effect-kind-text">Custom text</option>
+                                                </select>
+                                            </label>
+                                            <label data-effect-numeric>
+                                                <span data-i18n="advance-modifier-amount">Modifier amount</span>
+                                                <input name="AdvanceForm.Effects[@i].NumericAmount" value="@Model.AdvanceForm.Effects[i].NumericAmount" class="form-control" type="number" step="0.01" />
+                                                <input name="__Invariant" type="hidden" value="AdvanceForm.Effects[@i].NumericAmount" />
+                                            </label>
+                                            <label data-effect-numeric>
+                                                <span data-i18n="advance-modifier-unit">Value type</span>
+                                                <select name="AdvanceForm.Effects[@i].NumericUnit" class="form-select">
+                                                    @if (Model.AdvanceForm.Effects[i].NumericUnit == Eu5ModPlanner.Models.ModifierUnit.Flat)
+                                                    {
+                                                        <option value="@Eu5ModPlanner.Models.ModifierUnit.Flat" selected data-i18n-option="unit-flat">Flat value</option>
+                                                        <option value="@Eu5ModPlanner.Models.ModifierUnit.Percent" data-i18n-option="unit-percent">Percentage</option>
+                                                    }
+                                                    else
+                                                    {
+                                                        <option value="@Eu5ModPlanner.Models.ModifierUnit.Flat" data-i18n-option="unit-flat">Flat value</option>
+                                                        <option value="@Eu5ModPlanner.Models.ModifierUnit.Percent" selected data-i18n-option="unit-percent">Percentage</option>
+                                                    }
+                                                </select>
+                                            </label>
+                                            <label data-effect-boolean hidden>
+                                                <span data-i18n="bool-value">Boolean value</span>
+                                                <select name="AdvanceForm.Effects[@i].BoolValue" class="form-select">
+                                                    @if (Model.AdvanceForm.Effects[i].BoolValue)
+                                                    {
+                                                        <option value="true" selected data-i18n-option="bool-true">True</option>
+                                                        <option value="false" data-i18n-option="bool-false">False</option>
+                                                    }
+                                                    else
+                                                    {
+                                                        <option value="true" data-i18n-option="bool-true">True</option>
+                                                        <option value="false" selected data-i18n-option="bool-false">False</option>
+                                                    }
+                                                </select>
+                                            </label>
+                                        </div>
+                                        <button type="button" class="material-button danger-button small-button" data-remove-effect>
+                                            <span data-i18n="remove-effect">Remove</span>
+                                        </button>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    <div data-estate-rename-panel hidden class="content-type-panel">
+                        <label>
+                            <span data-i18n="estate-nobility">Nobility</span>
+                            <input asp-for="AdvanceForm.NobilityEstateName" class="form-control" data-i18n-placeholder="estate-nobility-placeholder" />
+                        </label>
+                        <label>
+                            <span data-i18n="estate-burghers">Burghers</span>
+                            <input asp-for="AdvanceForm.BurghersEstateName" class="form-control" data-i18n-placeholder="estate-burghers-placeholder" />
+                        </label>
+                        <label>
+                            <span data-i18n="estate-clergy">Clergy</span>
+                            <input asp-for="AdvanceForm.ClergyEstateName" class="form-control" data-i18n-placeholder="estate-clergy-placeholder" />
+                        </label>
+                        <label>
+                            <span data-i18n="estate-peasants">Peasants</span>
+                            <input asp-for="AdvanceForm.PeasantsEstateName" class="form-control" data-i18n-placeholder="estate-peasants-placeholder" />
+                        </label>
+                    </div>
+
+                    <div data-custom-estate-panel hidden class="content-type-panel">
+                        <label>
+                            <span data-i18n="food-consumption">Food Consumption (per 1000 pops)</span>
+                            <input asp-for="AdvanceForm.FoodConsumptionPerThousand" class="form-control" type="number" min="0" step="1" />
+                        </label>
+                        <label>
+                            <span data-i18n="assimilation-conversion-speed">Assimilation and conversion speed (0-100%)</span>
+                            <input asp-for="AdvanceForm.AssimilationConversionSpeed" class="form-control" type="number" min="0" max="100" step="0.01" />
+                        </label>
+                        <label>
+                            <span data-i18n="estate-class">Estate Class</span>
+                            <select asp-for="AdvanceForm.EstateClass" class="form-select">
+                                <option value="@Eu5ModPlanner.Models.EstateClass.Upper" data-i18n-option="estate-class-upper">Upper Class</option>
+                                <option value="@Eu5ModPlanner.Models.EstateClass.Lower" data-i18n-option="estate-class-lower">Lower Class</option>
+                            </select>
+                        </label>
+                        <label class="checkbox-row">
+                            <input asp-for="AdvanceForm.CanPromote" class="form-check-input" type="checkbox" data-can-promote-toggle />
+                            <span data-i18n="can-promote">Can Promote?</span>
+                        </label>
+                        <label data-promotion-speed-row>
+                            <span data-i18n="promotion-speed">Promotion Speed (%)</span>
+                            <input asp-for="AdvanceForm.PromotionSpeed" class="form-control" type="number" step="0.01" />
+                        </label>
+                        <label>
+                            <span data-i18n="migration-speed">Migration Speed (%)</span>
+                            <input asp-for="AdvanceForm.MigrationSpeed" class="form-control" type="number" step="0.01" />
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="material-button ghost-button" data-bs-dismiss="modal" data-i18n="cancel">Cancel</button>
+                    <button type="submit" class="material-button primary-button" data-i18n="save-content" data-submit-content-button data-add-label-key="save-content" data-edit-label-key="save-content-edit">Save content</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<datalist id="effect-label-suggestions">
+    @foreach (var label in Model.EffectLabelSuggestions)
+    {
+        <option value="@label"></option>
+    }
+</datalist>
+
+<template id="effect-row-template">
+    <div class="effect-editor-card" data-effect-row>
+        <div class="effect-editor-grid">
+            <label class="effect-editor-wide">
+                <span data-i18n="effect-label">Effect label</span>
+                <input name="AdvanceForm.Effects[__INDEX__].Label" class="form-control" data-i18n-placeholder="effect-label-placeholder" list="effect-label-suggestions" />
+            </label>
+            <label>
+                <span data-i18n="effect-value-type">Effect kind</span>
+                <select name="AdvanceForm.Effects[__INDEX__].ValueType" class="form-select" data-effect-value-type>
+                    <option value="@Eu5ModPlanner.Models.EffectValueType.Numeric" data-i18n-option="effect-kind-numeric">Numeric</option>
+                    <option value="@Eu5ModPlanner.Models.EffectValueType.Boolean" data-i18n-option="effect-kind-boolean">Boolean</option>
+                    <option value="@Eu5ModPlanner.Models.EffectValueType.Text" data-i18n-option="effect-kind-text">Custom text</option>
+                </select>
+            </label>
+            <label data-effect-numeric>
+                <span data-i18n="advance-modifier-amount">Modifier amount</span>
+                <input name="AdvanceForm.Effects[__INDEX__].NumericAmount" class="form-control" type="number" step="0.01" value="0" />
+                <input name="__Invariant" type="hidden" value="AdvanceForm.Effects[__INDEX__].NumericAmount" />
+            </label>
+            <label data-effect-numeric>
+                <span data-i18n="advance-modifier-unit">Value type</span>
+                <select name="AdvanceForm.Effects[__INDEX__].NumericUnit" class="form-select">
+                    <option value="@Eu5ModPlanner.Models.ModifierUnit.Flat" data-i18n-option="unit-flat">Flat value</option>
+                    <option value="@Eu5ModPlanner.Models.ModifierUnit.Percent" data-i18n-option="unit-percent">Percentage</option>
+                </select>
+            </label>
+            <label data-effect-boolean hidden>
+                <span data-i18n="bool-value">Boolean value</span>
+                <select name="AdvanceForm.Effects[__INDEX__].BoolValue" class="form-select">
+                    <option value="true" data-i18n-option="bool-true">True</option>
+                    <option value="false" selected data-i18n-option="bool-false">False</option>
+                </select>
+            </label>
+        </div>
+        <button type="button" class="material-button danger-button small-button" data-remove-effect>
+            <span data-i18n="remove-effect">Remove</span>
+        </button>
+    </div>
+</template>
+
+<template id="construction-cost-row-template">
+    <div class="effect-editor-card" data-resource-row>
+        <div class="effect-editor-grid">
+            <label class="effect-editor-wide">
+                <span data-i18n="resource-name">Resource</span>
+                <input name="AdvanceForm.ConstructionCosts[__INDEX__].ResourceName" class="form-control" data-i18n-placeholder="resource-name-placeholder" />
+            </label>
+            <label>
+                <span data-i18n="resource-amount">Amount</span>
+                <input name="AdvanceForm.ConstructionCosts[__INDEX__].Amount" class="form-control" type="number" min="0" step="0.01" value="0" />
+            </label>
+        </div>
+        <button type="button" class="material-button danger-button small-button" data-remove-resource>
+            <span data-i18n="remove-resource">Remove</span>
+        </button>
+    </div>
+</template>
+
+<template id="production-method-template">
+    <div class="effect-editor-card" data-production-method-row>
+        <div class="effects-editor">
+            <div class="effects-editor-header">
+                <h3 data-i18n="production-method-name">Production method</h3>
+                <button type="button" class="material-button danger-button small-button" data-remove-production-method>
+                    <span data-i18n="remove-production-method">Remove method</span>
+                </button>
+            </div>
+            <label>
+                <span data-i18n="production-method-name">Production method</span>
+                <input name="AdvanceForm.ProductionMethods[__METHOD_INDEX__].Name" class="form-control" data-i18n-placeholder="production-method-name-placeholder" />
+            </label>
+            <div class="effects-editor">
+                <div class="effects-editor-header">
+                    <h3 data-i18n="production-inputs">Monthly inputs</h3>
+                    <button type="button" class="material-button ghost-button" data-add-production-input>
+                        <span data-i18n="add-resource-cost">Add resource</span>
+                    </button>
+                </div>
+                <div data-production-inputs-container>
+                    <div class="effect-editor-card" data-resource-row>
+                        <div class="effect-editor-grid">
+                            <label class="effect-editor-wide">
+                                <span data-i18n="resource-name">Resource</span>
+                                <input name="AdvanceForm.ProductionMethods[__METHOD_INDEX__].Inputs[0].ResourceName" class="form-control" data-i18n-placeholder="resource-name-placeholder" />
+                            </label>
+                            <label>
+                                <span data-i18n="resource-amount">Amount</span>
+                                <input name="AdvanceForm.ProductionMethods[__METHOD_INDEX__].Inputs[0].Amount" class="form-control" type="number" min="0" step="0.01" value="0" />
+                            </label>
+                        </div>
+                        <button type="button" class="material-button danger-button small-button" data-remove-resource>
+                            <span data-i18n="remove-resource">Remove</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="effects-editor">
+                <div class="effects-editor-header">
+                    <h3 data-i18n="production-outputs">Monthly outputs</h3>
+                    <button type="button" class="material-button ghost-button" data-add-production-output>
+                        <span data-i18n="add-resource-cost">Add resource</span>
+                    </button>
+                </div>
+                <div data-production-outputs-container>
+                    <div class="effect-editor-card" data-resource-row>
+                        <div class="effect-editor-grid">
+                            <label class="effect-editor-wide">
+                                <span data-i18n="resource-name">Resource</span>
+                                <input name="AdvanceForm.ProductionMethods[__METHOD_INDEX__].Outputs[0].ResourceName" class="form-control" data-i18n-placeholder="resource-name-placeholder" />
+                            </label>
+                            <label>
+                                <span data-i18n="resource-amount">Amount</span>
+                                <input name="AdvanceForm.ProductionMethods[__METHOD_INDEX__].Outputs[0].Amount" class="form-control" type="number" min="0" step="0.01" value="0" />
+                            </label>
+                        </div>
+                        <button type="button" class="material-button danger-button small-button" data-remove-resource>
+                            <span data-i18n="remove-resource">Remove</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
+
+<template id="production-resource-row-template">
+    <div class="effect-editor-card" data-resource-row>
+        <div class="effect-editor-grid">
+            <label class="effect-editor-wide">
+                <span data-i18n="resource-name">Resource</span>
+                <input name="__NAME__" class="form-control" data-i18n-placeholder="resource-name-placeholder" />
+            </label>
+            <label>
+                <span data-i18n="resource-amount">Amount</span>
+                <input name="__AMOUNT_NAME__" class="form-control" type="number" min="0" step="0.01" value="0" />
+            </label>
+        </div>
+        <button type="button" class="material-button danger-button small-button" data-remove-resource>
+            <span data-i18n="remove-resource">Remove</span>
+        </button>
+    </div>
+</template>
+
+<template id="event-requirement-row-template">
+    <div class="effect-editor-card" data-event-requirement-row>
+        <div class="effect-editor-grid">
+            <label class="effect-editor-wide">
+                <span data-i18n="event-requirement-expression">Requirement</span>
+                <input name="AdvanceForm.EventRequirements[__INDEX__].Expression" class="form-control" data-i18n-placeholder="event-requirement-placeholder" />
+            </label>
+        </div>
+        <button type="button" class="material-button danger-button small-button" data-remove-event-requirement>
+            <span data-i18n="remove-requirement">Remove</span>
+        </button>
+    </div>
+</template>
+
+<template id="event-option-template">
+    <div class="effect-editor-card" data-event-option-row>
+        <div class="effects-editor">
+            <div class="effects-editor-header">
+                <h3 data-i18n="event-option-title">Option</h3>
+                <button type="button" class="material-button danger-button small-button" data-remove-event-option>
+                    <span data-i18n="remove-option">Remove option</span>
+                </button>
+            </div>
+            <label>
+                <span data-i18n="event-option-text">Option text</span>
+                <input name="AdvanceForm.EventOptions[__OPTION_INDEX__].Text" class="form-control" data-i18n-placeholder="event-option-placeholder" />
+            </label>
+            <div class="effects-editor">
+                <div class="effects-editor-header">
+                    <h3 data-i18n="event-option-effects">Option effects</h3>
+                    <button type="button" class="material-button ghost-button" data-add-event-option-effect>
+                        <span data-i18n="add-effect">Add effect</span>
+                    </button>
+                </div>
+                <div data-event-option-effects-container>
+                    <div class="effect-editor-card" data-effect-row>
+                        <div class="effect-editor-grid">
+                            <label class="effect-editor-wide">
+                                <span data-i18n="effect-label">Effect label</span>
+                                <input name="AdvanceForm.EventOptions[__OPTION_INDEX__].Effects[0].Label" class="form-control" data-i18n-placeholder="effect-label-placeholder" list="effect-label-suggestions" />
+                            </label>
+                            <label>
+                                <span data-i18n="effect-value-type">Effect kind</span>
+                                <select name="AdvanceForm.EventOptions[__OPTION_INDEX__].Effects[0].ValueType" class="form-select" data-effect-value-type>
+                                    <option value="@Eu5ModPlanner.Models.EffectValueType.Numeric" data-i18n-option="effect-kind-numeric">Numeric</option>
+                                    <option value="@Eu5ModPlanner.Models.EffectValueType.Boolean" data-i18n-option="effect-kind-boolean">Boolean</option>
+                                    <option value="@Eu5ModPlanner.Models.EffectValueType.Text" data-i18n-option="effect-kind-text">Custom text</option>
+                                </select>
+                            </label>
+                            <label data-effect-numeric>
+                                <span data-i18n="advance-modifier-amount">Modifier amount</span>
+                                <input name="AdvanceForm.EventOptions[__OPTION_INDEX__].Effects[0].NumericAmount" class="form-control" type="number" step="0.01" value="0" />
+                                <input name="__Invariant" type="hidden" value="AdvanceForm.EventOptions[__OPTION_INDEX__].Effects[0].NumericAmount" />
+                            </label>
+                            <label data-effect-numeric>
+                                <span data-i18n="advance-modifier-unit">Value type</span>
+                                <select name="AdvanceForm.EventOptions[__OPTION_INDEX__].Effects[0].NumericUnit" class="form-select">
+                                    <option value="@Eu5ModPlanner.Models.ModifierUnit.Flat" data-i18n-option="unit-flat">Flat value</option>
+                                    <option value="@Eu5ModPlanner.Models.ModifierUnit.Percent" data-i18n-option="unit-percent">Percentage</option>
+                                </select>
+                            </label>
+                            <label data-effect-boolean hidden>
+                                <span data-i18n="bool-value">Boolean value</span>
+                                <select name="AdvanceForm.EventOptions[__OPTION_INDEX__].Effects[0].BoolValue" class="form-select">
+                                    <option value="true" data-i18n-option="bool-true">True</option>
+                                    <option value="false" selected data-i18n-option="bool-false">False</option>
+                                </select>
+                            </label>
+                        </div>
+                        <button type="button" class="material-button danger-button small-button" data-remove-effect>
+                            <span data-i18n="remove-effect">Remove</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
+
+<template id="event-option-effect-row-template">
+    <div class="effect-editor-card" data-effect-row>
+        <div class="effect-editor-grid">
+            <label class="effect-editor-wide">
+                <span data-i18n="effect-label">Effect label</span>
+                <input name="AdvanceForm.EventOptions[__OPTION_INDEX__].Effects[__INDEX__].Label" class="form-control" data-i18n-placeholder="effect-label-placeholder" list="effect-label-suggestions" />
+            </label>
+            <label>
+                <span data-i18n="effect-value-type">Effect kind</span>
+                <select name="AdvanceForm.EventOptions[__OPTION_INDEX__].Effects[__INDEX__].ValueType" class="form-select" data-effect-value-type>
+                    <option value="@Eu5ModPlanner.Models.EffectValueType.Numeric" data-i18n-option="effect-kind-numeric">Numeric</option>
+                    <option value="@Eu5ModPlanner.Models.EffectValueType.Boolean" data-i18n-option="effect-kind-boolean">Boolean</option>
+                    <option value="@Eu5ModPlanner.Models.EffectValueType.Text" data-i18n-option="effect-kind-text">Custom text</option>
+                </select>
+            </label>
+            <label data-effect-numeric>
+                <span data-i18n="advance-modifier-amount">Modifier amount</span>
+                <input name="AdvanceForm.EventOptions[__OPTION_INDEX__].Effects[__INDEX__].NumericAmount" class="form-control" type="number" step="0.01" value="0" />
+                <input name="__Invariant" type="hidden" value="AdvanceForm.EventOptions[__OPTION_INDEX__].Effects[__INDEX__].NumericAmount" />
+            </label>
+            <label data-effect-numeric>
+                <span data-i18n="advance-modifier-unit">Value type</span>
+                <select name="AdvanceForm.EventOptions[__OPTION_INDEX__].Effects[__INDEX__].NumericUnit" class="form-select">
+                    <option value="@Eu5ModPlanner.Models.ModifierUnit.Flat" data-i18n-option="unit-flat">Flat value</option>
+                    <option value="@Eu5ModPlanner.Models.ModifierUnit.Percent" data-i18n-option="unit-percent">Percentage</option>
+                </select>
+            </label>
+            <label data-effect-boolean hidden>
+                <span data-i18n="bool-value">Boolean value</span>
+                <select name="AdvanceForm.EventOptions[__OPTION_INDEX__].Effects[__INDEX__].BoolValue" class="form-select">
+                    <option value="true" data-i18n-option="bool-true">True</option>
+                    <option value="false" selected data-i18n-option="bool-false">False</option>
+                </select>
+            </label>
+        </div>
+        <button type="button" class="material-button danger-button small-button" data-remove-effect>
+            <span data-i18n="remove-effect">Remove</span>
+        </button>
+    </div>
+</template>
+
+<template id="left-effect-row-template">
+    <div class="effect-editor-card" data-effect-row>
+        <div class="effect-editor-grid">
+            <label class="effect-editor-wide">
+                <span data-i18n="effect-label">Effect label</span>
+                <input name="AdvanceForm.LeftEffects[__INDEX__].Label" class="form-control" data-i18n-placeholder="effect-label-placeholder" list="effect-label-suggestions" />
+            </label>
+            <label>
+                <span data-i18n="effect-value-type">Effect kind</span>
+                <select name="AdvanceForm.LeftEffects[__INDEX__].ValueType" class="form-select" data-effect-value-type>
+                    <option value="@Eu5ModPlanner.Models.EffectValueType.Numeric" data-i18n-option="effect-kind-numeric">Numeric</option>
+                    <option value="@Eu5ModPlanner.Models.EffectValueType.Boolean" data-i18n-option="effect-kind-boolean">Boolean</option>
+                    <option value="@Eu5ModPlanner.Models.EffectValueType.Text" data-i18n-option="effect-kind-text">Custom text</option>
+                </select>
+            </label>
+            <label data-effect-numeric>
+                <span data-i18n="advance-modifier-amount">Modifier amount</span>
+                <input name="AdvanceForm.LeftEffects[__INDEX__].NumericAmount" class="form-control" type="number" step="0.01" value="0" />
+                <input name="__Invariant" type="hidden" value="AdvanceForm.LeftEffects[__INDEX__].NumericAmount" />
+            </label>
+            <label data-effect-numeric>
+                <span data-i18n="advance-modifier-unit">Value type</span>
+                <select name="AdvanceForm.LeftEffects[__INDEX__].NumericUnit" class="form-select">
+                    <option value="@Eu5ModPlanner.Models.ModifierUnit.Flat" data-i18n-option="unit-flat">Flat value</option>
+                    <option value="@Eu5ModPlanner.Models.ModifierUnit.Percent" data-i18n-option="unit-percent">Percentage</option>
+                </select>
+            </label>
+            <label data-effect-boolean hidden>
+                <span data-i18n="bool-value">Boolean value</span>
+                <select name="AdvanceForm.LeftEffects[__INDEX__].BoolValue" class="form-select">
+                    <option value="true" data-i18n-option="bool-true">True</option>
+                    <option value="false" selected data-i18n-option="bool-false">False</option>
+                </select>
+            </label>
+        </div>
+        <button type="button" class="material-button danger-button small-button" data-remove-effect>
+            <span data-i18n="remove-effect">Remove</span>
+        </button>
+    </div>
+</template>
+
+<template id="right-effect-row-template">
+    <div class="effect-editor-card" data-effect-row>
+        <div class="effect-editor-grid">
+            <label class="effect-editor-wide">
+                <span data-i18n="effect-label">Effect label</span>
+                <input name="AdvanceForm.RightEffects[__INDEX__].Label" class="form-control" data-i18n-placeholder="effect-label-placeholder" list="effect-label-suggestions" />
+            </label>
+            <label>
+                <span data-i18n="effect-value-type">Effect kind</span>
+                <select name="AdvanceForm.RightEffects[__INDEX__].ValueType" class="form-select" data-effect-value-type>
+                    <option value="@Eu5ModPlanner.Models.EffectValueType.Numeric" data-i18n-option="effect-kind-numeric">Numeric</option>
+                    <option value="@Eu5ModPlanner.Models.EffectValueType.Boolean" data-i18n-option="effect-kind-boolean">Boolean</option>
+                    <option value="@Eu5ModPlanner.Models.EffectValueType.Text" data-i18n-option="effect-kind-text">Custom text</option>
+                </select>
+            </label>
+            <label data-effect-numeric>
+                <span data-i18n="advance-modifier-amount">Modifier amount</span>
+                <input name="AdvanceForm.RightEffects[__INDEX__].NumericAmount" class="form-control" type="number" step="0.01" value="0" />
+                <input name="__Invariant" type="hidden" value="AdvanceForm.RightEffects[__INDEX__].NumericAmount" />
+            </label>
+            <label data-effect-numeric>
+                <span data-i18n="advance-modifier-unit">Value type</span>
+                <select name="AdvanceForm.RightEffects[__INDEX__].NumericUnit" class="form-select">
+                    <option value="@Eu5ModPlanner.Models.ModifierUnit.Flat" data-i18n-option="unit-flat">Flat value</option>
+                    <option value="@Eu5ModPlanner.Models.ModifierUnit.Percent" data-i18n-option="unit-percent">Percentage</option>
+                </select>
+            </label>
+            <label data-effect-boolean hidden>
+                <span data-i18n="bool-value">Boolean value</span>
+                <select name="AdvanceForm.RightEffects[__INDEX__].BoolValue" class="form-select">
+                    <option value="true" data-i18n-option="bool-true">True</option>
+                    <option value="false" selected data-i18n-option="bool-false">False</option>
+                </select>
+            </label>
+        </div>
+        <button type="button" class="material-button danger-button small-button" data-remove-effect>
+            <span data-i18n="remove-effect">Remove</span>
+        </button>
+    </div>
+</template>
+
+@if (Model.SelectedContentPayloadJson is not null)
+{
+    <script type="application/json" id="selected-content-payload">@Html.Raw(Model.SelectedContentPayloadJson)</script>
+}
