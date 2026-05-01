@@ -56,7 +56,7 @@ jobs:
             cd "${{ vars.DEPLOY_PATH }}"
 
             if [ ! -f .env ]; then
-              cp .env.vps.example .env
+              cp deploy/.env.vps.example .env
             fi
 
             docker compose up -d
