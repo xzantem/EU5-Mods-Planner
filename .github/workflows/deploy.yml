@@ -1,0 +1,74 @@
+name: Deploy EU5 Mod Planner
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-deploy:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Restore
+        run: dotnet restore "Eu5ModPlanner.csproj"
+
+      - name: Build
+        run: dotnet build "Eu5ModPlanner.csproj" --configuration Release --no-restore
+
+      - name: Publish
+        run: dotnet publish "Eu5ModPlanner.csproj" --configuration Release --output ./publish --no-build
+
+      - name: Upload application and deploy files
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.HOST_USER }}
+          key: ${{ secrets.HOST_SSH_KEY }}
+          port: ${{ secrets.HOST_PORT }}
+          source: |
+            publish/*
+            docker-compose.yml
+            deploy/eu5modplanner.service
+            deploy/.env.vps.example
+          strip_components: 1
+          target: ${{ vars.DEPLOY_PATH }}/
+
+      - name: Deploy on VPS
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.HOST_USER }}
+          key: ${{ secrets.HOST_SSH_KEY }}
+          port: ${{ secrets.HOST_PORT }}
+          script: |
+            set -e
+            mkdir -p "${{ vars.DEPLOY_PATH }}"
+            cd "${{ vars.DEPLOY_PATH }}"
+
+            if [ ! -f .env ]; then
+              cp .env.vps.example .env
+            fi
+
+            docker compose up -d
+
+            sed "s|__DEPLOY_PATH__|${{ vars.DEPLOY_PATH }}|g" eu5modplanner.service > eu5modplanner.generated.service
+
+            sudo cp eu5modplanner.generated.service /etc/systemd/system/eu5modplanner.service
+            sudo systemctl daemon-reload
+            sudo systemctl enable eu5modplanner
+            sudo systemctl restart eu5modplanner
+            sudo systemctl status eu5modplanner --no-pager

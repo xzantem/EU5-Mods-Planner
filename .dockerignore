@@ -1,0 +1,9 @@
+bin/
+obj/
+.git/
+.github/
+App_Data/
+run.log
+run5068.log
+*.user
+*.suo
