@@ -1,10 +1,28 @@
 services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: eu5-mod-planner-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ASPNETCORE_URLS: http://0.0.0.0:5068
+      ConnectionStrings__PlannerDatabase: Host=postgres;Port=5432;Database=${POSTGRES_DB:-eu5_mod_planner};Username=${POSTGRES_USER:-eu5planner};Password=${POSTGRES_PASSWORD:-eu5planner}
+    ports:
+      - "${APP_PORT:-5068}:5068"
+    volumes:
+      - app_data:/app/App_Data
+
   postgres:
     image: postgres:16-alpine
     container_name: eu5-mod-planner-db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-eu5_mod_planner_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-eu5_mod_planner}
       POSTGRES_USER: ${POSTGRES_USER:-eu5planner}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-eu5planner}
     ports:
@@ -12,10 +30,11 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-eu5planner} -d ${POSTGRES_DB:-eu5_mod_planner_dev}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-eu5planner} -d ${POSTGRES_DB:-eu5_mod_planner}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
 volumes:
+  app_data:
   postgres_data:

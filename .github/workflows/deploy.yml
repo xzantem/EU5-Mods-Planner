@@ -18,28 +18,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up .NET 9
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 9.0.x
+      - name: Build Docker image
+        run: docker build -t eu5modplanner:ci .
 
-      - name: Restore
-        run: dotnet restore "Eu5ModPlanner.csproj"
-
-      - name: Build
-        run: dotnet build "Eu5ModPlanner.csproj" --configuration Release --no-restore
-
-      - name: Publish
-        run: dotnet publish "Eu5ModPlanner.csproj" --configuration Release --output ./publish --no-build
-
-      - name: Upload application and deploy files
+      - name: Upload application source and deploy files
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.HOST_USER }}
           key: ${{ secrets.HOST_SSH_KEY }}
           port: ${{ secrets.HOST_PORT }}
-          source: "Controllers,Models,Properties,Services,Views,wwwroot,appsettings.json,Eu5ModPlanner.csproj,Program.cs,NuGet.Config,Dockerfile,.dockerignore,docker-compose.yml,deploy/.env.vps.example"
+          source: "Controllers,Models,Properties,Services,Views,wwwroot,appsettings.json,appsettings.Development.json,Eu5ModPlanner.csproj,Program.cs,NuGet.Config,Dockerfile,.dockerignore,docker-compose.yml,deploy,.env.example"
           strip_components: 0
           target: ${{ vars.DEPLOY_PATH }}/
 
@@ -59,12 +48,6 @@ jobs:
               cp deploy/.env.vps.example .env
             fi
 
-            docker compose up -d
-
-            sed "s|__DEPLOY_PATH__|${{ vars.DEPLOY_PATH }}|g" eu5modplanner.service > eu5modplanner.generated.service
-
-            sudo cp eu5modplanner.generated.service /etc/systemd/system/eu5modplanner.service
-            sudo systemctl daemon-reload
-            sudo systemctl enable eu5modplanner
-            sudo systemctl restart eu5modplanner
-            sudo systemctl status eu5modplanner --no-pager
+            docker compose down || true
+            docker compose up -d --build
+            docker compose ps
