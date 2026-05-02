@@ -25,9 +25,9 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
 
         using (var command = new NpgsqlCommand(
                    """
-                   select id, name, tag
+                   select id, name, tag, is_archived
                    from countries
-                   order by tag, name;
+                   order by is_archived, tag, name;
                    """,
                    connection))
         using (var reader = command.ExecuteReader())
@@ -38,7 +38,8 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
                 {
                     Id = reader.GetGuid(0),
                     Name = reader.GetString(1),
-                    Tag = reader.GetString(2)
+                    Tag = reader.GetString(2),
+                    IsArchived = !reader.IsDBNull(3) && reader.GetBoolean(3)
                 });
             }
         }
@@ -380,17 +381,56 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
         using var connection = OpenConnection();
         using var command = new NpgsqlCommand(
             """
-            insert into countries (id, name, tag)
-            values (@id, @name, @tag);
+            insert into countries (id, name, tag, is_archived)
+            values (@id, @name, @tag, @isArchived);
             """,
             connection);
 
         command.Parameters.AddWithValue("id", country.Id);
         command.Parameters.AddWithValue("name", country.Name);
         command.Parameters.AddWithValue("tag", country.Tag);
+        command.Parameters.AddWithValue("isArchived", country.IsArchived);
         command.ExecuteNonQuery();
 
         return country;
+    }
+
+    public Country UpdateCountry(Country country)
+    {
+        using var connection = OpenConnection();
+        using var command = new NpgsqlCommand(
+            """
+            update countries
+            set name = @name,
+                tag = @tag,
+                is_archived = @isArchived
+            where id = @id;
+            """,
+            connection);
+
+        command.Parameters.AddWithValue("id", country.Id);
+        command.Parameters.AddWithValue("name", country.Name);
+        command.Parameters.AddWithValue("tag", country.Tag);
+        command.Parameters.AddWithValue("isArchived", country.IsArchived);
+        command.ExecuteNonQuery();
+
+        return country;
+    }
+
+    public bool SetCountryArchived(Guid id, bool isArchived)
+    {
+        using var connection = OpenConnection();
+        using var command = new NpgsqlCommand(
+            """
+            update countries
+            set is_archived = @isArchived
+            where id = @id;
+            """,
+            connection);
+
+        command.Parameters.AddWithValue("id", id);
+        command.Parameters.AddWithValue("isArchived", isArchived);
+        return command.ExecuteNonQuery() > 0;
     }
 
     public ContentEntry AddContentEntry(ContentEntry entry)
@@ -538,11 +578,13 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
             create table if not exists countries (
                 id uuid primary key,
                 name varchar(80) not null,
-                tag varchar(12) not null
+                tag varchar(12) not null,
+                is_archived boolean not null default false
             );
 
             alter table countries add column if not exists name varchar(80);
             alter table countries add column if not exists tag varchar(12);
+            alter table countries add column if not exists is_archived boolean not null default false;
 
             create table if not exists content_entries (
                 id uuid primary key,

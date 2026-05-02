@@ -93,6 +93,8 @@ public sealed class Country
     [Required, StringLength(12)]
     public string Tag { get; set; } = string.Empty;
 
+    public bool IsArchived { get; set; }
+
     public List<Guid> ContentEntryIds { get; set; } = [];
 }
 

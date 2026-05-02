@@ -5,6 +5,8 @@ namespace Eu5ModPlanner.Models;
 public sealed class PlannerIndexViewModel
 {
     public required IReadOnlyList<Country> Countries { get; init; }
+    public required IReadOnlyList<Country> ActiveCountries { get; init; }
+    public required IReadOnlyList<Country> ArchivedCountries { get; init; }
     public required IReadOnlyList<ContentEntry> SelectedCountryContent { get; init; }
     public required IReadOnlyList<string> EffectLabelSuggestions { get; init; }
     public required CountryInputModel CountryForm { get; init; }
@@ -20,11 +22,15 @@ public sealed class PlannerIndexViewModel
 
 public sealed class CountryInputModel
 {
+    public Guid? Id { get; set; }
+
     [Required, StringLength(80)]
     public string Name { get; set; } = string.Empty;
 
     [Required, StringLength(12)]
     public string Tag { get; set; } = string.Empty;
+
+    public bool IsArchived { get; set; }
 }
 
 public sealed class AdvanceInputModel

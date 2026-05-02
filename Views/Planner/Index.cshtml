@@ -54,17 +54,25 @@
 
 <section class="planner-shell">
     <aside class="planner-pane pane-countries">
-        <div class="pane-header">
+        <div class="pane-header pane-header-stacked">
             <div>
                 <p class="pane-kicker" data-i18n="countries-kicker">Countries</p>
                 <h1 data-i18n="countries-title">Available tags</h1>
             </div>
-            @if (Model.HasWriteAccess)
-            {
-                <button type="button" class="icon-button" data-bs-toggle="modal" data-bs-target="#addCountryModal" aria-label="Add country">
-                    +
-                </button>
-            }
+            <div class="pane-header-actions">
+                @if (Model.HasWriteAccess)
+                {
+                    <button type="button" class="material-button primary-button" data-bs-toggle="modal" data-bs-target="#addCountryModal">
+                        <span data-i18n="add-tag">Add tag</span>
+                    </button>
+                }
+                @if (Model.ArchivedCountries.Count > 0)
+                {
+                    <button type="button" class="material-button ghost-button small-button" data-bs-toggle="modal" data-bs-target="#archivedCountriesModal">
+                        <span data-i18n="archived-tags-button">Archived tags</span>
+                    </button>
+                }
+            </div>
         </div>
 
         @if (Model.Countries.Count == 0)
@@ -75,19 +83,73 @@
         }
         else
         {
-            <div class="country-stack">
-                @foreach (var country in Model.Countries)
+            @if (Model.ActiveCountries.Count > 0)
+            {
+                <div class="country-section">
+                    <p class="country-section-title" data-i18n="countries-active-title">Active tags</p>
+                    <div class="country-stack">
+                        @foreach (var country in Model.ActiveCountries)
+                        {
+                            var isSelected = Model.SelectedCountry?.Id == country.Id;
+                            <a class="country-tile @(isSelected ? "is-selected" : null)"
+                               asp-action="Index"
+                               asp-route-countryId="@country.Id">
+                                <div class="country-tag">@country.Tag</div>
+                                <div class="country-copy">
+                                    <strong>@country.Name</strong>
+                                    <span>@country.ContentEntryIds.Count <span data-i18n="content-label-inline">entries</span></span>
+                                </div>
+                            </a>
+                        }
+                    </div>
+                </div>
+            }
+
+        }
+
+        @if (Model.SelectedCountry is not null)
+        {
+            <div class="selected-country-card">
+                <div class="detail-topline">
+                    <div class="country-copy">
+                        <span class="pane-kicker" data-i18n="selected-country-kicker">Selected tag</span>
+                        <strong>@Model.SelectedCountry.Name</strong>
+                        <span>@Model.SelectedCountry.Tag</span>
+                    </div>
+                    <div class="content-chip-row">
+                        <span class="type-chip @(Model.SelectedCountry.IsArchived ? "archived-chip" : null)"
+                              data-i18n="@(Model.SelectedCountry.IsArchived ? "country-status-archived" : "country-status-active")">
+                            @(Model.SelectedCountry.IsArchived ? "Archived" : "Active")
+                        </span>
+                    </div>
+                </div>
+                @if (Model.HasWriteAccess)
                 {
-                    var isSelected = Model.SelectedCountry?.Id == country.Id;
-                    <a class="country-tile @(isSelected ? "is-selected" : null)"
-                       asp-action="Index"
-                       asp-route-countryId="@country.Id">
-                        <div class="country-tag">@country.Tag</div>
-                        <div class="country-copy">
-                            <strong>@country.Name</strong>
-                            <span>@country.ContentEntryIds.Count <span data-i18n="content-label-inline">entries</span></span>
-                        </div>
-                    </a>
+                    <div class="content-chip-row">
+                        <button type="button" class="material-button ghost-button" data-bs-toggle="modal" data-bs-target="#editCountryModal">
+                            <span data-i18n="edit-country">Edit tag</span>
+                        </button>
+                        @if (Model.SelectedCountry.IsArchived)
+                        {
+                            <form asp-action="RestoreCountry" method="post">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="countryId" value="@Model.SelectedCountry.Id" />
+                                <button type="submit" class="material-button primary-button">
+                                    <span data-i18n="restore-country">Restore tag</span>
+                                </button>
+                            </form>
+                        }
+                        else
+                        {
+                            <form asp-action="ArchiveCountry" method="post">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="countryId" value="@Model.SelectedCountry.Id" />
+                                <button type="submit" class="material-button danger-button">
+                                    <span data-i18n="archive-country">Archive tag</span>
+                                </button>
+                            </form>
+                        }
+                    </div>
                 }
             </div>
         }
@@ -157,14 +219,14 @@
     </section>
 
     <aside class="planner-pane pane-detail">
-        <div class="pane-header">
+        <div class="pane-header pane-header-stacked">
             <div>
                 <p class="pane-kicker" data-i18n="detail-kicker">Details</p>
                 <h2 data-i18n="detail-title">Selected content</h2>
             </div>
             @if (Model.SelectedCountry is not null && Model.SelectedContent is not null)
             {
-                <div class="content-chip-row">
+                <div class="pane-header-actions">
                     @if (Model.HasWriteAccess)
                     {
                         <button type="button" class="material-button ghost-button" data-edit-content-button data-bs-toggle="modal" data-bs-target="#addContentModal">
@@ -260,11 +322,11 @@
                 <div class="modal-body modal-form">
                     <label>
                         <span data-i18n="country-name">Country name</span>
-                        <input asp-for="CountryForm.Name" class="form-control" data-i18n-placeholder="country-name-placeholder" />
+                        <input name="CountryForm.Name" class="form-control" data-i18n-placeholder="country-name-placeholder" />
                     </label>
                     <label>
                         <span data-i18n="country-tag">Country tag</span>
-                        <input asp-for="CountryForm.Tag" class="form-control text-uppercase" maxlength="12" data-i18n-placeholder="country-tag-placeholder" />
+                        <input name="CountryForm.Tag" class="form-control text-uppercase" maxlength="12" data-i18n-placeholder="country-tag-placeholder" />
                     </label>
                 </div>
                 <div class="modal-footer">
@@ -275,6 +337,72 @@
         </div>
     </div>
 </div>
+
+@if (Model.ArchivedCountries.Count > 0)
+{
+<div class="modal fade" id="archivedCountriesModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content planner-modal">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" data-i18n="countries-archived-title">Archived tags</h2>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="country-stack">
+                    @foreach (var country in Model.ArchivedCountries)
+                    {
+                        var isSelected = Model.SelectedCountry?.Id == country.Id;
+                        <a class="country-tile country-tile-archived @(isSelected ? "is-selected" : null)"
+                           asp-action="Index"
+                           asp-route-countryId="@country.Id">
+                            <div class="country-tag">@country.Tag</div>
+                            <div class="country-copy">
+                                <strong>@country.Name</strong>
+                                <span><span data-i18n="country-status-archived">Archived</span> · @country.ContentEntryIds.Count <span data-i18n="content-label-inline">entries</span></span>
+                            </div>
+                        </a>
+                    }
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="material-button ghost-button" data-bs-dismiss="modal" data-i18n="close-archived-tags">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+}
+
+@if (Model.SelectedCountry is not null)
+{
+<div class="modal fade" id="editCountryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content planner-modal">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" data-i18n="country-modal-title-edit">Edit tag</h2>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form asp-action="UpdateCountry" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="CountryForm.Id" value="@Model.SelectedCountry.Id" />
+                <div class="modal-body modal-form">
+                    <label>
+                        <span data-i18n="country-name">Country name</span>
+                        <input name="CountryForm.Name" class="form-control" value="@Model.SelectedCountry.Name" data-i18n-placeholder="country-name-placeholder" />
+                    </label>
+                    <label>
+                        <span data-i18n="country-tag">Country tag</span>
+                        <input name="CountryForm.Tag" class="form-control text-uppercase" maxlength="12" value="@Model.SelectedCountry.Tag" data-i18n-placeholder="country-tag-placeholder" />
+                    </label>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="material-button ghost-button" data-bs-dismiss="modal" data-i18n="cancel">Cancel</button>
+                    <button type="submit" class="material-button primary-button" data-i18n="save-country-edit">Save changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+}
 
 <div class="modal fade" id="addContentModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">

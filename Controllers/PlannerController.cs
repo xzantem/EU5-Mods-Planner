@@ -27,7 +27,9 @@ public sealed class PlannerController : Controller
     public IActionResult Index(Guid? countryId, Guid? contentId)
     {
         var data = _repository.GetData();
-        var countries = data.Countries.OrderBy(country => country.Tag).ThenBy(country => country.Name).ToList();
+        var countries = data.Countries.OrderBy(country => country.IsArchived).ThenBy(country => country.Tag).ThenBy(country => country.Name).ToList();
+        var activeCountries = countries.Where(country => !country.IsArchived).ToList();
+        var archivedCountries = countries.Where(country => country.IsArchived).ToList();
         var effectLabelSuggestions = data.ContentEntries
             .SelectMany(entry => entry.Effects.Concat(entry.EventOptions.SelectMany(option => option.Effects)))
             .Select(effect => effect.Label)
@@ -36,7 +38,9 @@ public sealed class PlannerController : Controller
             .OrderBy(label => label)
             .ToList();
 
-        var selectedCountry = countries.FirstOrDefault(country => country.Id == countryId) ?? countries.FirstOrDefault();
+        var selectedCountry = countries.FirstOrDefault(country => country.Id == countryId)
+            ?? activeCountries.FirstOrDefault()
+            ?? archivedCountries.FirstOrDefault();
         var selectedContent = default(ContentEntry);
         var selectedCountryContent = new List<ContentEntry>();
         var hasWriteAccess = HasWriteAccess();
@@ -58,6 +62,8 @@ public sealed class PlannerController : Controller
         var viewModel = new PlannerIndexViewModel
         {
             Countries = countries,
+            ActiveCountries = activeCountries,
+            ArchivedCountries = archivedCountries,
             EffectLabelSuggestions = effectLabelSuggestions,
             SelectedCountry = selectedCountry,
             SelectedCountryContent = selectedCountryContent,
@@ -92,12 +98,71 @@ public sealed class PlannerController : Controller
         var country = new Country
         {
             Name = input.Name.Trim(),
-            Tag = input.Tag.Trim().ToUpperInvariant()
+            Tag = input.Tag.Trim().ToUpperInvariant(),
+            IsArchived = false
         };
 
         _repository.AddCountry(country);
         TempData["Message"] = $"Added country {country.Tag}.";
         return RedirectToAction(nameof(Index), new { countryId = country.Id });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult UpdateCountry([Bind(Prefix = "CountryForm")] CountryInputModel input)
+    {
+        if (TryRejectWriteAccess(input.Id))
+        {
+            return RedirectToAction(nameof(Index), new { countryId = input.Id });
+        }
+
+        if (!ModelState.IsValid || input.Id is null || input.Id == Guid.Empty)
+        {
+            TempData["Message"] = "Country could not be updated.";
+            return RedirectToAction(nameof(Index), new { countryId = input.Id });
+        }
+
+        var existingCountry = _repository.GetData().Countries.FirstOrDefault(country => country.Id == input.Id.Value);
+        if (existingCountry is null)
+        {
+            TempData["Message"] = "Country could not be updated.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        existingCountry.Name = input.Name.Trim();
+        existingCountry.Tag = input.Tag.Trim().ToUpperInvariant();
+        _repository.UpdateCountry(existingCountry);
+
+        TempData["Message"] = $"Updated country {existingCountry.Tag}.";
+        return RedirectToAction(nameof(Index), new { countryId = existingCountry.Id });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult ArchiveCountry(Guid countryId)
+    {
+        if (TryRejectWriteAccess(countryId))
+        {
+            return RedirectToAction(nameof(Index), new { countryId });
+        }
+
+        _repository.SetCountryArchived(countryId, true);
+        TempData["Message"] = "Country archived.";
+        return RedirectToAction(nameof(Index), new { countryId });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult RestoreCountry(Guid countryId)
+    {
+        if (TryRejectWriteAccess(countryId))
+        {
+            return RedirectToAction(nameof(Index), new { countryId });
+        }
+
+        _repository.SetCountryArchived(countryId, false);
+        TempData["Message"] = "Country restored.";
+        return RedirectToAction(nameof(Index), new { countryId });
     }
 
     [HttpPost]

@@ -6,6 +6,8 @@ public interface IPlannerRepository
 {
     ModPlannerData GetData();
     Country AddCountry(Country country);
+    Country UpdateCountry(Country country);
+    bool SetCountryArchived(Guid id, bool isArchived);
     ContentEntry AddContentEntry(ContentEntry entry);
     ContentEntry UpdateContentEntry(ContentEntry entry);
     bool DeleteContentEntry(Guid id);
