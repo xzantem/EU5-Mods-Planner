@@ -27,9 +27,9 @@ http://localhost:5068
 This repo now includes:
 
 - GitHub Actions workflow: [.github/workflows/deploy.yml](C:/Users/Patryczku/Documents/New%20project/Eu5ModPlanner/EU5%20Mod%20Planner/.github/workflows/deploy.yml)
-- `systemd` service template: [deploy/eu5modplanner.service](C:/Users/Patryczku/Documents/New%20project/Eu5ModPlanner/EU5%20Mod%20Planner/deploy/eu5modplanner.service)
 - VPS Postgres env template: [deploy/.env.vps.example](C:/Users/Patryczku/Documents/New%20project/Eu5ModPlanner/EU5%20Mod%20Planner/deploy/.env.vps.example)
 - App container build file: [Dockerfile](C:/Users/Patryczku/Documents/New%20project/Eu5ModPlanner/EU5%20Mod%20Planner/Dockerfile)
+- nginx reverse proxy example: [deploy/eu5modplanner.nginx.conf](C:/Users/Patryczku/Documents/New%20project/Eu5ModPlanner/EU5%20Mod%20Planner/deploy/eu5modplanner.nginx.conf)
 
 ### GitHub secrets
 
@@ -54,11 +54,12 @@ Install on the server:
 
 - Docker
 - Docker Compose plugin
-- .NET 9 runtime
+- nginx
 
 Then:
 
 1. Create the deploy directory.
 2. Put the correct PostgreSQL password in `.env`.
-3. Adjust the connection string inside `deploy/eu5modplanner.service`.
-4. Make sure the app can be reached through your reverse proxy or open port `5068`.
+3. Start the containers with `docker compose up -d --build`.
+4. Copy the nginx config from `deploy/eu5modplanner.nginx.conf`.
+5. Make sure nginx points to the same host port as `APP_PORT` in `.env`.
