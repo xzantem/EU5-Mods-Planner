@@ -9,6 +9,10 @@ public sealed class PlannerIndexViewModel
     public required IReadOnlyList<string> EffectLabelSuggestions { get; init; }
     public required CountryInputModel CountryForm { get; init; }
     public required AdvanceInputModel AdvanceForm { get; init; }
+    public required AdminLoginInputModel LoginForm { get; init; }
+    public bool HasWriteAccess { get; init; }
+    public bool IsLoginConfigured { get; init; }
+    public bool CanManageWriteAccess { get; init; }
     public Country? SelectedCountry { get; init; }
     public ContentEntry? SelectedContent { get; init; }
     public string? SelectedContentPayloadJson { get; init; }
@@ -191,4 +195,13 @@ public sealed class EventOptionInputModel
     public string? Text { get; set; }
 
     public List<AdvanceEffectInputModel> Effects { get; set; } = [new()];
+}
+
+public sealed class AdminLoginInputModel
+{
+    [Required]
+    public string Username { get; set; } = string.Empty;
+
+    [Required]
+    public string Password { get; set; } = string.Empty;
 }

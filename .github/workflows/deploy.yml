@@ -34,19 +34,36 @@ jobs:
 
       - name: Deploy on VPS
         uses: appleboy/ssh-action@v0.1.10
+        env:
+          APP_PORT: ${{ vars.APP_PORT }}
+          ASPNETCORE_ENVIRONMENT: ${{ vars.ASPNETCORE_ENVIRONMENT }}
+          ADMIN_AUTH_USERNAME: ${{ vars.ADMIN_AUTH_USERNAME }}
+          ADMIN_AUTH_PASSWORD: ${{ secrets.ADMIN_AUTH_PASSWORD }}
+          POSTGRES_DB: ${{ vars.POSTGRES_DB }}
+          POSTGRES_USER: ${{ vars.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_PORT: ${{ vars.POSTGRES_PORT }}
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.HOST_USER }}
           key: ${{ secrets.HOST_SSH_KEY }}
           port: ${{ secrets.HOST_PORT }}
+          envs: APP_PORT,ASPNETCORE_ENVIRONMENT,ADMIN_AUTH_USERNAME,ADMIN_AUTH_PASSWORD,POSTGRES_DB,POSTGRES_USER,POSTGRES_PASSWORD,POSTGRES_PORT
           script: |
             set -e
             mkdir -p "${{ vars.DEPLOY_PATH }}"
             cd "${{ vars.DEPLOY_PATH }}"
 
-            if [ ! -f .env ]; then
-              cp deploy/.env.vps.example .env
-            fi
+            cat > .env <<EOF
+            APP_PORT=${APP_PORT:-5068}
+            ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Production}
+            ADMIN_AUTH_USERNAME=${ADMIN_AUTH_USERNAME:-admin}
+            ADMIN_AUTH_PASSWORD=${ADMIN_AUTH_PASSWORD}
+            POSTGRES_DB=${POSTGRES_DB:-eu5_mod_planner}
+            POSTGRES_USER=${POSTGRES_USER:-eu5planner}
+            POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+            POSTGRES_PORT=${POSTGRES_PORT:-54329}
+            EOF
 
             docker compose down || true
             docker compose up -d --build

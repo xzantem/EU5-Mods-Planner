@@ -1,6 +1,10 @@
 using Eu5ModPlanner.Models;
 using Eu5ModPlanner.Services;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using System.Text.Json;
 
 namespace Eu5ModPlanner.Controllers;
@@ -8,11 +12,15 @@ namespace Eu5ModPlanner.Controllers;
 public sealed class PlannerController : Controller
 {
     private readonly IPlannerRepository _repository;
+    private readonly AdminAuthOptions _adminAuthOptions;
+    private readonly IWebHostEnvironment _environment;
     private static readonly JsonSerializerOptions EventRequirementJsonOptions = new(JsonSerializerDefaults.Web);
 
-    public PlannerController(IPlannerRepository repository)
+    public PlannerController(IPlannerRepository repository, IOptions<AdminAuthOptions> adminAuthOptions, IWebHostEnvironment environment)
     {
         _repository = repository;
+        _adminAuthOptions = adminAuthOptions.Value;
+        _environment = environment;
     }
 
     [HttpGet]
@@ -31,6 +39,9 @@ public sealed class PlannerController : Controller
         var selectedCountry = countries.FirstOrDefault(country => country.Id == countryId) ?? countries.FirstOrDefault();
         var selectedContent = default(ContentEntry);
         var selectedCountryContent = new List<ContentEntry>();
+        var hasWriteAccess = HasWriteAccess();
+        var isLoginConfigured = IsLoginConfigured();
+        var canManageWriteAccess = _environment.IsDevelopment() == false && isLoginConfigured;
 
         if (selectedCountry is not null)
         {
@@ -51,9 +62,13 @@ public sealed class PlannerController : Controller
             SelectedCountry = selectedCountry,
             SelectedCountryContent = selectedCountryContent,
             SelectedContent = selectedContent,
+            HasWriteAccess = hasWriteAccess,
+            IsLoginConfigured = isLoginConfigured,
+            CanManageWriteAccess = canManageWriteAccess,
             SelectedContentPayloadJson = selectedContent is null ? null : JsonSerializer.Serialize(ToEditPayload(selectedContent)),
             CountryForm = new CountryInputModel(),
-            AdvanceForm = BuildDefaultInputModel(selectedCountry?.Id ?? Guid.Empty)
+            AdvanceForm = BuildDefaultInputModel(selectedCountry?.Id ?? Guid.Empty),
+            LoginForm = new AdminLoginInputModel()
         };
 
         return View(viewModel);
@@ -63,6 +78,11 @@ public sealed class PlannerController : Controller
     [ValidateAntiForgeryToken]
     public IActionResult AddCountry([Bind(Prefix = "CountryForm")] CountryInputModel input)
     {
+        if (TryRejectWriteAccess(null))
+        {
+            return RedirectToAction(nameof(Index));
+        }
+
         if (!ModelState.IsValid)
         {
             TempData["Message"] = "Country could not be added.";
@@ -84,6 +104,11 @@ public sealed class PlannerController : Controller
     [ValidateAntiForgeryToken]
     public IActionResult AddContent([Bind(Prefix = "AdvanceForm")] AdvanceInputModel input)
     {
+        if (TryRejectWriteAccess(input.CountryId))
+        {
+            return RedirectToAction(nameof(Index), new { countryId = input.CountryId });
+        }
+
         return SaveContent(input, isEdit: false);
     }
 
@@ -91,7 +116,64 @@ public sealed class PlannerController : Controller
     [ValidateAntiForgeryToken]
     public IActionResult EditContent([Bind(Prefix = "AdvanceForm")] AdvanceInputModel input)
     {
+        if (TryRejectWriteAccess(input.CountryId))
+        {
+            return RedirectToAction(nameof(Index), new { countryId = input.CountryId });
+        }
+
         return SaveContent(input, isEdit: true);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Login([Bind(Prefix = "LoginForm")] AdminLoginInputModel input, Guid? countryId, Guid? contentId)
+    {
+        if (_environment.IsDevelopment())
+        {
+            TempData["Message"] = "Local development mode already has write access.";
+            return RedirectToAction(nameof(Index), new { countryId, contentId });
+        }
+
+        if (!IsLoginConfigured())
+        {
+            TempData["Message"] = "Admin login is not configured yet.";
+            return RedirectToAction(nameof(Index), new { countryId, contentId });
+        }
+
+        if (!ModelState.IsValid || !CredentialsMatch(input))
+        {
+            TempData["Message"] = "Invalid login details.";
+            return RedirectToAction(nameof(Index), new { countryId, contentId });
+        }
+
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.Name, _adminAuthOptions.Username),
+            new("planner_access", "write")
+        };
+
+        var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+        await HttpContext.SignInAsync(
+            CookieAuthenticationDefaults.AuthenticationScheme,
+            new ClaimsPrincipal(identity));
+
+        TempData["Message"] = "Write access enabled.";
+        return RedirectToAction(nameof(Index), new { countryId, contentId });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Logout(Guid? countryId, Guid? contentId)
+    {
+        if (_environment.IsDevelopment())
+        {
+            TempData["Message"] = "Local development mode keeps write access enabled.";
+            return RedirectToAction(nameof(Index), new { countryId, contentId });
+        }
+
+        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        TempData["Message"] = "Write access disabled.";
+        return RedirectToAction(nameof(Index), new { countryId, contentId });
     }
 
     private IActionResult SaveContent(AdvanceInputModel input, bool isEdit)
@@ -278,10 +360,41 @@ public sealed class PlannerController : Controller
     [ValidateAntiForgeryToken]
     public IActionResult DeleteContent(Guid countryId, Guid contentId)
     {
+        if (TryRejectWriteAccess(countryId))
+        {
+            return RedirectToAction(nameof(Index), new { countryId, contentId });
+        }
+
         _repository.DeleteContentEntry(contentId);
         TempData["Message"] = "Content deleted.";
         return RedirectToAction(nameof(Index), new { countryId });
     }
+
+    private bool TryRejectWriteAccess(Guid? countryId)
+    {
+        if (HasWriteAccess())
+        {
+            return false;
+        }
+
+        TempData["Message"] = IsLoginConfigured()
+            ? "Read-only mode. Sign in to edit the database."
+            : "Read-only mode. Configure admin credentials to enable editing.";
+        return true;
+    }
+
+    private bool HasWriteAccess() =>
+        _environment.IsDevelopment()
+        || (User.Identity?.IsAuthenticated == true
+            && User.Claims.Any(claim => claim.Type == "planner_access" && claim.Value == "write"));
+
+    private bool IsLoginConfigured() =>
+        string.IsNullOrWhiteSpace(_adminAuthOptions.Username) == false
+        && string.IsNullOrWhiteSpace(_adminAuthOptions.Password) == false;
+
+    private bool CredentialsMatch(AdminLoginInputModel input) =>
+        string.Equals(input.Username?.Trim(), _adminAuthOptions.Username, StringComparison.Ordinal)
+        && string.Equals(input.Password, _adminAuthOptions.Password, StringComparison.Ordinal);
 
     private static List<ContentEffect> BuildEffects(IEnumerable<AdvanceEffectInputModel>? source, ValueEffectSide side) =>
         (source ?? [])

@@ -12,6 +12,8 @@ services:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       ASPNETCORE_URLS: http://0.0.0.0:5068
       ConnectionStrings__PlannerDatabase: Host=postgres;Port=5432;Database=${POSTGRES_DB:-eu5_mod_planner};Username=${POSTGRES_USER:-eu5planner};Password=${POSTGRES_PASSWORD:-eu5planner}
+      AdminAuth__Username: ${ADMIN_AUTH_USERNAME:-}
+      AdminAuth__Password: ${ADMIN_AUTH_PASSWORD:-}
     ports:
       - "${APP_PORT:-5068}:5068"
     volumes:

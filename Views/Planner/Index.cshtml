@@ -13,6 +13,45 @@
         .ToList();
 }
 
+<div class="auth-banner">
+    <div class="auth-banner-copy">
+        @if (Model.HasWriteAccess)
+        {
+            <strong data-i18n="auth-write-title">Write access enabled</strong>
+            <span data-i18n="auth-write-copy">You can add, edit, and delete content.</span>
+        }
+        else if (Model.IsLoginConfigured)
+        {
+            <strong data-i18n="auth-readonly-title">Read-only mode</strong>
+            <span data-i18n="auth-readonly-copy">Browsing is public. Sign in to edit the database.</span>
+        }
+        else
+        {
+            <strong data-i18n="auth-unconfigured-title">Read-only mode</strong>
+            <span data-i18n="auth-unconfigured-copy">Admin credentials are not configured yet, so editing is disabled.</span>
+        }
+    </div>
+    <div class="content-chip-row">
+        @if (Model.CanManageWriteAccess && Model.HasWriteAccess)
+        {
+            <form asp-action="Logout" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="countryId" value="@Model.SelectedCountry?.Id" />
+                <input type="hidden" name="contentId" value="@Model.SelectedContent?.Id" />
+                <button type="submit" class="material-button ghost-button">
+                    <span data-i18n="auth-logout">Disable write access</span>
+                </button>
+            </form>
+        }
+        else if (Model.CanManageWriteAccess)
+        {
+            <button type="button" class="material-button primary-button" data-bs-toggle="modal" data-bs-target="#loginModal">
+                <span data-i18n="auth-login">Enable write access</span>
+            </button>
+        }
+    </div>
+</div>
+
 <section class="planner-shell">
     <aside class="planner-pane pane-countries">
         <div class="pane-header">
@@ -20,9 +59,12 @@
                 <p class="pane-kicker" data-i18n="countries-kicker">Countries</p>
                 <h1 data-i18n="countries-title">Available tags</h1>
             </div>
-            <button type="button" class="icon-button" data-bs-toggle="modal" data-bs-target="#addCountryModal" aria-label="Add country">
-                +
-            </button>
+            @if (Model.HasWriteAccess)
+            {
+                <button type="button" class="icon-button" data-bs-toggle="modal" data-bs-target="#addCountryModal" aria-label="Add country">
+                    +
+                </button>
+            }
         </div>
 
         @if (Model.Countries.Count == 0)
@@ -71,7 +113,7 @@
                     data-bs-toggle="modal"
                     data-bs-target="#addContentModal"
                     data-add-content-button
-                    disabled="@(Model.SelectedCountry is null)">
+                    disabled="@(Model.SelectedCountry is null || !Model.HasWriteAccess)">
                 <span data-i18n="add-content">Add content</span>
             </button>
         </div>
@@ -123,17 +165,20 @@
             @if (Model.SelectedCountry is not null && Model.SelectedContent is not null)
             {
                 <div class="content-chip-row">
-                    <button type="button" class="material-button ghost-button" data-edit-content-button data-bs-toggle="modal" data-bs-target="#addContentModal">
-                        <span data-i18n="edit-content">Edit</span>
-                    </button>
-                    <form asp-action="DeleteContent" method="post">
-                        @Html.AntiForgeryToken()
-                        <input type="hidden" name="countryId" value="@Model.SelectedCountry.Id" />
-                        <input type="hidden" name="contentId" value="@Model.SelectedContent.Id" />
-                        <button type="submit" class="material-button danger-button">
-                            <span data-i18n="delete-content">Delete</span>
+                    @if (Model.HasWriteAccess)
+                    {
+                        <button type="button" class="material-button ghost-button" data-edit-content-button data-bs-toggle="modal" data-bs-target="#addContentModal">
+                            <span data-i18n="edit-content">Edit</span>
                         </button>
-                    </form>
+                        <form asp-action="DeleteContent" method="post">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="countryId" value="@Model.SelectedCountry.Id" />
+                            <input type="hidden" name="contentId" value="@Model.SelectedContent.Id" />
+                            <button type="submit" class="material-button danger-button">
+                                <span data-i18n="delete-content">Delete</span>
+                            </button>
+                        </form>
+                    }
                 </div>
             }
         </div>
@@ -168,6 +213,41 @@
     </aside>
 </section>
 
+@if (Model.CanManageWriteAccess)
+{
+<div class="modal fade" id="loginModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content planner-modal">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" data-i18n="auth-login-title">Enable write access</h2>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form asp-action="Login" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="countryId" value="@Model.SelectedCountry?.Id" />
+                <input type="hidden" name="contentId" value="@Model.SelectedContent?.Id" />
+                <div class="modal-body modal-form">
+                    <label>
+                        <span data-i18n="auth-username">Username</span>
+                        <input asp-for="LoginForm.Username" class="form-control" autocomplete="username" />
+                    </label>
+                    <label>
+                        <span data-i18n="auth-password">Password</span>
+                        <input asp-for="LoginForm.Password" class="form-control" type="password" autocomplete="current-password" />
+                    </label>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="material-button ghost-button" data-bs-dismiss="modal" data-i18n="cancel">Cancel</button>
+                    <button type="submit" class="material-button primary-button" data-i18n="auth-login-submit">Sign in</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+}
+
+@if (Model.HasWriteAccess)
+{
 <div class="modal fade" id="addCountryModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content planner-modal">
@@ -877,6 +957,7 @@
         </div>
     </div>
 </div>
+}
 
 <datalist id="effect-label-suggestions">
     @foreach (var label in Model.EffectLabelSuggestions)

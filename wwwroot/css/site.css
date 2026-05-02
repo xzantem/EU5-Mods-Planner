@@ -149,6 +149,33 @@ body {
   box-shadow: var(--shadow);
 }
 
+.auth-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 0.95rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: linear-gradient(180deg, var(--surface-strong), var(--surface));
+  box-shadow: var(--shadow);
+}
+
+.auth-banner-copy {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.auth-banner-copy strong {
+  font-size: 0.98rem;
+}
+
+.auth-banner-copy span {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
 .planner-shell {
   display: grid;
   grid-template-columns: minmax(220px, 0.8fr) minmax(320px, 1fr) minmax(320px, 1fr);
