@@ -31,7 +31,10 @@ public sealed class PlannerController : Controller
         var activeCountries = countries.Where(country => !country.IsArchived).ToList();
         var archivedCountries = countries.Where(country => country.IsArchived).ToList();
         var effectLabelSuggestions = data.ContentEntries
-            .SelectMany(entry => entry.Effects.Concat(entry.EventOptions.SelectMany(option => option.Effects)))
+            .SelectMany(entry => entry.Effects
+                .Concat(entry.EventOptions.SelectMany(option => option.Effects))
+                .Concat(entry.SituationActions.SelectMany(action => action.Effects))
+                .Concat(data.Buffs.SelectMany(buff => buff.Effects)))
             .Select(effect => effect.Label)
             .Where(label => !string.IsNullOrWhiteSpace(label))
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -65,6 +68,7 @@ public sealed class PlannerController : Controller
             ActiveCountries = activeCountries,
             ArchivedCountries = archivedCountries,
             EffectLabelSuggestions = effectLabelSuggestions,
+            AvailableBuffs = data.Buffs.OrderBy(buff => buff.Name).ToList(),
             SelectedCountry = selectedCountry,
             SelectedCountryContent = selectedCountryContent,
             SelectedContent = selectedContent,
@@ -72,8 +76,10 @@ public sealed class PlannerController : Controller
             IsLoginConfigured = isLoginConfigured,
             CanManageWriteAccess = canManageWriteAccess,
             SelectedContentPayloadJson = selectedContent is null ? null : JsonSerializer.Serialize(ToEditPayload(selectedContent)),
+            AvailableBuffsPayloadJson = JsonSerializer.Serialize(data.Buffs.OrderBy(buff => buff.Name).Select(ToEditBuff).ToList()),
             CountryForm = new CountryInputModel(),
             AdvanceForm = BuildDefaultInputModel(selectedCountry?.Id ?? Guid.Empty),
+            BuffForm = new BuffInputModel(),
             LoginForm = new AdminLoginInputModel()
         };
 
@@ -191,6 +197,74 @@ public sealed class PlannerController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    public IActionResult AddBuff([Bind(Prefix = "BuffForm")] BuffInputModel input, Guid? countryId, Guid? contentId)
+    {
+        if (TryRejectWriteAccess(countryId))
+        {
+            return RedirectToAction(nameof(Index), new { countryId, contentId });
+        }
+
+        return SaveBuff(input, isEdit: false, countryId, contentId);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult EditBuff([Bind(Prefix = "BuffForm")] BuffInputModel input, Guid? countryId, Guid? contentId)
+    {
+        if (TryRejectWriteAccess(countryId))
+        {
+            return RedirectToAction(nameof(Index), new { countryId, contentId });
+        }
+
+        return SaveBuff(input, isEdit: true, countryId, contentId);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult DeleteBuff(Guid buffId, Guid? countryId, Guid? contentId)
+    {
+        if (TryRejectWriteAccess(countryId))
+        {
+            return RedirectToAction(nameof(Index), new { countryId, contentId });
+        }
+
+        _repository.DeleteBuff(buffId);
+        TempData["Message"] = "Buff deleted.";
+        return RedirectToAction(nameof(Index), new { countryId, contentId });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult SaveBuffApi(BuffInputModel input, bool isEdit)
+    {
+        if (TryRejectWriteAccess(null))
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { ok = false, message = "Read-only mode. Sign in to edit the database." });
+        }
+
+        return SaveBuff(input, isEdit, null, null, jsonResponse: true);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult DeleteBuffApi(Guid buffId)
+    {
+        if (TryRejectWriteAccess(null))
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { ok = false, message = "Read-only mode. Sign in to edit the database." });
+        }
+
+        var deleted = _repository.DeleteBuff(buffId);
+        if (!deleted)
+        {
+            return NotFound(new { ok = false, message = "Buff could not be deleted." });
+        }
+
+        return Json(new { ok = true, message = "Buff deleted.", buffId });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> Login([Bind(Prefix = "LoginForm")] AdminLoginInputModel input, Guid? countryId, Guid? contentId)
     {
         if (_environment.IsDevelopment())
@@ -244,9 +318,14 @@ public sealed class PlannerController : Controller
     private IActionResult SaveContent(AdvanceInputModel input, bool isEdit)
     {
         var data = _repository.GetData();
-        var effects = BuildEffects(input.Effects, ValueEffectSide.Default);
-        var leftEffects = BuildEffects(input.LeftEffects, ValueEffectSide.Left);
-        var rightEffects = BuildEffects(input.RightEffects, ValueEffectSide.Right);
+        var availableBuffs = data.Buffs.ToDictionary(buff => buff.Id, buff => buff);
+        var effects = BuildEffects(input.Effects, ValueEffectSide.Default, availableBuffs, allowBuffEffects: false);
+        var leftEffects = BuildEffects(input.LeftEffects, ValueEffectSide.Left, availableBuffs, allowBuffEffects: false);
+        var rightEffects = BuildEffects(input.RightEffects, ValueEffectSide.Right, availableBuffs, allowBuffEffects: false);
+        var situationStartEffects = BuildEffects(input.SituationStartEffects, ValueEffectSide.SituationOnStart, availableBuffs);
+        var situationMonthlyEffects = BuildEffects(input.SituationMonthlyEffects, ValueEffectSide.SituationOnMonthly, availableBuffs);
+        var situationEndingEffects = BuildEffects(input.SituationEndingEffects, ValueEffectSide.SituationOnEnding, availableBuffs);
+        var situationEndedEffects = BuildEffects(input.SituationEndedEffects, ValueEffectSide.SituationOnEnded, availableBuffs);
         var selectedCountry = data.Countries.FirstOrDefault(country => country.Id == input.CountryId);
         var existingEntry = isEdit && input.ContentId.HasValue
             ? data.ContentEntries.FirstOrDefault(entry => entry.Id == input.ContentId.Value)
@@ -267,7 +346,7 @@ public sealed class PlannerController : Controller
             || !string.IsNullOrWhiteSpace(input.BurghersEstateName)
             || !string.IsNullOrWhiteSpace(input.ClergyEstateName)
             || !string.IsNullOrWhiteSpace(input.PeasantsEstateName);
-        var hasNamedContent = input.Type is ContentType.Advance or ContentType.Reform or ContentType.CustomEstate or ContentType.Privilege or ContentType.Law or ContentType.Building or ContentType.Event
+        var hasNamedContent = input.Type is ContentType.Advance or ContentType.Reform or ContentType.CustomEstate or ContentType.Privilege or ContentType.Law or ContentType.Building or ContentType.Event or ContentType.Situation
             && !string.IsNullOrWhiteSpace(input.Name);
         var hasValueLabels = input.Type != ContentType.Value
             || (!string.IsNullOrWhiteSpace(input.ValueLeftLabel) && !string.IsNullOrWhiteSpace(input.ValueRightLabel));
@@ -275,7 +354,8 @@ public sealed class PlannerController : Controller
         var constructionCosts = BuildResourceAmounts(input.ConstructionCosts);
         var productionMethods = BuildProductionMethods(input.ProductionMethods);
         var eventRequirements = BuildEventRequirements(input.EventRequirementTreeJson, input.EventRequirements);
-        var eventOptions = BuildEventOptions(input.EventOptions);
+        var eventOptions = BuildEventOptions(input.EventOptions, availableBuffs);
+        var situationActions = BuildSituationActions(input.SituationActions, availableBuffs);
         var prerequisiteEventIds = (input.EventPrerequisiteIds ?? [])
             .Distinct()
             .ToList();
@@ -295,11 +375,20 @@ public sealed class PlannerController : Controller
             && input.LawEstatePreferenceTarget == PrivilegeEstateTarget.Custom
             && (string.IsNullOrWhiteSpace(input.LawCustomEstateName)
                 || selectedCountryCustomEstates.Contains(input.LawCustomEstateName.Trim(), StringComparer.OrdinalIgnoreCase) == false);
+        var invalidBuffEffects = HasInvalidBuffEffects(input.Effects, availableBuffs, allowBuffEffects: false)
+            || HasInvalidBuffEffects(input.LeftEffects, availableBuffs, allowBuffEffects: false)
+            || HasInvalidBuffEffects(input.RightEffects, availableBuffs, allowBuffEffects: false)
+            || HasInvalidBuffEffects(input.SituationStartEffects, availableBuffs)
+            || HasInvalidBuffEffects(input.SituationMonthlyEffects, availableBuffs)
+            || HasInvalidBuffEffects(input.SituationEndingEffects, availableBuffs)
+            || HasInvalidBuffEffects(input.SituationEndedEffects, availableBuffs)
+            || (input.EventOptions ?? []).Any(option => HasInvalidBuffEffects(option.Effects, availableBuffs))
+            || (input.SituationActions ?? []).Any(action => HasInvalidBuffEffects(action.Effects, availableBuffs));
 
         var invalidEffects = input.Type is ContentType.Advance or ContentType.Reform or ContentType.Privilege or ContentType.Law or ContentType.Building && effects.Count == 0;
         var invalidValue = input.Type == ContentType.Value && (!hasValueLabels || leftEffects.Count == 0 || rightEffects.Count == 0);
         var invalidEstateRename = input.Type == ContentType.DefaultEstateRename && !hasEstateRename;
-        var invalidNamedContent = !hasNamedContent && input.Type is ContentType.Advance or ContentType.Reform or ContentType.CustomEstate or ContentType.Privilege or ContentType.Law or ContentType.Building or ContentType.Event;
+        var invalidNamedContent = !hasNamedContent && input.Type is ContentType.Advance or ContentType.Reform or ContentType.CustomEstate or ContentType.Privilege or ContentType.Law or ContentType.Building or ContentType.Event or ContentType.Situation;
         var invalidCustomEstate = input.Type == ContentType.CustomEstate && !hasCustomEstateName;
         var invalidBuilding = input.Type == ContentType.Building
             && (constructionCosts.Count == 0
@@ -313,9 +402,22 @@ public sealed class PlannerController : Controller
                 || (input.EventYearStart.HasValue && input.EventYearEnd.HasValue && input.EventYearStart.Value > input.EventYearEnd.Value)
                 || prerequisiteEventIds.Any(id => selectedCountryEventEntries.All(entry => entry.Id != id))
                 || (isEdit && input.ContentId.HasValue && prerequisiteEventIds.Contains(input.ContentId.Value)));
+        var invalidSituation = input.Type == ContentType.Situation
+            && (string.IsNullOrWhiteSpace(input.SituationCanStart)
+                || string.IsNullOrWhiteSpace(input.SituationVisible)
+                || string.IsNullOrWhiteSpace(input.SituationCanEnd)
+                || (input.SituationMonthlySpawnChance.HasValue
+                    && (input.SituationMonthlySpawnChance.Value < 0m || input.SituationMonthlySpawnChance.Value > 100m)));
+        var invalidSituationAction = input.Type == ContentType.Situation
+            && (input.SituationActions ?? [])
+                .Any(action => string.IsNullOrWhiteSpace(action.Name)
+                    && (!string.IsNullOrWhiteSpace(action.Requirements)
+                        || !string.IsNullOrWhiteSpace(action.Cost)
+                        || !string.IsNullOrWhiteSpace(action.Cooldown)
+                        || (action.Effects ?? []).Any(effect => !string.IsNullOrWhiteSpace(effect.Label))));
         var invalidEditTarget = isEdit && (input.ContentId is null || existingEntry is null);
 
-        if (!ModelState.IsValid || input.CountryId == Guid.Empty || invalidEffects || invalidValue || invalidEstateRename || invalidNamedContent || invalidCustomEstate || invalidPrivilegeCustomEstate || invalidLawCategory || invalidLawSubcategory || invalidLawCustomEstate || invalidBuilding || invalidEvent || invalidEditTarget)
+        if (!ModelState.IsValid || input.CountryId == Guid.Empty || invalidEffects || invalidValue || invalidEstateRename || invalidNamedContent || invalidCustomEstate || invalidPrivilegeCustomEstate || invalidLawCategory || invalidLawSubcategory || invalidLawCustomEstate || invalidBuilding || invalidEvent || invalidSituation || invalidSituationAction || invalidBuffEffects || invalidEditTarget)
         {
             TempData["Message"] = isEdit ? "Content could not be updated." : "Content could not be added.";
             return RedirectToAction(nameof(Index), new { countryId = input.CountryId });
@@ -324,6 +426,11 @@ public sealed class PlannerController : Controller
         var valueLeftLabel = input.ValueLeftLabel?.Trim() ?? string.Empty;
         var valueRightLabel = input.ValueRightLabel?.Trim() ?? string.Empty;
         var combinedValueEffects = leftEffects.Concat(rightEffects).ToList();
+        var combinedSituationEffects = situationStartEffects
+            .Concat(situationMonthlyEffects)
+            .Concat(situationEndingEffects)
+            .Concat(situationEndedEffects)
+            .ToList();
 
         var prerequisiteLinks = prerequisiteEventIds
             .Join(selectedCountryEventEntries, id => id, entry => entry.Id, (id, entry) => new EventPrerequisiteLink
@@ -342,6 +449,7 @@ public sealed class PlannerController : Controller
                 ContentType.DefaultEstateRename => "Default Estate Rename",
                 ContentType.Value => $"{valueLeftLabel} vs {valueRightLabel}",
                 ContentType.Event => input.Name!.Trim(),
+                ContentType.Situation => input.Name!.Trim(),
                 _ => input.Name!.Trim()
             },
             IsMajorReform = input.Type == ContentType.Reform && input.IsMajorReform,
@@ -380,6 +488,12 @@ public sealed class PlannerController : Controller
             EventMonthlyChance = input.EventTriggerMode == EventTriggerMode.MonthlyChance
                 ? input.EventMonthlyChance
                 : 0,
+            SituationDescription = input.SituationDescription?.Trim() ?? string.Empty,
+            SituationCanStart = input.SituationCanStart?.Trim() ?? string.Empty,
+            SituationVisible = input.SituationVisible?.Trim() ?? string.Empty,
+            SituationCanEnd = input.SituationCanEnd?.Trim() ?? string.Empty,
+            SituationMonthlySpawnChance = input.SituationMonthlySpawnChance,
+            SituationActions = situationActions,
             ConstructionCosts = constructionCosts,
             ProductionMethods = productionMethods,
             EventRequirements = eventRequirements,
@@ -389,6 +503,7 @@ public sealed class PlannerController : Controller
             {
                 ContentType.DefaultEstateRename or ContentType.CustomEstate or ContentType.Event => [],
                 ContentType.Value => combinedValueEffects,
+                ContentType.Situation => combinedSituationEffects,
                 _ => effects
             }
         };
@@ -413,12 +528,73 @@ public sealed class PlannerController : Controller
             ContentType.Value => "value",
             ContentType.Building => "building",
             ContentType.Event => "event",
+            ContentType.Situation => "situation",
             _ => "advance"
         };
         TempData["Message"] = isEdit
             ? $"Updated {contentName} {entry.Name}."
             : $"Added {contentName} {entry.Name}.";
         return RedirectToAction(nameof(Index), new { countryId = input.CountryId, contentId = entry.Id });
+    }
+
+    private IActionResult SaveBuff(BuffInputModel input, bool isEdit, Guid? countryId, Guid? contentId, bool jsonResponse = false)
+    {
+        var data = _repository.GetData();
+        var availableBuffs = data.Buffs.ToDictionary(buff => buff.Id, buff => buff);
+        var buffEffects = BuildEffects(
+            input.Effects,
+            ValueEffectSide.Default,
+            availableBuffs,
+            allowBuffEffects: false);
+        var existingBuff = isEdit && input.Id.HasValue
+            ? data.Buffs.FirstOrDefault(buff => buff.Id == input.Id.Value)
+            : null;
+        var invalidBuff = !ModelState.IsValid
+            || string.IsNullOrWhiteSpace(input.Name)
+            || buffEffects.Count == 0
+            || HasInvalidBuffEffects(input.Effects, availableBuffs, allowBuffEffects: false)
+            || (isEdit && (input.Id is null || existingBuff is null));
+
+        if (invalidBuff)
+        {
+            if (jsonResponse)
+            {
+                return BadRequest(new { ok = false, message = isEdit ? "Buff could not be updated." : "Buff could not be added." });
+            }
+
+            TempData["Message"] = isEdit ? "Buff could not be updated." : "Buff could not be added.";
+            return RedirectToAction(nameof(Index), new { countryId, contentId });
+        }
+
+        var buff = new Buff
+        {
+            Id = existingBuff?.Id ?? Guid.NewGuid(),
+            Name = input.Name.Trim(),
+            Effects = buffEffects
+        };
+
+        if (isEdit)
+        {
+            _repository.UpdateBuff(buff);
+            if (jsonResponse)
+            {
+                return Json(new { ok = true, message = $"Updated buff {buff.Name}.", buff = ToEditBuff(buff) });
+            }
+
+            TempData["Message"] = $"Updated buff {buff.Name}.";
+        }
+        else
+        {
+            _repository.AddBuff(buff);
+            if (jsonResponse)
+            {
+                return Json(new { ok = true, message = $"Added buff {buff.Name}.", buff = ToEditBuff(buff) });
+            }
+
+            TempData["Message"] = $"Added buff {buff.Name}.";
+        }
+
+        return RedirectToAction(nameof(Index), new { countryId, contentId });
     }
 
     [HttpPost]
@@ -461,16 +637,42 @@ public sealed class PlannerController : Controller
         string.Equals(input.Username?.Trim(), _adminAuthOptions.Username, StringComparison.Ordinal)
         && string.Equals(input.Password, _adminAuthOptions.Password, StringComparison.Ordinal);
 
-    private static List<ContentEffect> BuildEffects(IEnumerable<AdvanceEffectInputModel>? source, ValueEffectSide side) =>
+    private static bool HasInvalidBuffEffects(
+        IEnumerable<AdvanceEffectInputModel>? source,
+        IReadOnlyDictionary<Guid, Buff> availableBuffs,
+        bool allowBuffEffects = true) =>
         (source ?? [])
-            .Where(effect => !string.IsNullOrWhiteSpace(effect.Label))
+            .Any(effect => effect.ValueType == EffectValueType.Buff
+                && (!allowBuffEffects
+                    || !effect.BuffId.HasValue
+                    || !availableBuffs.ContainsKey(effect.BuffId.Value)
+                    || (effect.BuffDurationUnit != BuffDurationUnit.UntilEndOfGame && effect.BuffDurationValue <= 0)));
+
+    private static List<ContentEffect> BuildEffects(
+        IEnumerable<AdvanceEffectInputModel>? source,
+        ValueEffectSide side,
+        IReadOnlyDictionary<Guid, Buff> availableBuffs,
+        bool allowBuffEffects = true) =>
+        (source ?? [])
+            .Where(effect =>
+                effect.ValueType == EffectValueType.Buff
+                    ? effect.BuffId.HasValue
+                        && allowBuffEffects
+                        && (effect.BuffDurationUnit == BuffDurationUnit.UntilEndOfGame || effect.BuffDurationValue > 0)
+                    : !string.IsNullOrWhiteSpace(effect.Label))
             .Select(effect => new ContentEffect
             {
-                Label = effect.Label!.Trim(),
+                Label = effect.Label?.Trim() ?? string.Empty,
                 ValueType = effect.ValueType,
                 NumericAmount = effect.NumericAmount,
                 NumericUnit = effect.NumericUnit,
                 BoolValue = effect.BoolValue,
+                BuffId = effect.BuffId,
+                BuffName = effect.BuffId.HasValue && availableBuffs.TryGetValue(effect.BuffId.Value, out var buff)
+                    ? buff.Name
+                    : effect.BuffName?.Trim() ?? string.Empty,
+                BuffDurationValue = effect.BuffDurationValue,
+                BuffDurationUnit = effect.BuffDurationUnit,
                 Side = side
             })
             .ToList();
@@ -484,6 +686,11 @@ public sealed class PlannerController : Controller
             Effects = [new AdvanceEffectInputModel()],
             LeftEffects = [new AdvanceEffectInputModel()],
             RightEffects = [new AdvanceEffectInputModel()],
+            SituationStartEffects = [new AdvanceEffectInputModel()],
+            SituationMonthlyEffects = [new AdvanceEffectInputModel()],
+            SituationEndingEffects = [new AdvanceEffectInputModel()],
+            SituationEndedEffects = [new AdvanceEffectInputModel()],
+            SituationActions = [new SituationActionInputModel()],
             ConstructionCosts = [new ResourceAmountInputModel()],
             ProductionMethods = [new ProductionMethodInputModel()],
             EventRequirementTreeJson = JsonSerializer.Serialize(CreateDefaultRequirementTree(), EventRequirementJsonOptions),
@@ -526,6 +733,11 @@ public sealed class PlannerController : Controller
         eventTriggerMode = entry.EventTriggerMode.ToString(),
         eventScenarioName = entry.EventScenarioName,
         eventMonthlyChance = entry.EventMonthlyChance,
+        situationDescription = entry.SituationDescription,
+        situationCanStart = entry.SituationCanStart,
+        situationVisible = entry.SituationVisible,
+        situationCanEnd = entry.SituationCanEnd,
+        situationMonthlySpawnChance = entry.SituationMonthlySpawnChance,
         eventRequirementTree = ToEditRequirementTree(BuildEditRequirementTree(entry.EventRequirements)),
         eventPrerequisiteIds = entry.EventPrerequisites.Select(link => link.RequiredEventId).ToList(),
         eventOptions = entry.EventOptions.Select(ToEditEventOption).ToList(),
@@ -533,16 +745,33 @@ public sealed class PlannerController : Controller
         productionMethods = entry.ProductionMethods.Select(ToEditProductionMethod).ToList(),
         effects = entry.Effects.Where(effect => effect.Side == ValueEffectSide.Default).Select(ToEditEffect).ToList(),
         leftEffects = entry.Effects.Where(effect => effect.Side == ValueEffectSide.Left).Select(ToEditEffect).ToList(),
-        rightEffects = entry.Effects.Where(effect => effect.Side == ValueEffectSide.Right).Select(ToEditEffect).ToList()
+        rightEffects = entry.Effects.Where(effect => effect.Side == ValueEffectSide.Right).Select(ToEditEffect).ToList(),
+        situationStartEffects = entry.Effects.Where(effect => effect.Side == ValueEffectSide.SituationOnStart).Select(ToEditEffect).ToList(),
+        situationMonthlyEffects = entry.Effects.Where(effect => effect.Side == ValueEffectSide.SituationOnMonthly).Select(ToEditEffect).ToList(),
+        situationEndingEffects = entry.Effects.Where(effect => effect.Side == ValueEffectSide.SituationOnEnding).Select(ToEditEffect).ToList(),
+        situationEndedEffects = entry.Effects.Where(effect => effect.Side == ValueEffectSide.SituationOnEnded).Select(ToEditEffect).ToList(),
+        situationActions = entry.SituationActions.Select(ToEditSituationAction).ToList()
     };
 
     private static object ToEditEffect(ContentEffect effect) => new
     {
         label = effect.Label,
+        displayText = effect.DisplayText,
         valueType = effect.ValueType.ToString(),
         numericAmount = effect.NumericAmount,
         numericUnit = effect.NumericUnit.ToString(),
-        boolValue = effect.BoolValue
+        boolValue = effect.BoolValue,
+        buffId = effect.BuffId,
+        buffName = effect.BuffName,
+        buffDurationValue = effect.BuffDurationValue,
+        buffDurationUnit = effect.BuffDurationUnit.ToString()
+    };
+
+    private static object ToEditBuff(Buff buff) => new
+    {
+        id = buff.Id,
+        name = buff.Name,
+        effects = buff.Effects.Select(ToEditEffect).ToList()
     };
 
     private static object ToEditResource(ContentResourceAmount resource) => new
@@ -562,6 +791,15 @@ public sealed class PlannerController : Controller
     {
         text = option.Text,
         effects = option.Effects.Select(ToEditEffect).ToList()
+    };
+
+    private static object ToEditSituationAction(SituationAction action) => new
+    {
+        name = action.Name,
+        requirements = action.Requirements,
+        cost = action.Cost,
+        cooldown = action.Cooldown,
+        effects = action.Effects.Select(ToEditEffect).ToList()
     };
 
     private static object ToEditRequirementTree(object requirementTree) =>
@@ -637,13 +875,26 @@ public sealed class PlannerController : Controller
         ];
     }
 
-    private static List<EventOption> BuildEventOptions(IEnumerable<EventOptionInputModel>? source) =>
+    private static List<EventOption> BuildEventOptions(IEnumerable<EventOptionInputModel>? source, IReadOnlyDictionary<Guid, Buff> availableBuffs) =>
         (source ?? [])
             .Where(option => !string.IsNullOrWhiteSpace(option.Text))
             .Select(option => new EventOption
             {
                 Text = option.Text!.Trim(),
-                Effects = BuildEffects(option.Effects, ValueEffectSide.Default)
+                Effects = BuildEffects(option.Effects, ValueEffectSide.Default, availableBuffs)
+            })
+            .ToList();
+
+    private static List<SituationAction> BuildSituationActions(IEnumerable<SituationActionInputModel>? source, IReadOnlyDictionary<Guid, Buff> availableBuffs) =>
+        (source ?? [])
+            .Where(action => !string.IsNullOrWhiteSpace(action.Name))
+            .Select(action => new SituationAction
+            {
+                Name = action.Name!.Trim(),
+                Requirements = action.Requirements?.Trim() ?? string.Empty,
+                Cost = action.Cost?.Trim() ?? string.Empty,
+                Cooldown = action.Cooldown?.Trim() ?? string.Empty,
+                Effects = BuildEffects(action.Effects, ValueEffectSide.Default, availableBuffs)
             })
             .ToList();
 

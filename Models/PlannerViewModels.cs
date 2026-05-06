@@ -9,8 +9,10 @@ public sealed class PlannerIndexViewModel
     public required IReadOnlyList<Country> ArchivedCountries { get; init; }
     public required IReadOnlyList<ContentEntry> SelectedCountryContent { get; init; }
     public required IReadOnlyList<string> EffectLabelSuggestions { get; init; }
+    public required IReadOnlyList<Buff> AvailableBuffs { get; init; }
     public required CountryInputModel CountryForm { get; init; }
     public required AdvanceInputModel AdvanceForm { get; init; }
+    public required BuffInputModel BuffForm { get; init; }
     public required AdminLoginInputModel LoginForm { get; init; }
     public bool HasWriteAccess { get; init; }
     public bool IsLoginConfigured { get; init; }
@@ -18,6 +20,7 @@ public sealed class PlannerIndexViewModel
     public Country? SelectedCountry { get; init; }
     public ContentEntry? SelectedContent { get; init; }
     public string? SelectedContentPayloadJson { get; init; }
+    public string? AvailableBuffsPayloadJson { get; init; }
 }
 
 public sealed class CountryInputModel
@@ -152,6 +155,27 @@ public sealed class AdvanceInputModel
     public List<EventRequirementInputModel> EventRequirements { get; set; } = [new()];
     public List<EventOptionInputModel> EventOptions { get; set; } = [new()];
     public List<Guid> EventPrerequisiteIds { get; set; } = [];
+
+    [StringLength(4000)]
+    public string? SituationDescription { get; set; }
+
+    [StringLength(8000)]
+    public string? SituationCanStart { get; set; }
+
+    [StringLength(8000)]
+    public string? SituationVisible { get; set; }
+
+    [StringLength(8000)]
+    public string? SituationCanEnd { get; set; }
+
+    [Range(0, 100)]
+    public decimal? SituationMonthlySpawnChance { get; set; }
+
+    public List<AdvanceEffectInputModel> SituationStartEffects { get; set; } = [new()];
+    public List<AdvanceEffectInputModel> SituationMonthlyEffects { get; set; } = [new()];
+    public List<AdvanceEffectInputModel> SituationEndingEffects { get; set; } = [new()];
+    public List<AdvanceEffectInputModel> SituationEndedEffects { get; set; } = [new()];
+    public List<SituationActionInputModel> SituationActions { get; set; } = [new()];
 }
 
 public sealed class AdvanceEffectInputModel
@@ -169,6 +193,16 @@ public sealed class AdvanceEffectInputModel
     public ModifierUnit NumericUnit { get; set; } = ModifierUnit.Flat;
 
     public bool BoolValue { get; set; }
+
+    public Guid? BuffId { get; set; }
+
+    [StringLength(150)]
+    public string? BuffName { get; set; }
+
+    [Range(0, 999999)]
+    public int BuffDurationValue { get; set; }
+
+    public BuffDurationUnit BuffDurationUnit { get; set; } = BuffDurationUnit.Days;
 }
 
 public sealed class ResourceAmountInputModel
@@ -199,6 +233,33 @@ public sealed class EventOptionInputModel
 {
     [StringLength(250)]
     public string? Text { get; set; }
+
+    public List<AdvanceEffectInputModel> Effects { get; set; } = [new()];
+}
+
+public sealed class SituationActionInputModel
+{
+    [StringLength(150)]
+    public string? Name { get; set; }
+
+    [StringLength(4000)]
+    public string? Requirements { get; set; }
+
+    [StringLength(500)]
+    public string? Cost { get; set; }
+
+    [StringLength(200)]
+    public string? Cooldown { get; set; }
+
+    public List<AdvanceEffectInputModel> Effects { get; set; } = [new()];
+}
+
+public sealed class BuffInputModel
+{
+    public Guid? Id { get; set; }
+
+    [Required, StringLength(150)]
+    public string Name { get; set; } = string.Empty;
 
     public List<AdvanceEffectInputModel> Effects { get; set; } = [new()];
 }

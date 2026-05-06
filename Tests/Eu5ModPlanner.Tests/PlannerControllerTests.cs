@@ -339,7 +339,23 @@ public sealed class PlannerControllerTests
     [Fact]
     public void AddContent_Event_SavesRequirementsOptionsAndPrerequisites()
     {
-        var repository = CreateRepositoryWithCountryAndEvent(out var country, out var prerequisiteEvent);
+        var repository = CreateRepositoryWithCountryAndBuff(out var existingBuff);
+        var country = repository.Data.Countries[0];
+        var prerequisiteEvent = new ContentEntry
+        {
+            Type = ContentType.Event,
+            Name = "The Siege Begins",
+            EventDescription = "Opening event",
+            EventOptions =
+            [
+                new EventOption
+                {
+                    Text = "Continue"
+                }
+            ]
+        };
+        repository.AddContentEntry(prerequisiteEvent);
+        repository.AssignContentToCountry(country.Id, prerequisiteEvent.Id);
         var controller = CreateController(repository, isDevelopment: true);
 
         controller.AddContent(new AdvanceInputModel
@@ -365,7 +381,11 @@ public sealed class PlannerControllerTests
                 new EventOptionInputModel
                 {
                     Text = "Seize the treasury",
-                    Effects = [NumericEffect("Treasury", 100, ModifierUnit.Flat)]
+                    Effects =
+                    [
+                        NumericEffect("Treasury", 100, ModifierUnit.Flat),
+                        BuffEffect(existingBuff.Id, existingBuff.Name, 0, BuffDurationUnit.UntilEndOfGame)
+                    ]
                 }
             ]
         });
@@ -376,6 +396,192 @@ public sealed class PlannerControllerTests
         Assert.Single(entry.EventOptions);
         Assert.Single(entry.EventPrerequisites);
         Assert.Equal(prerequisiteEvent.Id, entry.EventPrerequisites[0].RequiredEventId);
+        var option = Assert.Single(entry.EventOptions);
+        Assert.Equal(2, option.Effects.Count);
+        var timedBuff = Assert.Single(option.Effects, effect => effect.ValueType == EffectValueType.Buff);
+        Assert.Equal(existingBuff.Id, timedBuff.BuffId);
+        Assert.Equal(BuffDurationUnit.UntilEndOfGame, timedBuff.BuffDurationUnit);
+    }
+
+    [Fact]
+    public void AddContent_Situation_SavesScriptsActionsAndEffectGroups()
+    {
+        var repository = CreateRepositoryWithCountryAndBuff(out var existingBuff);
+        var controller = CreateController(repository, isDevelopment: true);
+
+        controller.AddContent(new AdvanceInputModel
+        {
+            CountryId = repository.Data.Countries[0].Id,
+            Type = ContentType.Situation,
+            Name = "Religious Turmoil",
+            SituationDescription = "Long-running tensions are spilling into daily political life.",
+            SituationMonthlySpawnChance = 2.5m,
+            SituationCanStart = "stability < 0",
+            SituationVisible = "has_country_flag = fractured_realm",
+            SituationCanEnd = "stability >= 1",
+            SituationStartEffects = [BuffEffect(existingBuff.Id, existingBuff.Name, 0, BuffDurationUnit.UntilEndOfGame)],
+            SituationMonthlyEffects = [BuffEffect(existingBuff.Id, existingBuff.Name, 6, BuffDurationUnit.Months)],
+            SituationEndingEffects = [TextEffect("Spawn Pretender Army")],
+            SituationEndedEffects = [BooleanEffect("Allows open sea exploration", true)],
+            SituationActions =
+            [
+                new SituationActionInputModel
+                {
+                    Name = "Change sides",
+                    Requirements = "country is at peace",
+                    Cost = "10 Stability and Honor",
+                    Cooldown = "5 years",
+                    Effects = [NumericEffect("Prestige", 5, ModifierUnit.Flat)]
+                }
+            ]
+        });
+
+        var entry = repository.Data.ContentEntries.Single(item => item.Type == ContentType.Situation);
+        Assert.Equal("Religious Turmoil", entry.Name);
+        Assert.Equal("Long-running tensions are spilling into daily political life.", entry.SituationDescription);
+        Assert.Equal(2.5m, entry.SituationMonthlySpawnChance);
+        Assert.Equal("stability < 0", entry.SituationCanStart);
+        Assert.Equal("has_country_flag = fractured_realm", entry.SituationVisible);
+        Assert.Equal("stability >= 1", entry.SituationCanEnd);
+        var startEffect = Assert.Single(entry.SituationStartEffects);
+        Assert.Equal(EffectValueType.Buff, startEffect.ValueType);
+        Assert.Equal(existingBuff.Id, startEffect.BuffId);
+        Assert.Equal(BuffDurationUnit.UntilEndOfGame, startEffect.BuffDurationUnit);
+        var monthlyEffect = Assert.Single(entry.SituationMonthlyEffects);
+        Assert.Equal(EffectValueType.Buff, monthlyEffect.ValueType);
+        Assert.Equal(6, monthlyEffect.BuffDurationValue);
+        Assert.Equal(BuffDurationUnit.Months, monthlyEffect.BuffDurationUnit);
+        Assert.Single(entry.SituationEndingEffects);
+        Assert.Single(entry.SituationEndedEffects);
+        var action = Assert.Single(entry.SituationActions);
+        Assert.Equal("Change sides", action.Name);
+        Assert.Equal("country is at peace", action.Requirements);
+        Assert.Equal("10 Stability and Honor", action.Cost);
+        Assert.Equal("5 years", action.Cooldown);
+        Assert.Single(action.Effects);
+    }
+
+    [Fact]
+    public void AddBuff_SavesBuffEffects()
+    {
+        var repository = CreateRepositoryWithCountry();
+        var controller = CreateController(repository, isDevelopment: true);
+
+        var result = controller.AddBuff(new BuffInputModel
+        {
+            Name = "Monthly Research Drive",
+            Effects =
+            [
+                NumericEffect("Monthly Research Speed", 5, ModifierUnit.Percent),
+                BooleanEffect("Allows open sea exploration", true)
+            ]
+        }, repository.Data.Countries[0].Id, null);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(PlannerController.Index), redirect.ActionName);
+        var buff = Assert.Single(repository.Data.Buffs);
+        Assert.Equal("Monthly Research Drive", buff.Name);
+        Assert.Equal(2, buff.Effects.Count);
+        Assert.Equal("Added buff Monthly Research Drive.", controller.TempData["Message"]);
+    }
+
+    [Fact]
+    public void SaveBuffApi_ReturnsJsonAndAddsBuff()
+    {
+        var repository = CreateRepositoryWithCountry();
+        var controller = CreateController(repository, isDevelopment: true);
+
+        var result = controller.SaveBuffApi(new BuffInputModel
+        {
+            Name = "Monthly Research Drive",
+            Effects =
+            [
+                NumericEffect("Monthly Research Speed", 5, ModifierUnit.Percent)
+            ]
+        }, isEdit: false);
+
+        var json = Assert.IsType<JsonResult>(result);
+        Assert.Single(repository.Data.Buffs);
+        Assert.NotNull(json.Value);
+    }
+
+    [Fact]
+    public void SaveBuffApi_AllowsDecimalNumericEffects()
+    {
+        var repository = CreateRepositoryWithCountry();
+        var controller = CreateController(repository, isDevelopment: true);
+
+        var result = controller.SaveBuffApi(new BuffInputModel
+        {
+            Name = "Fine Tuning",
+            Effects =
+            [
+                NumericEffect("Monthly Research Speed", 1.5m, ModifierUnit.Percent)
+            ]
+        }, isEdit: false);
+
+        var json = Assert.IsType<JsonResult>(result);
+        var buff = Assert.Single(repository.Data.Buffs);
+        Assert.Equal(1.5m, buff.Effects[0].NumericAmount);
+        Assert.NotNull(json.Value);
+    }
+
+    [Fact]
+    public void AddBuff_WithNestedBuffEffect_IsRejected()
+    {
+        var repository = CreateRepositoryWithCountryAndBuff(out var existingBuff);
+        var controller = CreateController(repository, isDevelopment: true);
+
+        var result = controller.AddBuff(new BuffInputModel
+        {
+            Name = "Recursive Trouble",
+            Effects =
+            [
+                BuffEffect(existingBuff.Id, existingBuff.Name, 30, BuffDurationUnit.Days)
+            ]
+        }, repository.Data.Countries[0].Id, null);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(PlannerController.Index), redirect.ActionName);
+        Assert.Single(repository.Data.Buffs);
+        Assert.Equal("Buff could not be added.", controller.TempData["Message"]);
+    }
+
+    [Fact]
+    public void AddContent_Advance_WithBuffEffect_IsRejected()
+    {
+        var repository = CreateRepositoryWithCountryAndBuff(out var existingBuff);
+        var controller = CreateController(repository, isDevelopment: true);
+        var country = repository.Data.Countries[0];
+
+        var result = controller.AddContent(new AdvanceInputModel
+        {
+            CountryId = country.Id,
+            Type = ContentType.Advance,
+            Name = "Field Medicine",
+            Effects =
+            [
+                BuffEffect(existingBuff.Id, existingBuff.Name, 12, BuffDurationUnit.Months)
+            ]
+        });
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(PlannerController.Index), redirect.ActionName);
+        Assert.DoesNotContain(repository.Data.ContentEntries, item => item.Type == ContentType.Advance);
+        Assert.Equal("Content could not be added.", controller.TempData["Message"]);
+    }
+
+    [Fact]
+    public void DeleteBuffApi_RemovesBuff()
+    {
+        var repository = CreateRepositoryWithCountryAndBuff(out var existingBuff);
+        var controller = CreateController(repository, isDevelopment: true);
+
+        var result = controller.DeleteBuffApi(existingBuff.Id);
+
+        var json = Assert.IsType<JsonResult>(result);
+        Assert.Empty(repository.Data.Buffs);
+        Assert.NotNull(json.Value);
     }
 
     [Fact]
@@ -460,6 +666,29 @@ public sealed class PlannerControllerTests
                     Effects = [NumericEffect("Treasury", 10, ModifierUnit.Flat)]
                 }
             ]
+        });
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(PlannerController.Index), redirect.ActionName);
+        Assert.Empty(repository.Data.ContentEntries);
+        Assert.Equal("Content could not be added.", controller.TempData["Message"]);
+    }
+
+    [Fact]
+    public void AddContent_InvalidSituation_IsRejected()
+    {
+        var repository = CreateRepositoryWithCountry();
+        var controller = CreateController(repository, isDevelopment: true);
+
+        var result = controller.AddContent(new AdvanceInputModel
+        {
+            CountryId = repository.Data.Countries[0].Id,
+            Type = ContentType.Situation,
+            Name = "Broken Situation",
+            SituationDescription = "Oops",
+            SituationCanStart = "",
+            SituationVisible = "",
+            SituationCanEnd = ""
         });
 
         var redirect = Assert.IsType<RedirectToActionResult>(result);
@@ -559,6 +788,27 @@ public sealed class PlannerControllerTests
         return repository;
     }
 
+    private static InMemoryPlannerRepository CreateRepositoryWithCountryAndBuff(out Buff buff)
+    {
+        var repository = CreateRepositoryWithCountry();
+        buff = new Buff
+        {
+            Name = "Research Drive",
+            Effects =
+            [
+                new ContentEffect
+                {
+                    Label = "Monthly Research Speed",
+                    ValueType = EffectValueType.Numeric,
+                    NumericAmount = 5,
+                    NumericUnit = ModifierUnit.Percent
+                }
+            ]
+        };
+        repository.AddBuff(buff);
+        return repository;
+    }
+
     private static AdvanceEffectInputModel NumericEffect(string label, decimal amount, ModifierUnit unit) =>
         new()
         {
@@ -566,6 +816,31 @@ public sealed class PlannerControllerTests
             ValueType = EffectValueType.Numeric,
             NumericAmount = amount,
             NumericUnit = unit
+        };
+
+    private static AdvanceEffectInputModel BooleanEffect(string label, bool value) =>
+        new()
+        {
+            Label = label,
+            ValueType = EffectValueType.Boolean,
+            BoolValue = value
+        };
+
+    private static AdvanceEffectInputModel TextEffect(string label) =>
+        new()
+        {
+            Label = label,
+            ValueType = EffectValueType.Text
+        };
+
+    private static AdvanceEffectInputModel BuffEffect(Guid buffId, string buffName, int durationValue, BuffDurationUnit durationUnit) =>
+        new()
+        {
+            ValueType = EffectValueType.Buff,
+            BuffId = buffId,
+            BuffName = buffName,
+            BuffDurationValue = durationValue,
+            BuffDurationUnit = durationUnit
         };
 
     private sealed class InMemoryPlannerRepository : IPlannerRepository
@@ -599,6 +874,22 @@ public sealed class PlannerControllerTests
             Data.ContentEntries.Add(entry);
             return entry;
         }
+
+        public Buff AddBuff(Buff buff)
+        {
+            Data.Buffs.Add(buff);
+            return buff;
+        }
+
+        public Buff UpdateBuff(Buff buff)
+        {
+            var existing = Data.Buffs.First(item => item.Id == buff.Id);
+            var index = Data.Buffs.IndexOf(existing);
+            Data.Buffs[index] = buff;
+            return buff;
+        }
+
+        public bool DeleteBuff(Guid id) => Data.Buffs.RemoveAll(buff => buff.Id == id) > 0;
 
         public ContentEntry UpdateContentEntry(ContentEntry entry)
         {

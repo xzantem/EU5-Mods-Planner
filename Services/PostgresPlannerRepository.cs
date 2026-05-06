@@ -46,6 +46,25 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
 
         using (var command = new NpgsqlCommand(
                    """
+                   select id, name
+                   from buffs
+                   order by name;
+                   """,
+                   connection))
+        using (var reader = command.ExecuteReader())
+        {
+            while (reader.Read())
+            {
+                data.Buffs.Add(new Buff
+                {
+                    Id = reader.GetGuid(0),
+                    Name = reader.GetString(1)
+                });
+            }
+        }
+
+        using (var command = new NpgsqlCommand(
+                   """
                    select id, type, name, modifier_key, modifier_amount, modifier_unit, is_major_reform,
                           nobility_estate_name, burghers_estate_name, clergy_estate_name, peasants_estate_name,
                           food_consumption_per_thousand, assimilation_conversion_speed,
@@ -54,7 +73,8 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
                           law_category_name, law_subcategory_name, law_estate_preference_target, law_custom_estate_name,
                           value_left_label, value_right_label,
                           building_construction_scope, building_ducat_cost, building_time_months,
-                          event_description, event_year_start, event_year_end, event_trigger_mode, event_scenario_name, event_monthly_chance
+                          event_description, event_year_start, event_year_end, event_trigger_mode, event_scenario_name, event_monthly_chance,
+                          situation_description, situation_can_start, situation_visible, situation_can_end, situation_monthly_spawn_chance
                    from content_entries
                    order by name;
                    """,
@@ -97,7 +117,12 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
                     EventYearEnd = reader.IsDBNull(32) ? null : reader.GetInt32(32),
                     EventTriggerMode = reader.IsDBNull(33) ? EventTriggerMode.MonthlyChance : (EventTriggerMode)reader.GetInt32(33),
                     EventScenarioName = reader.IsDBNull(34) ? string.Empty : reader.GetString(34),
-                    EventMonthlyChance = reader.IsDBNull(35) ? 0m : reader.GetDecimal(35)
+                    EventMonthlyChance = reader.IsDBNull(35) ? 0m : reader.GetDecimal(35),
+                    SituationDescription = reader.IsDBNull(36) ? string.Empty : reader.GetString(36),
+                    SituationCanStart = reader.IsDBNull(37) ? string.Empty : reader.GetString(37),
+                    SituationVisible = reader.IsDBNull(38) ? string.Empty : reader.GetString(38),
+                    SituationCanEnd = reader.IsDBNull(39) ? string.Empty : reader.GetString(39),
+                    SituationMonthlySpawnChance = reader.IsDBNull(40) ? null : reader.GetDecimal(40)
                 };
 
                 if (!reader.IsDBNull(3))
@@ -117,7 +142,7 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
 
         using (var command = new NpgsqlCommand(
                    """
-                   select id, content_entry_id, label, value_type, numeric_amount, numeric_unit, bool_value, value_side, sort_order
+                   select id, content_entry_id, label, value_type, numeric_amount, numeric_unit, bool_value, buff_id, buff_name, buff_duration_value, buff_duration_unit, value_side, sort_order
                    from content_effects
                    order by content_entry_id, sort_order, id;
                    """,
@@ -142,16 +167,29 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
                     }
                 }
 
-                entry.Effects.Add(new ContentEffect
+                entry.Effects.Add(ReadEffect(reader, 0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11));
+            }
+        }
+
+        using (var command = new NpgsqlCommand(
+                   """
+                   select id, buff_id, label, value_type, numeric_amount, numeric_unit, bool_value, buff_id_ref, buff_name, buff_duration_value, buff_duration_unit, sort_order
+                   from buff_effects
+                   order by buff_id, sort_order, id;
+                   """,
+                   connection))
+        using (var reader = command.ExecuteReader())
+        {
+            var buffsById = data.Buffs.ToDictionary(buff => buff.Id);
+            while (reader.Read())
+            {
+                var buffId = reader.GetGuid(1);
+                if (!buffsById.TryGetValue(buffId, out var buff))
                 {
-                    Id = reader.GetGuid(0),
-                    Label = reader.GetString(2),
-                    ValueType = (EffectValueType)reader.GetInt32(3),
-                    NumericAmount = reader.IsDBNull(4) ? 0m : reader.GetDecimal(4),
-                    NumericUnit = reader.IsDBNull(5) ? ModifierUnit.Flat : (ModifierUnit)reader.GetInt32(5),
-                    BoolValue = !reader.IsDBNull(6) && reader.GetBoolean(6),
-                    Side = reader.IsDBNull(7) ? ValueEffectSide.Default : (ValueEffectSide)reader.GetInt32(7)
-                });
+                    continue;
+                }
+
+                buff.Effects.Add(ReadEffect(reader, 0, 2, 3, 4, 5, 6, 7, 8, 9, 10));
             }
         }
 
@@ -296,7 +334,7 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
 
         using (var command = new NpgsqlCommand(
                    """
-                   select id, event_option_id, label, value_type, numeric_amount, numeric_unit, bool_value, sort_order
+                   select id, event_option_id, label, value_type, numeric_amount, numeric_unit, bool_value, buff_id, buff_name, buff_duration_value, buff_duration_unit, sort_order
                    from content_event_option_effects
                    order by event_option_id, sort_order, id;
                    """,
@@ -314,15 +352,60 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
                     continue;
                 }
 
-                option.Effects.Add(new ContentEffect
+                option.Effects.Add(ReadEffect(reader, 0, 2, 3, 4, 5, 6, 7, 8, 9, 10));
+            }
+        }
+
+        using (var command = new NpgsqlCommand(
+                   """
+                   select id, content_entry_id, name, requirements, cost_text, cooldown_text, sort_order
+                   from content_situation_actions
+                   order by content_entry_id, sort_order, id;
+                   """,
+                   connection))
+        using (var reader = command.ExecuteReader())
+        {
+            var entriesById = data.ContentEntries.ToDictionary(entry => entry.Id);
+            while (reader.Read())
+            {
+                var contentEntryId = reader.GetGuid(1);
+                if (!entriesById.TryGetValue(contentEntryId, out var entry))
+                {
+                    continue;
+                }
+
+                entry.SituationActions.Add(new SituationAction
                 {
                     Id = reader.GetGuid(0),
-                    Label = reader.GetString(2),
-                    ValueType = (EffectValueType)reader.GetInt32(3),
-                    NumericAmount = reader.IsDBNull(4) ? 0m : reader.GetDecimal(4),
-                    NumericUnit = reader.IsDBNull(5) ? ModifierUnit.Flat : (ModifierUnit)reader.GetInt32(5),
-                    BoolValue = !reader.IsDBNull(6) && reader.GetBoolean(6)
+                    Name = reader.GetString(2),
+                    Requirements = reader.IsDBNull(3) ? string.Empty : reader.GetString(3),
+                    Cost = reader.IsDBNull(4) ? string.Empty : reader.GetString(4),
+                    Cooldown = reader.IsDBNull(5) ? string.Empty : reader.GetString(5)
                 });
+            }
+        }
+
+        using (var command = new NpgsqlCommand(
+                   """
+                   select id, situation_action_id, label, value_type, numeric_amount, numeric_unit, bool_value, buff_id, buff_name, buff_duration_value, buff_duration_unit, sort_order
+                   from content_situation_action_effects
+                   order by situation_action_id, sort_order, id;
+                   """,
+                   connection))
+        using (var reader = command.ExecuteReader())
+        {
+            var actionsById = data.ContentEntries
+                .SelectMany(entry => entry.SituationActions)
+                .ToDictionary(action => action.Id);
+            while (reader.Read())
+            {
+                var situationActionId = reader.GetGuid(1);
+                if (!actionsById.TryGetValue(situationActionId, out var action))
+                {
+                    continue;
+                }
+
+                action.Effects.Add(ReadEffect(reader, 0, 2, 3, 4, 5, 6, 7, 8, 9, 10));
             }
         }
 
@@ -433,6 +516,67 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
         return command.ExecuteNonQuery() > 0;
     }
 
+    public Buff AddBuff(Buff buff)
+    {
+        using var connection = OpenConnection();
+        using var transaction = connection.BeginTransaction();
+
+        using (var command = new NpgsqlCommand(
+                   """
+                   insert into buffs (id, name)
+                   values (@id, @name);
+                   """,
+                   connection,
+                   transaction))
+        {
+            command.Parameters.AddWithValue("id", buff.Id);
+            command.Parameters.AddWithValue("name", buff.Name);
+            command.ExecuteNonQuery();
+        }
+
+        InsertBuffEffects(buff, connection, transaction);
+        transaction.Commit();
+        return buff;
+    }
+
+    public Buff UpdateBuff(Buff buff)
+    {
+        using var connection = OpenConnection();
+        using var transaction = connection.BeginTransaction();
+
+        using (var deleteEffectsCommand = new NpgsqlCommand("delete from buff_effects where buff_id = @buffId;", connection, transaction))
+        {
+            deleteEffectsCommand.Parameters.AddWithValue("buffId", buff.Id);
+            deleteEffectsCommand.ExecuteNonQuery();
+        }
+
+        using (var command = new NpgsqlCommand(
+                   """
+                   update buffs
+                   set name = @name
+                   where id = @id;
+                   """,
+                   connection,
+                   transaction))
+        {
+            command.Parameters.AddWithValue("id", buff.Id);
+            command.Parameters.AddWithValue("name", buff.Name);
+            command.ExecuteNonQuery();
+        }
+
+        InsertBuffEffects(buff, connection, transaction);
+        transaction.Commit();
+        return buff;
+    }
+
+    public bool DeleteBuff(Guid id)
+    {
+        using var connection = OpenConnection();
+        using var command = new NpgsqlCommand("delete from buffs where id = @id;", connection);
+        command.Parameters.AddWithValue("id", id);
+        return command.ExecuteNonQuery() > 0;
+    }
+
     public ContentEntry AddContentEntry(ContentEntry entry)
     {
         using var connection = OpenConnection();
@@ -445,6 +589,7 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
         InsertEventRequirements(entry, connection, transaction);
         InsertEventOptions(entry, connection, transaction);
         InsertEventPrerequisites(entry, connection, transaction);
+        InsertSituationActions(entry, connection, transaction);
 
         transaction.Commit();
         return entry;
@@ -491,6 +636,12 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
             deleteEventPrerequisitesCommand.ExecuteNonQuery();
         }
 
+        using (var deleteSituationActionsCommand = new NpgsqlCommand("delete from content_situation_actions where content_entry_id = @contentEntryId;", connection, transaction))
+        {
+            deleteSituationActionsCommand.Parameters.AddWithValue("contentEntryId", entry.Id);
+            deleteSituationActionsCommand.ExecuteNonQuery();
+        }
+
         using (var updateCommand = new NpgsqlCommand(
                    """
                    update content_entries
@@ -525,8 +676,13 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
                        event_year_end = @eventYearEnd,
                        event_trigger_mode = @eventTriggerMode,
                        event_scenario_name = @eventScenarioName,
-                       event_monthly_chance = @eventMonthlyChance
-                   where id = @id;
+                       event_monthly_chance = @eventMonthlyChance,
+                       situation_description = @situationDescription,
+                       situation_can_start = @situationCanStart,
+                       situation_visible = @situationVisible,
+                       situation_can_end = @situationCanEnd,
+                       situation_monthly_spawn_chance = @situationMonthlySpawnChance
+                    where id = @id;
                    """,
                    connection,
                    transaction))
@@ -541,6 +697,7 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
         InsertEventRequirements(entry, connection, transaction);
         InsertEventOptions(entry, connection, transaction);
         InsertEventPrerequisites(entry, connection, transaction);
+        InsertSituationActions(entry, connection, transaction);
 
         transaction.Commit();
         return entry;
@@ -586,6 +743,11 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
             alter table countries add column if not exists tag varchar(12);
             alter table countries add column if not exists is_archived boolean not null default false;
 
+            create table if not exists buffs (
+                id uuid primary key,
+                name varchar(150) not null
+            );
+
             create table if not exists content_entries (
                 id uuid primary key,
                 type integer not null,
@@ -627,6 +789,11 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
             alter table content_entries add column if not exists event_trigger_mode integer not null default 0;
             alter table content_entries add column if not exists event_scenario_name varchar(150);
             alter table content_entries add column if not exists event_monthly_chance numeric(7,2) not null default 0;
+            alter table content_entries add column if not exists situation_description varchar(4000);
+            alter table content_entries add column if not exists situation_can_start text;
+            alter table content_entries add column if not exists situation_visible text;
+            alter table content_entries add column if not exists situation_can_end text;
+            alter table content_entries add column if not exists situation_monthly_spawn_chance numeric(7,2);
 
             update content_entries
             set assimilation_conversion_speed = greatest(coalesce(assimilation_speed, 0), coalesce(conversion_speed, 0))
@@ -641,11 +808,34 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
                 numeric_amount numeric(12,2),
                 numeric_unit integer not null default 0,
                 bool_value boolean not null default false,
+                buff_id uuid references buffs(id) on delete set null,
+                buff_name varchar(150),
+                buff_duration_value integer not null default 0,
+                buff_duration_unit integer not null default 0,
                 value_side integer not null default 0,
                 sort_order integer not null default 0
             );
 
             alter table content_effects add column if not exists value_side integer not null default 0;
+            alter table content_effects add column if not exists buff_id uuid references buffs(id) on delete set null;
+            alter table content_effects add column if not exists buff_name varchar(150);
+            alter table content_effects add column if not exists buff_duration_value integer not null default 0;
+            alter table content_effects add column if not exists buff_duration_unit integer not null default 0;
+
+            create table if not exists buff_effects (
+                id uuid primary key,
+                buff_id uuid not null references buffs(id) on delete cascade,
+                label varchar(120) not null,
+                value_type integer not null default 0,
+                numeric_amount numeric(12,2),
+                numeric_unit integer not null default 0,
+                bool_value boolean not null default false,
+                buff_id_ref uuid references buffs(id) on delete set null,
+                buff_name varchar(150),
+                buff_duration_value integer not null default 0,
+                buff_duration_unit integer not null default 0,
+                sort_order integer not null default 0
+            );
 
             create table if not exists country_content_entries (
                 country_id uuid not null references countries(id) on delete cascade,
@@ -699,8 +889,17 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
                 numeric_amount numeric(12,2),
                 numeric_unit integer not null default 0,
                 bool_value boolean not null default false,
+                buff_id uuid references buffs(id) on delete set null,
+                buff_name varchar(150),
+                buff_duration_value integer not null default 0,
+                buff_duration_unit integer not null default 0,
                 sort_order integer not null default 0
             );
+
+            alter table content_event_option_effects add column if not exists buff_id uuid references buffs(id) on delete set null;
+            alter table content_event_option_effects add column if not exists buff_name varchar(150);
+            alter table content_event_option_effects add column if not exists buff_duration_value integer not null default 0;
+            alter table content_event_option_effects add column if not exists buff_duration_unit integer not null default 0;
 
             create table if not exists content_event_prerequisites (
                 content_entry_id uuid not null references content_entries(id) on delete cascade,
@@ -708,6 +907,36 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
                 sort_order integer not null default 0,
                 primary key (content_entry_id, required_content_entry_id)
             );
+
+            create table if not exists content_situation_actions (
+                id uuid primary key,
+                content_entry_id uuid not null references content_entries(id) on delete cascade,
+                name varchar(150) not null,
+                requirements varchar(4000),
+                cost_text varchar(500),
+                cooldown_text varchar(200),
+                sort_order integer not null default 0
+            );
+
+            create table if not exists content_situation_action_effects (
+                id uuid primary key,
+                situation_action_id uuid not null references content_situation_actions(id) on delete cascade,
+                label varchar(120) not null,
+                value_type integer not null default 0,
+                numeric_amount numeric(12,2),
+                numeric_unit integer not null default 0,
+                bool_value boolean not null default false,
+                buff_id uuid references buffs(id) on delete set null,
+                buff_name varchar(150),
+                buff_duration_value integer not null default 0,
+                buff_duration_unit integer not null default 0,
+                sort_order integer not null default 0
+            );
+
+            alter table content_situation_action_effects add column if not exists buff_id uuid references buffs(id) on delete set null;
+            alter table content_situation_action_effects add column if not exists buff_name varchar(150);
+            alter table content_situation_action_effects add column if not exists buff_duration_value integer not null default 0;
+            alter table content_situation_action_effects add column if not exists buff_duration_unit integer not null default 0;
             """,
             connection);
 
@@ -734,7 +963,8 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
                 law_category_name, law_subcategory_name, law_estate_preference_target, law_custom_estate_name,
                 value_left_label, value_right_label,
                 building_construction_scope, building_ducat_cost, building_time_months,
-                event_description, event_year_start, event_year_end, event_trigger_mode, event_scenario_name, event_monthly_chance)
+                event_description, event_year_start, event_year_end, event_trigger_mode, event_scenario_name, event_monthly_chance,
+                situation_description, situation_can_start, situation_visible, situation_can_end, situation_monthly_spawn_chance)
             values (
                 @id, @type, @name, @isMajorReform,
                 @nobilityEstateName, @burghersEstateName, @clergyEstateName, @peasantsEstateName,
@@ -744,7 +974,8 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
                 @lawCategoryName, @lawSubcategoryName, @lawEstatePreferenceTarget, @lawCustomEstateName,
                 @valueLeftLabel, @valueRightLabel,
                 @buildingConstructionScope, @buildingDucatCost, @buildingTimeMonths,
-                @eventDescription, @eventYearStart, @eventYearEnd, @eventTriggerMode, @eventScenarioName, @eventMonthlyChance);
+                @eventDescription, @eventYearStart, @eventYearEnd, @eventTriggerMode, @eventScenarioName, @eventMonthlyChance,
+                @situationDescription, @situationCanStart, @situationVisible, @situationCanEnd, @situationMonthlySpawnChance);
             """,
             connection,
             transaction);
@@ -760,8 +991,8 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
             var effect = entry.Effects[index];
             using var command = new NpgsqlCommand(
                 """
-                insert into content_effects (id, content_entry_id, label, value_type, numeric_amount, numeric_unit, bool_value, value_side, sort_order)
-                values (@id, @contentEntryId, @label, @valueType, @numericAmount, @numericUnit, @boolValue, @valueSide, @sortOrder);
+                insert into content_effects (id, content_entry_id, label, value_type, numeric_amount, numeric_unit, bool_value, buff_id, buff_name, buff_duration_value, buff_duration_unit, value_side, sort_order)
+                values (@id, @contentEntryId, @label, @valueType, @numericAmount, @numericUnit, @boolValue, @buffId, @buffName, @buffDurationValue, @buffDurationUnit, @valueSide, @sortOrder);
                 """,
                 connection,
                 transaction);
@@ -773,7 +1004,40 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
             command.Parameters.AddWithValue("numericAmount", effect.NumericAmount);
             command.Parameters.AddWithValue("numericUnit", (int)effect.NumericUnit);
             command.Parameters.AddWithValue("boolValue", effect.BoolValue);
+            command.Parameters.AddWithValue("buffId", effect.BuffId.HasValue ? effect.BuffId.Value : DBNull.Value);
+            command.Parameters.AddWithValue("buffName", ToDbValue(effect.BuffName));
+            command.Parameters.AddWithValue("buffDurationValue", effect.BuffDurationValue);
+            command.Parameters.AddWithValue("buffDurationUnit", (int)effect.BuffDurationUnit);
             command.Parameters.AddWithValue("valueSide", (int)effect.Side);
+            command.Parameters.AddWithValue("sortOrder", index);
+            command.ExecuteNonQuery();
+        }
+    }
+
+    private static void InsertBuffEffects(Buff buff, NpgsqlConnection connection, NpgsqlTransaction transaction)
+    {
+        for (var index = 0; index < buff.Effects.Count; index++)
+        {
+            var effect = buff.Effects[index];
+            using var command = new NpgsqlCommand(
+                """
+                insert into buff_effects (id, buff_id, label, value_type, numeric_amount, numeric_unit, bool_value, buff_id_ref, buff_name, buff_duration_value, buff_duration_unit, sort_order)
+                values (@id, @buffId, @label, @valueType, @numericAmount, @numericUnit, @boolValue, @buffIdRef, @buffName, @buffDurationValue, @buffDurationUnit, @sortOrder);
+                """,
+                connection,
+                transaction);
+
+            command.Parameters.AddWithValue("id", effect.Id);
+            command.Parameters.AddWithValue("buffId", buff.Id);
+            command.Parameters.AddWithValue("label", effect.Label);
+            command.Parameters.AddWithValue("valueType", (int)effect.ValueType);
+            command.Parameters.AddWithValue("numericAmount", effect.NumericAmount);
+            command.Parameters.AddWithValue("numericUnit", (int)effect.NumericUnit);
+            command.Parameters.AddWithValue("boolValue", effect.BoolValue);
+            command.Parameters.AddWithValue("buffIdRef", effect.BuffId.HasValue ? effect.BuffId.Value : DBNull.Value);
+            command.Parameters.AddWithValue("buffName", ToDbValue(effect.BuffName));
+            command.Parameters.AddWithValue("buffDurationValue", effect.BuffDurationValue);
+            command.Parameters.AddWithValue("buffDurationUnit", (int)effect.BuffDurationUnit);
             command.Parameters.AddWithValue("sortOrder", index);
             command.ExecuteNonQuery();
         }
@@ -963,8 +1227,8 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
                 var effect = option.Effects[effectIndex];
                 using var effectCommand = new NpgsqlCommand(
                     """
-                    insert into content_event_option_effects (id, event_option_id, label, value_type, numeric_amount, numeric_unit, bool_value, sort_order)
-                    values (@id, @eventOptionId, @label, @valueType, @numericAmount, @numericUnit, @boolValue, @sortOrder);
+                    insert into content_event_option_effects (id, event_option_id, label, value_type, numeric_amount, numeric_unit, bool_value, buff_id, buff_name, buff_duration_value, buff_duration_unit, sort_order)
+                    values (@id, @eventOptionId, @label, @valueType, @numericAmount, @numericUnit, @boolValue, @buffId, @buffName, @buffDurationValue, @buffDurationUnit, @sortOrder);
                     """,
                     connection,
                     transaction);
@@ -976,6 +1240,10 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
                 effectCommand.Parameters.AddWithValue("numericAmount", effect.NumericAmount);
                 effectCommand.Parameters.AddWithValue("numericUnit", (int)effect.NumericUnit);
                 effectCommand.Parameters.AddWithValue("boolValue", effect.BoolValue);
+                effectCommand.Parameters.AddWithValue("buffId", effect.BuffId.HasValue ? effect.BuffId.Value : DBNull.Value);
+                effectCommand.Parameters.AddWithValue("buffName", ToDbValue(effect.BuffName));
+                effectCommand.Parameters.AddWithValue("buffDurationValue", effect.BuffDurationValue);
+                effectCommand.Parameters.AddWithValue("buffDurationUnit", (int)effect.BuffDurationUnit);
                 effectCommand.Parameters.AddWithValue("sortOrder", effectIndex);
                 effectCommand.ExecuteNonQuery();
             }
@@ -1002,6 +1270,73 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
             command.ExecuteNonQuery();
         }
     }
+
+    private static void InsertSituationActions(ContentEntry entry, NpgsqlConnection connection, NpgsqlTransaction transaction)
+    {
+        for (var actionIndex = 0; actionIndex < entry.SituationActions.Count; actionIndex++)
+        {
+            var action = entry.SituationActions[actionIndex];
+            using (var actionCommand = new NpgsqlCommand(
+                       """
+                       insert into content_situation_actions (id, content_entry_id, name, requirements, cost_text, cooldown_text, sort_order)
+                       values (@id, @contentEntryId, @name, @requirements, @costText, @cooldownText, @sortOrder);
+                       """,
+                       connection,
+                       transaction))
+            {
+                actionCommand.Parameters.AddWithValue("id", action.Id);
+                actionCommand.Parameters.AddWithValue("contentEntryId", entry.Id);
+                actionCommand.Parameters.AddWithValue("name", action.Name);
+                actionCommand.Parameters.AddWithValue("requirements", ToDbValue(action.Requirements));
+                actionCommand.Parameters.AddWithValue("costText", ToDbValue(action.Cost));
+                actionCommand.Parameters.AddWithValue("cooldownText", ToDbValue(action.Cooldown));
+                actionCommand.Parameters.AddWithValue("sortOrder", actionIndex);
+                actionCommand.ExecuteNonQuery();
+            }
+
+            for (var effectIndex = 0; effectIndex < action.Effects.Count; effectIndex++)
+            {
+                var effect = action.Effects[effectIndex];
+                using var effectCommand = new NpgsqlCommand(
+                    """
+                    insert into content_situation_action_effects (id, situation_action_id, label, value_type, numeric_amount, numeric_unit, bool_value, buff_id, buff_name, buff_duration_value, buff_duration_unit, sort_order)
+                    values (@id, @situationActionId, @label, @valueType, @numericAmount, @numericUnit, @boolValue, @buffId, @buffName, @buffDurationValue, @buffDurationUnit, @sortOrder);
+                    """,
+                    connection,
+                    transaction);
+
+                effectCommand.Parameters.AddWithValue("id", effect.Id);
+                effectCommand.Parameters.AddWithValue("situationActionId", action.Id);
+                effectCommand.Parameters.AddWithValue("label", effect.Label);
+                effectCommand.Parameters.AddWithValue("valueType", (int)effect.ValueType);
+                effectCommand.Parameters.AddWithValue("numericAmount", effect.NumericAmount);
+                effectCommand.Parameters.AddWithValue("numericUnit", (int)effect.NumericUnit);
+                effectCommand.Parameters.AddWithValue("boolValue", effect.BoolValue);
+                effectCommand.Parameters.AddWithValue("buffId", effect.BuffId.HasValue ? effect.BuffId.Value : DBNull.Value);
+                effectCommand.Parameters.AddWithValue("buffName", ToDbValue(effect.BuffName));
+                effectCommand.Parameters.AddWithValue("buffDurationValue", effect.BuffDurationValue);
+                effectCommand.Parameters.AddWithValue("buffDurationUnit", (int)effect.BuffDurationUnit);
+                effectCommand.Parameters.AddWithValue("sortOrder", effectIndex);
+                effectCommand.ExecuteNonQuery();
+            }
+        }
+    }
+
+    private static ContentEffect ReadEffect(NpgsqlDataReader reader, int idOrdinal, int labelOrdinal, int valueTypeOrdinal, int numericAmountOrdinal, int numericUnitOrdinal, int boolValueOrdinal, int buffIdOrdinal, int buffNameOrdinal, int buffDurationValueOrdinal, int buffDurationUnitOrdinal, int? sideOrdinal = null) =>
+        new()
+        {
+            Id = reader.GetGuid(idOrdinal),
+            Label = reader.IsDBNull(labelOrdinal) ? string.Empty : reader.GetString(labelOrdinal),
+            ValueType = (EffectValueType)reader.GetInt32(valueTypeOrdinal),
+            NumericAmount = reader.IsDBNull(numericAmountOrdinal) ? 0m : reader.GetDecimal(numericAmountOrdinal),
+            NumericUnit = reader.IsDBNull(numericUnitOrdinal) ? ModifierUnit.Flat : (ModifierUnit)reader.GetInt32(numericUnitOrdinal),
+            BoolValue = !reader.IsDBNull(boolValueOrdinal) && reader.GetBoolean(boolValueOrdinal),
+            BuffId = reader.IsDBNull(buffIdOrdinal) ? null : reader.GetGuid(buffIdOrdinal),
+            BuffName = reader.IsDBNull(buffNameOrdinal) ? string.Empty : reader.GetString(buffNameOrdinal),
+            BuffDurationValue = reader.IsDBNull(buffDurationValueOrdinal) ? 0 : reader.GetInt32(buffDurationValueOrdinal),
+            BuffDurationUnit = reader.IsDBNull(buffDurationUnitOrdinal) ? BuffDurationUnit.Days : (BuffDurationUnit)reader.GetInt32(buffDurationUnitOrdinal),
+            Side = sideOrdinal.HasValue && !reader.IsDBNull(sideOrdinal.Value) ? (ValueEffectSide)reader.GetInt32(sideOrdinal.Value) : ValueEffectSide.Default
+        };
 
     private static void AddContentEntryParameters(NpgsqlCommand command, ContentEntry entry)
     {
@@ -1038,6 +1373,11 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
         command.Parameters.AddWithValue("eventTriggerMode", (int)entry.EventTriggerMode);
         command.Parameters.AddWithValue("eventScenarioName", ToDbValue(entry.EventScenarioName));
         command.Parameters.AddWithValue("eventMonthlyChance", entry.EventMonthlyChance);
+        command.Parameters.AddWithValue("situationDescription", ToDbValue(entry.SituationDescription));
+        command.Parameters.AddWithValue("situationCanStart", ToDbValue(entry.SituationCanStart));
+        command.Parameters.AddWithValue("situationVisible", ToDbValue(entry.SituationVisible));
+        command.Parameters.AddWithValue("situationCanEnd", ToDbValue(entry.SituationCanEnd));
+        command.Parameters.AddWithValue("situationMonthlySpawnChance", entry.SituationMonthlySpawnChance.HasValue ? entry.SituationMonthlySpawnChance.Value : DBNull.Value);
     }
 
     private static object ToDbValue(string? value) =>

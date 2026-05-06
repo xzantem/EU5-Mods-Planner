@@ -8,6 +8,9 @@ public interface IPlannerRepository
     Country AddCountry(Country country);
     Country UpdateCountry(Country country);
     bool SetCountryArchived(Guid id, bool isArchived);
+    Buff AddBuff(Buff buff);
+    Buff UpdateBuff(Buff buff);
+    bool DeleteBuff(Guid id);
     ContentEntry AddContentEntry(ContentEntry entry);
     ContentEntry UpdateContentEntry(ContentEntry entry);
     bool DeleteContentEntry(Guid id);

@@ -12,7 +12,8 @@ public enum ContentType
     Law,
     Value,
     Building,
-    Event
+    Event,
+    Situation
 }
 
 public enum EstateClass
@@ -41,14 +42,27 @@ public enum EffectValueType
 {
     Numeric,
     Boolean,
-    Text
+    Text,
+    Buff
+}
+
+public enum BuffDurationUnit
+{
+    Days,
+    Months,
+    Years,
+    UntilEndOfGame
 }
 
 public enum ValueEffectSide
 {
     Default,
     Left,
-    Right
+    Right,
+    SituationOnStart,
+    SituationOnMonthly,
+    SituationOnEnding,
+    SituationOnEnded
 }
 
 public enum BuildingConstructionScope
@@ -81,6 +95,7 @@ public sealed class ModPlannerData
 {
     public List<Country> Countries { get; set; } = [];
     public List<ContentEntry> ContentEntries { get; set; } = [];
+    public List<Buff> Buffs { get; set; } = [];
 }
 
 public sealed class Country
@@ -182,7 +197,23 @@ public sealed class ContentEntry
 
     public decimal EventMonthlyChance { get; set; }
 
+    [StringLength(4000)]
+    public string SituationDescription { get; set; } = string.Empty;
+
+    [StringLength(8000)]
+    public string SituationCanStart { get; set; } = string.Empty;
+
+    [StringLength(8000)]
+    public string SituationVisible { get; set; } = string.Empty;
+
+    [StringLength(8000)]
+    public string SituationCanEnd { get; set; } = string.Empty;
+
+    [Range(0, 100)]
+    public decimal? SituationMonthlySpawnChance { get; set; }
+
     public List<ContentEffect> Effects { get; set; } = [];
+    public List<SituationAction> SituationActions { get; set; } = [];
     public List<ContentResourceAmount> ConstructionCosts { get; set; } = [];
     public List<ContentProductionMethod> ProductionMethods { get; set; } = [];
     public List<EventRequirement> EventRequirements { get; set; } = [];
@@ -200,6 +231,7 @@ public sealed class ContentEntry
         ContentType.Law => "type-law",
         ContentType.Value => "type-value",
         ContentType.Building => "type-building",
+        ContentType.Situation => "type-situation",
         ContentType.Event => "type-event",
         _ => "type-advance"
     };
@@ -213,6 +245,7 @@ public sealed class ContentEntry
             ContentType.Law => LawLines,
             ContentType.Value => ValueLines,
             ContentType.Building => BuildingLines,
+            ContentType.Situation => SituationLines,
             ContentType.Event => EventLines,
             _ => Effects.Select(effect => effect.DisplayText).ToList()
         };
@@ -279,11 +312,26 @@ public sealed class ContentEntry
     public IReadOnlyList<string> EventLines =>
         BuildEventLines();
 
+    public IReadOnlyList<string> SituationLines =>
+        BuildSituationLines();
+
     public IReadOnlyList<ContentEffect> LeftEffects =>
         Effects.Where(effect => effect.Side == ValueEffectSide.Left).ToList();
 
     public IReadOnlyList<ContentEffect> RightEffects =>
         Effects.Where(effect => effect.Side == ValueEffectSide.Right).ToList();
+
+    public IReadOnlyList<ContentEffect> SituationStartEffects =>
+        Effects.Where(effect => effect.Side == ValueEffectSide.SituationOnStart).ToList();
+
+    public IReadOnlyList<ContentEffect> SituationMonthlyEffects =>
+        Effects.Where(effect => effect.Side == ValueEffectSide.SituationOnMonthly).ToList();
+
+    public IReadOnlyList<ContentEffect> SituationEndingEffects =>
+        Effects.Where(effect => effect.Side == ValueEffectSide.SituationOnEnding).ToList();
+
+    public IReadOnlyList<ContentEffect> SituationEndedEffects =>
+        Effects.Where(effect => effect.Side == ValueEffectSide.SituationOnEnded).ToList();
 
     private IReadOnlyList<string> BuildValueLines()
     {
@@ -302,6 +350,71 @@ public sealed class ContentEntry
         }
 
         lines.AddRange(RightEffects.Select(effect => effect.DisplayText));
+
+        return lines;
+    }
+
+    private IReadOnlyList<string> BuildSituationLines()
+    {
+        var lines = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(SituationDescription))
+        {
+            lines.Add($"Description: {SituationDescription}");
+        }
+
+        if (SituationMonthlySpawnChance.HasValue)
+        {
+            lines.Add($"Monthly Spawn Chance: {SituationMonthlySpawnChance.Value:0.##}%");
+        }
+
+        if (!string.IsNullOrWhiteSpace(SituationCanStart))
+        {
+            lines.Add("Can Start");
+            lines.Add(SituationCanStart);
+        }
+
+        if (!string.IsNullOrWhiteSpace(SituationVisible))
+        {
+            lines.Add("Visible");
+            lines.Add(SituationVisible);
+        }
+
+        if (!string.IsNullOrWhiteSpace(SituationCanEnd))
+        {
+            lines.Add("Can End");
+            lines.Add(SituationCanEnd);
+        }
+
+        if (SituationStartEffects.Count > 0)
+        {
+            lines.Add("On Start");
+            lines.AddRange(SituationStartEffects.Select(effect => effect.DisplayText));
+        }
+
+        if (SituationMonthlyEffects.Count > 0)
+        {
+            lines.Add("On Monthly");
+            lines.AddRange(SituationMonthlyEffects.Select(effect => effect.DisplayText));
+        }
+
+        if (SituationEndingEffects.Count > 0)
+        {
+            lines.Add("On Ending");
+            lines.AddRange(SituationEndingEffects.Select(effect => effect.DisplayText));
+        }
+
+        if (SituationEndedEffects.Count > 0)
+        {
+            lines.Add("On Ended");
+            lines.AddRange(SituationEndedEffects.Select(effect => effect.DisplayText));
+        }
+
+        if (SituationActions.Count > 0)
+        {
+            lines.Add("Actions");
+            lines.AddRange(SituationActions.SelectMany(action => action.DisplayLines));
+        }
 
         return lines;
     }
@@ -420,6 +533,16 @@ public sealed class ContentEffect
 
     public bool BoolValue { get; set; }
 
+    public Guid? BuffId { get; set; }
+
+    [StringLength(150)]
+    public string BuffName { get; set; } = string.Empty;
+
+    [Range(0, 999999)]
+    public int BuffDurationValue { get; set; }
+
+    public BuffDurationUnit BuffDurationUnit { get; set; } = BuffDurationUnit.Days;
+
     public ValueEffectSide Side { get; set; } = ValueEffectSide.Default;
 
     public string DisplayText =>
@@ -427,8 +550,37 @@ public sealed class ContentEffect
         {
             EffectValueType.Boolean => $"{Label}: {(BoolValue ? "true" : "false")}",
             EffectValueType.Text => Label,
+            EffectValueType.Buff => BuffDurationUnit == BuffDurationUnit.UntilEndOfGame
+                ? $"Add {BuffName} until the end of the game"
+                : $"Add {BuffName} for {BuffDurationValue} {FormatDurationUnit(BuffDurationUnit, BuffDurationValue)}",
             _ => $"{NumericAmount.ToString("+0.##;-0.##;0")}{(NumericUnit == ModifierUnit.Percent ? "%" : string.Empty)} {Label}"
         };
+
+    private static string FormatDurationUnit(BuffDurationUnit unit, int value)
+    {
+        var singular = unit switch
+        {
+            BuffDurationUnit.Months => "month",
+            BuffDurationUnit.Years => "year",
+            BuffDurationUnit.UntilEndOfGame => "until the end of the game",
+            _ => "day"
+        };
+
+        return value == 1 ? singular : $"{singular}s";
+    }
+}
+
+public sealed class Buff
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    [Required, StringLength(150)]
+    public string Name { get; set; } = string.Empty;
+
+    public List<ContentEffect> Effects { get; set; } = [];
+
+    public string Summary =>
+        Effects.Count == 0 ? "No effects" : string.Join(", ", Effects.Select(effect => effect.DisplayText));
 }
 
 public sealed class ContentResourceAmount
@@ -508,6 +660,51 @@ public sealed class EventOption
     public string Text { get; set; } = string.Empty;
 
     public List<ContentEffect> Effects { get; set; } = [];
+}
+
+public sealed class SituationAction
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    [Required, StringLength(150)]
+    public string Name { get; set; } = string.Empty;
+
+    [StringLength(4000)]
+    public string Requirements { get; set; } = string.Empty;
+
+    [StringLength(500)]
+    public string Cost { get; set; } = string.Empty;
+
+    [StringLength(200)]
+    public string Cooldown { get; set; } = string.Empty;
+
+    public List<ContentEffect> Effects { get; set; } = [];
+
+    public IReadOnlyList<string> DisplayLines
+    {
+        get
+        {
+            var lines = new List<string> { Name };
+
+            if (!string.IsNullOrWhiteSpace(Requirements))
+            {
+                lines.Add($"Requirements: {Requirements}");
+            }
+
+            if (!string.IsNullOrWhiteSpace(Cost))
+            {
+                lines.Add($"Cost: {Cost}");
+            }
+
+            if (!string.IsNullOrWhiteSpace(Cooldown))
+            {
+                lines.Add($"Cooldown: {Cooldown}");
+            }
+
+            lines.AddRange(Effects.Select(effect => effect.DisplayText));
+            return lines;
+        }
+    }
 }
 
 public sealed class EventPrerequisiteLink

@@ -52,6 +52,75 @@
     </div>
 </div>
 
+<div class="modal fade" id="buffLibraryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content planner-modal">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" data-i18n="buff-library-title">Buff library</h2>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="buff-library-panel">
+                    <div class="effects-editor-header">
+                        <h3 data-i18n="available-buffs">Available buffs</h3>
+                        <button type="button" class="material-button primary-button small-button" data-buff-new-button>
+                            <span data-i18n="new-buff">New buff</span>
+                        </button>
+                    </div>
+                    <div class="buff-library-list" data-buff-list></div>
+                    <p class="helper-copy" data-buff-empty-state data-i18n="buff-library-empty">No buffs yet. Create the first one here.</p>
+                </div>
+            </div>
+            <div class="modal-footer buff-library-footer">
+                <span class="helper-copy" data-buff-library-status></span>
+                <button type="button" class="material-button ghost-button" data-bs-dismiss="modal" data-i18n="cancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="buffEditorModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content planner-modal">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" data-buff-form-title data-i18n="new-buff">New buff</h2>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="buffForm" class="effects-editor">
+                @Html.AntiForgeryToken()
+                <input asp-for="BuffForm.Id" type="hidden" data-buff-form-id />
+                <div class="modal-body modal-form">
+                    <label>
+                        <span data-i18n="buff-name">Buff name</span>
+                        <input asp-for="BuffForm.Name" class="form-control" data-buff-name-input data-i18n-placeholder="buff-name-placeholder" />
+                    </label>
+                    <div class="effects-editor">
+                        <div class="effects-editor-header">
+                            <h3 data-i18n="effects-title">Effects</h3>
+                            <button type="button" class="material-button ghost-button" data-add-buff-effect>
+                                <span data-i18n="add-effect">Add effect</span>
+                            </button>
+                        </div>
+                        <div data-buff-effects-container></div>
+                    </div>
+                </div>
+                <div class="modal-footer buff-editor-footer">
+                    <span class="helper-copy" data-buff-status></span>
+                    <div class="content-chip-row">
+                        <button type="button" class="material-button danger-button" data-buff-delete-button hidden>
+                            <span data-i18n="delete-buff">Delete buff</span>
+                        </button>
+                        <button type="button" class="material-button ghost-button" data-bs-dismiss="modal" data-i18n="cancel">Cancel</button>
+                        <button type="button" class="material-button primary-button" data-buff-save-button>
+                            <span data-buff-save-label data-i18n="save-buff">Save buff</span>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <section class="planner-shell">
     <aside class="planner-pane pane-countries">
         <div class="pane-header pane-header-stacked">
@@ -204,7 +273,7 @@
                        asp-route-contentId="@item.Id">
                         <div class="content-meta">
                             <div class="content-chip-row">
-                                <span class="type-chip" data-i18n="@item.TypeTranslationKey">@(item.Type switch { Eu5ModPlanner.Models.ContentType.Reform => "Reform", Eu5ModPlanner.Models.ContentType.DefaultEstateRename => "Default Estate Rename", Eu5ModPlanner.Models.ContentType.CustomEstate => "Custom Estate", Eu5ModPlanner.Models.ContentType.Privilege => "Privilege", Eu5ModPlanner.Models.ContentType.Law => "Law", Eu5ModPlanner.Models.ContentType.Value => "Value", Eu5ModPlanner.Models.ContentType.Building => "Building", Eu5ModPlanner.Models.ContentType.Event => "Event", _ => "Advance" })</span>
+                                <span class="type-chip" data-i18n="@item.TypeTranslationKey">@(item.Type switch { Eu5ModPlanner.Models.ContentType.Reform => "Reform", Eu5ModPlanner.Models.ContentType.DefaultEstateRename => "Default Estate Rename", Eu5ModPlanner.Models.ContentType.CustomEstate => "Custom Estate", Eu5ModPlanner.Models.ContentType.Privilege => "Privilege", Eu5ModPlanner.Models.ContentType.Law => "Law", Eu5ModPlanner.Models.ContentType.Value => "Value", Eu5ModPlanner.Models.ContentType.Building => "Building", Eu5ModPlanner.Models.ContentType.Event => "Event", Eu5ModPlanner.Models.ContentType.Situation => "Situation", _ => "Advance" })</span>
                                 @if (item.Type == Eu5ModPlanner.Models.ContentType.Reform && item.IsMajorReform)
                                 {
                                     <span class="type-chip major-chip" data-i18n="major-reform">Major Reform</span>
@@ -256,7 +325,7 @@
             <div class="detail-card">
                 <div class="detail-topline">
                     <div class="content-chip-row">
-                        <span class="type-chip" data-i18n="@Model.SelectedContent.TypeTranslationKey">@(Model.SelectedContent.Type switch { Eu5ModPlanner.Models.ContentType.Reform => "Reform", Eu5ModPlanner.Models.ContentType.DefaultEstateRename => "Default Estate Rename", Eu5ModPlanner.Models.ContentType.CustomEstate => "Custom Estate", Eu5ModPlanner.Models.ContentType.Privilege => "Privilege", Eu5ModPlanner.Models.ContentType.Law => "Law", Eu5ModPlanner.Models.ContentType.Value => "Value", Eu5ModPlanner.Models.ContentType.Building => "Building", Eu5ModPlanner.Models.ContentType.Event => "Event", _ => "Advance" })</span>
+                        <span class="type-chip" data-i18n="@Model.SelectedContent.TypeTranslationKey">@(Model.SelectedContent.Type switch { Eu5ModPlanner.Models.ContentType.Reform => "Reform", Eu5ModPlanner.Models.ContentType.DefaultEstateRename => "Default Estate Rename", Eu5ModPlanner.Models.ContentType.CustomEstate => "Custom Estate", Eu5ModPlanner.Models.ContentType.Privilege => "Privilege", Eu5ModPlanner.Models.ContentType.Law => "Law", Eu5ModPlanner.Models.ContentType.Value => "Value", Eu5ModPlanner.Models.ContentType.Building => "Building", Eu5ModPlanner.Models.ContentType.Event => "Event", Eu5ModPlanner.Models.ContentType.Situation => "Situation", _ => "Advance" })</span>
                         @if (Model.SelectedContent.Type == Eu5ModPlanner.Models.ContentType.Reform && Model.SelectedContent.IsMajorReform)
                         {
                             <span class="type-chip major-chip" data-i18n="major-reform">Major Reform</span>
@@ -428,6 +497,7 @@
                             <option value="@Eu5ModPlanner.Models.ContentType.Value" data-i18n-option="type-value">Value</option>
                             <option value="@Eu5ModPlanner.Models.ContentType.Building" data-i18n-option="type-building">Building</option>
                             <option value="@Eu5ModPlanner.Models.ContentType.Event" data-i18n-option="type-event">Event</option>
+                            <option value="@Eu5ModPlanner.Models.ContentType.Situation" data-i18n-option="type-situation">Situation</option>
                         </select>
                     </label>
 
@@ -953,6 +1023,84 @@
                         </div>
                     </div>
 
+                    <div data-situation-panel hidden class="content-type-panel">
+                        <label>
+                            <span data-i18n="situation-description">Description / narrative</span>
+                            <textarea asp-for="AdvanceForm.SituationDescription" class="form-control" rows="4" data-i18n-placeholder="situation-description-placeholder"></textarea>
+                        </label>
+
+                        <label>
+                            <span data-i18n="situation-monthly-spawn-chance">Monthly spawn chance (%)</span>
+                            <input asp-for="AdvanceForm.SituationMonthlySpawnChance" class="form-control" type="number" min="0" max="100" step="0.01" />
+                            <input name="__Invariant" type="hidden" value="AdvanceForm.SituationMonthlySpawnChance" />
+                        </label>
+
+                        <label>
+                            <span data-i18n="situation-can-start">Can start</span>
+                            <textarea asp-for="AdvanceForm.SituationCanStart" class="form-control" rows="4" data-i18n-placeholder="situation-can-start-placeholder"></textarea>
+                        </label>
+
+                        <label>
+                            <span data-i18n="situation-visible">Visible</span>
+                            <textarea asp-for="AdvanceForm.SituationVisible" class="form-control" rows="3" data-i18n-placeholder="situation-visible-placeholder"></textarea>
+                        </label>
+
+                        <label>
+                            <span data-i18n="situation-can-end">Can end</span>
+                            <textarea asp-for="AdvanceForm.SituationCanEnd" class="form-control" rows="4" data-i18n-placeholder="situation-can-end-placeholder"></textarea>
+                        </label>
+
+                        <div class="effects-editor">
+                            <div class="effects-editor-header">
+                                <h3 data-i18n="situation-on-start-effects">On start effects</h3>
+                                <button type="button" class="material-button ghost-button" data-add-situation-start-effect>
+                                    <span data-i18n="add-effect">Add effect</span>
+                                </button>
+                            </div>
+                            <div data-situation-start-effects-container></div>
+                        </div>
+
+                        <div class="effects-editor">
+                            <div class="effects-editor-header">
+                                <h3 data-i18n="situation-on-monthly-effects">Monthly effects</h3>
+                                <button type="button" class="material-button ghost-button" data-add-situation-monthly-effect>
+                                    <span data-i18n="add-effect">Add effect</span>
+                                </button>
+                            </div>
+                            <div data-situation-monthly-effects-container></div>
+                        </div>
+
+                        <div class="effects-editor">
+                            <div class="effects-editor-header">
+                                <h3 data-i18n="situation-on-ending-effects">On ending effects</h3>
+                                <button type="button" class="material-button ghost-button" data-add-situation-ending-effect>
+                                    <span data-i18n="add-effect">Add effect</span>
+                                </button>
+                            </div>
+                            <div data-situation-ending-effects-container></div>
+                        </div>
+
+                        <div class="effects-editor">
+                            <div class="effects-editor-header">
+                                <h3 data-i18n="situation-on-ended-effects">On ended effects</h3>
+                                <button type="button" class="material-button ghost-button" data-add-situation-ended-effect>
+                                    <span data-i18n="add-effect">Add effect</span>
+                                </button>
+                            </div>
+                            <div data-situation-ended-effects-container></div>
+                        </div>
+
+                        <div class="effects-editor">
+                            <div class="effects-editor-header">
+                                <h3 data-i18n="situation-actions">Situation actions</h3>
+                                <button type="button" class="material-button ghost-button" data-add-situation-action>
+                                    <span data-i18n="add-situation-action">Add action</span>
+                                </button>
+                            </div>
+                            <div data-situation-actions-container></div>
+                        </div>
+                    </div>
+
                     <div data-effects-panel class="content-type-panel">
                         <div class="effects-editor">
                             <div class="effects-editor-header">
@@ -1285,6 +1433,7 @@
                                     <option value="@Eu5ModPlanner.Models.EffectValueType.Numeric" data-i18n-option="effect-kind-numeric">Numeric</option>
                                     <option value="@Eu5ModPlanner.Models.EffectValueType.Boolean" data-i18n-option="effect-kind-boolean">Boolean</option>
                                     <option value="@Eu5ModPlanner.Models.EffectValueType.Text" data-i18n-option="effect-kind-text">Custom text</option>
+                                    <option value="@Eu5ModPlanner.Models.EffectValueType.Buff" data-i18n-option="effect-kind-buff">Timed buff</option>
                                 </select>
                             </label>
                             <label data-effect-numeric>
@@ -1306,6 +1455,32 @@
                                     <option value="false" selected data-i18n-option="bool-false">False</option>
                                 </select>
                             </label>
+                            <div data-effect-buff hidden class="effect-editor-wide">
+                                <input name="AdvanceForm.EventOptions[__OPTION_INDEX__].Effects[0].BuffId" type="hidden" data-buff-id-input />
+                                <input name="AdvanceForm.EventOptions[__OPTION_INDEX__].Effects[0].BuffName" type="hidden" data-buff-name-input />
+                                <div class="effect-editor-grid">
+                                    <label class="effect-editor-wide">
+                                        <span data-i18n="effect-buff">Buff</span>
+                                        <button type="button" class="material-button ghost-button" data-select-buff-button>
+                                            <span data-i18n="select-buff">Select buff</span>
+                                        </button>
+                                        <span class="helper-copy" data-selected-buff-name data-i18n="no-buff-selected">No buff selected.</span>
+                                    </label>
+                                    <label>
+                                        <span data-i18n="effect-buff-duration">Duration</span>
+                                        <input name="AdvanceForm.EventOptions[__OPTION_INDEX__].Effects[0].BuffDurationValue" class="form-control" type="number" min="1" step="1" value="1" />
+                                    </label>
+                                    <label>
+                                        <span data-i18n="effect-buff-duration-unit">Duration unit</span>
+                                        <select name="AdvanceForm.EventOptions[__OPTION_INDEX__].Effects[0].BuffDurationUnit" class="form-select">
+                                            <option value="@Eu5ModPlanner.Models.BuffDurationUnit.Days" data-i18n-option="duration-days">Days</option>
+                                            <option value="@Eu5ModPlanner.Models.BuffDurationUnit.Months" data-i18n-option="duration-months">Months</option>
+                                            <option value="@Eu5ModPlanner.Models.BuffDurationUnit.Years" data-i18n-option="duration-years">Years</option>
+                                            <option value="@Eu5ModPlanner.Models.BuffDurationUnit.UntilEndOfGame" data-i18n-option="duration-end-of-game">Until the end of the game</option>
+                                        </select>
+                                    </label>
+                                </div>
+                            </div>
                         </div>
                         <button type="button" class="material-button danger-button small-button" data-remove-effect>
                             <span data-i18n="remove-effect">Remove</span>
@@ -1314,6 +1489,74 @@
                 </div>
             </div>
         </div>
+    </div>
+</template>
+
+<template id="situation-effect-row-template">
+    <div class="effect-editor-card" data-effect-row>
+        <div class="effect-editor-grid">
+            <label class="effect-editor-wide">
+                <span data-i18n="effect-label">Effect label</span>
+                <input name="__GROUP_NAME__[__INDEX__].Label" class="form-control" data-i18n-placeholder="effect-label-placeholder" list="effect-label-suggestions" />
+            </label>
+            <label>
+                <span data-i18n="effect-value-type">Effect kind</span>
+                <select name="__GROUP_NAME__[__INDEX__].ValueType" class="form-select" data-effect-value-type>
+                    <option value="@Eu5ModPlanner.Models.EffectValueType.Numeric" data-i18n-option="effect-kind-numeric">Numeric</option>
+                    <option value="@Eu5ModPlanner.Models.EffectValueType.Boolean" data-i18n-option="effect-kind-boolean">Boolean</option>
+                    <option value="@Eu5ModPlanner.Models.EffectValueType.Text" data-i18n-option="effect-kind-text">Custom text</option>
+                    <option value="@Eu5ModPlanner.Models.EffectValueType.Buff" data-i18n-option="effect-kind-buff">Timed buff</option>
+                </select>
+            </label>
+            <label data-effect-numeric>
+                <span data-i18n="advance-modifier-amount">Modifier amount</span>
+                <input name="__GROUP_NAME__[__INDEX__].NumericAmount" class="form-control" type="number" step="0.01" value="0" />
+                <input name="__Invariant" type="hidden" value="__GROUP_NAME__[__INDEX__].NumericAmount" />
+            </label>
+            <label data-effect-numeric>
+                <span data-i18n="advance-modifier-unit">Value type</span>
+                <select name="__GROUP_NAME__[__INDEX__].NumericUnit" class="form-select">
+                    <option value="@Eu5ModPlanner.Models.ModifierUnit.Flat" data-i18n-option="unit-flat">Flat value</option>
+                    <option value="@Eu5ModPlanner.Models.ModifierUnit.Percent" data-i18n-option="unit-percent">Percentage</option>
+                </select>
+            </label>
+            <label data-effect-boolean hidden>
+                <span data-i18n="bool-value">Boolean value</span>
+                <select name="__GROUP_NAME__[__INDEX__].BoolValue" class="form-select">
+                    <option value="true" data-i18n-option="bool-true">True</option>
+                    <option value="false" selected data-i18n-option="bool-false">False</option>
+                </select>
+            </label>
+            <div data-effect-buff hidden class="effect-editor-wide">
+                <input name="__GROUP_NAME__[__INDEX__].BuffId" type="hidden" data-buff-id-input />
+                <input name="__GROUP_NAME__[__INDEX__].BuffName" type="hidden" data-buff-name-input />
+                <div class="effect-editor-grid">
+                    <label class="effect-editor-wide">
+                        <span data-i18n="effect-buff">Buff</span>
+                        <button type="button" class="material-button ghost-button" data-select-buff-button>
+                            <span data-i18n="select-buff">Select buff</span>
+                        </button>
+                        <span class="helper-copy" data-selected-buff-name data-i18n="no-buff-selected">No buff selected.</span>
+                    </label>
+                    <label>
+                        <span data-i18n="effect-buff-duration">Duration</span>
+                        <input name="__GROUP_NAME__[__INDEX__].BuffDurationValue" class="form-control" type="number" min="1" step="1" value="1" />
+                    </label>
+                    <label>
+                        <span data-i18n="effect-buff-duration-unit">Duration unit</span>
+                        <select name="__GROUP_NAME__[__INDEX__].BuffDurationUnit" class="form-select">
+                            <option value="@Eu5ModPlanner.Models.BuffDurationUnit.Days" data-i18n-option="duration-days">Days</option>
+                            <option value="@Eu5ModPlanner.Models.BuffDurationUnit.Months" data-i18n-option="duration-months">Months</option>
+                            <option value="@Eu5ModPlanner.Models.BuffDurationUnit.Years" data-i18n-option="duration-years">Years</option>
+                            <option value="@Eu5ModPlanner.Models.BuffDurationUnit.UntilEndOfGame" data-i18n-option="duration-end-of-game">Until the end of the game</option>
+                        </select>
+                    </label>
+                </div>
+            </div>
+        </div>
+        <button type="button" class="material-button danger-button small-button" data-remove-effect>
+            <span data-i18n="remove-effect">Remove</span>
+        </button>
     </div>
 </template>
 
@@ -1351,6 +1594,206 @@
                     <option value="false" selected data-i18n-option="bool-false">False</option>
                 </select>
             </label>
+            <div data-effect-buff hidden class="effect-editor-wide">
+                <input name="AdvanceForm.EventOptions[__OPTION_INDEX__].Effects[__INDEX__].BuffId" type="hidden" data-buff-id-input />
+                <input name="AdvanceForm.EventOptions[__OPTION_INDEX__].Effects[__INDEX__].BuffName" type="hidden" data-buff-name-input />
+                <div class="effect-editor-grid">
+                    <label class="effect-editor-wide">
+                        <span data-i18n="effect-buff">Buff</span>
+                        <button type="button" class="material-button ghost-button" data-select-buff-button>
+                            <span data-i18n="select-buff">Select buff</span>
+                        </button>
+                        <span class="helper-copy" data-selected-buff-name data-i18n="no-buff-selected">No buff selected.</span>
+                    </label>
+                    <label>
+                        <span data-i18n="effect-buff-duration">Duration</span>
+                        <input name="AdvanceForm.EventOptions[__OPTION_INDEX__].Effects[__INDEX__].BuffDurationValue" class="form-control" type="number" min="1" step="1" value="1" />
+                    </label>
+                    <label>
+                        <span data-i18n="effect-buff-duration-unit">Duration unit</span>
+                        <select name="AdvanceForm.EventOptions[__OPTION_INDEX__].Effects[__INDEX__].BuffDurationUnit" class="form-select">
+                            <option value="@Eu5ModPlanner.Models.BuffDurationUnit.Days" data-i18n-option="duration-days">Days</option>
+                            <option value="@Eu5ModPlanner.Models.BuffDurationUnit.Months" data-i18n-option="duration-months">Months</option>
+                            <option value="@Eu5ModPlanner.Models.BuffDurationUnit.Years" data-i18n-option="duration-years">Years</option>
+                            <option value="@Eu5ModPlanner.Models.BuffDurationUnit.UntilEndOfGame" data-i18n-option="duration-end-of-game">Until the end of the game</option>
+                        </select>
+                    </label>
+                </div>
+            </div>
+        </div>
+        <button type="button" class="material-button danger-button small-button" data-remove-effect>
+            <span data-i18n="remove-effect">Remove</span>
+        </button>
+    </div>
+</template>
+
+<template id="situation-action-template">
+    <div class="effect-editor-card" data-situation-action-row>
+        <div class="effects-editor">
+            <div class="effects-editor-header">
+                <h3 data-i18n="situation-action-title">Action</h3>
+                <button type="button" class="material-button danger-button small-button" data-remove-situation-action>
+                    <span data-i18n="remove-action">Remove action</span>
+                </button>
+            </div>
+            <label>
+                <span data-i18n="situation-action-name">Action name</span>
+                <input name="AdvanceForm.SituationActions[__ACTION_INDEX__].Name" class="form-control" data-i18n-placeholder="situation-action-name-placeholder" />
+            </label>
+            <label>
+                <span data-i18n="situation-action-requirements">Requirements</span>
+                <textarea name="AdvanceForm.SituationActions[__ACTION_INDEX__].Requirements" class="form-control" rows="3" data-i18n-placeholder="situation-action-requirements-placeholder"></textarea>
+            </label>
+            <div class="effect-editor-grid">
+                <label>
+                    <span data-i18n="situation-action-cost">Cost</span>
+                    <input name="AdvanceForm.SituationActions[__ACTION_INDEX__].Cost" class="form-control" data-i18n-placeholder="situation-action-cost-placeholder" />
+                </label>
+                <label>
+                    <span data-i18n="situation-action-cooldown">Cooldown</span>
+                    <input name="AdvanceForm.SituationActions[__ACTION_INDEX__].Cooldown" class="form-control" data-i18n-placeholder="situation-action-cooldown-placeholder" />
+                </label>
+            </div>
+            <div class="effects-editor">
+                <div class="effects-editor-header">
+                    <h3 data-i18n="situation-action-effects">Action effects</h3>
+                    <button type="button" class="material-button ghost-button" data-add-situation-action-effect>
+                        <span data-i18n="add-effect">Add effect</span>
+                    </button>
+                </div>
+                <div data-situation-action-effects-container>
+                    <div class="effect-editor-card" data-effect-row>
+                        <div class="effect-editor-grid">
+                            <label class="effect-editor-wide">
+                                <span data-i18n="effect-label">Effect label</span>
+                                <input name="AdvanceForm.SituationActions[__ACTION_INDEX__].Effects[0].Label" class="form-control" data-i18n-placeholder="effect-label-placeholder" list="effect-label-suggestions" />
+                            </label>
+                            <label>
+                                <span data-i18n="effect-value-type">Effect kind</span>
+                                <select name="AdvanceForm.SituationActions[__ACTION_INDEX__].Effects[0].ValueType" class="form-select" data-effect-value-type>
+                                    <option value="@Eu5ModPlanner.Models.EffectValueType.Numeric" data-i18n-option="effect-kind-numeric">Numeric</option>
+                                    <option value="@Eu5ModPlanner.Models.EffectValueType.Boolean" data-i18n-option="effect-kind-boolean">Boolean</option>
+                                    <option value="@Eu5ModPlanner.Models.EffectValueType.Text" data-i18n-option="effect-kind-text">Custom text</option>
+                                    <option value="@Eu5ModPlanner.Models.EffectValueType.Buff" data-i18n-option="effect-kind-buff">Timed buff</option>
+                                </select>
+                            </label>
+                            <label data-effect-numeric>
+                                <span data-i18n="advance-modifier-amount">Modifier amount</span>
+                                <input name="AdvanceForm.SituationActions[__ACTION_INDEX__].Effects[0].NumericAmount" class="form-control" type="number" step="0.01" value="0" />
+                                <input name="__Invariant" type="hidden" value="AdvanceForm.SituationActions[__ACTION_INDEX__].Effects[0].NumericAmount" />
+                            </label>
+                            <label data-effect-numeric>
+                                <span data-i18n="advance-modifier-unit">Value type</span>
+                                <select name="AdvanceForm.SituationActions[__ACTION_INDEX__].Effects[0].NumericUnit" class="form-select">
+                                    <option value="@Eu5ModPlanner.Models.ModifierUnit.Flat" data-i18n-option="unit-flat">Flat value</option>
+                                    <option value="@Eu5ModPlanner.Models.ModifierUnit.Percent" data-i18n-option="unit-percent">Percentage</option>
+                                </select>
+                            </label>
+                            <label data-effect-boolean hidden>
+                                <span data-i18n="bool-value">Boolean value</span>
+                                <select name="AdvanceForm.SituationActions[__ACTION_INDEX__].Effects[0].BoolValue" class="form-select">
+                                    <option value="true" data-i18n-option="bool-true">True</option>
+                                    <option value="false" selected data-i18n-option="bool-false">False</option>
+                                </select>
+                            </label>
+                            <div data-effect-buff hidden class="effect-editor-wide">
+                                <input name="AdvanceForm.SituationActions[__ACTION_INDEX__].Effects[0].BuffId" type="hidden" data-buff-id-input />
+                                <input name="AdvanceForm.SituationActions[__ACTION_INDEX__].Effects[0].BuffName" type="hidden" data-buff-name-input />
+                                <div class="effect-editor-grid">
+                                    <label class="effect-editor-wide">
+                                        <span data-i18n="effect-buff">Buff</span>
+                                        <button type="button" class="material-button ghost-button" data-select-buff-button>
+                                            <span data-i18n="select-buff">Select buff</span>
+                                        </button>
+                                        <span class="helper-copy" data-selected-buff-name data-i18n="no-buff-selected">No buff selected.</span>
+                                    </label>
+                                    <label>
+                                        <span data-i18n="effect-buff-duration">Duration</span>
+                                        <input name="AdvanceForm.SituationActions[__ACTION_INDEX__].Effects[0].BuffDurationValue" class="form-control" type="number" min="1" step="1" value="1" />
+                                    </label>
+                                    <label>
+                                        <span data-i18n="effect-buff-duration-unit">Duration unit</span>
+                                        <select name="AdvanceForm.SituationActions[__ACTION_INDEX__].Effects[0].BuffDurationUnit" class="form-select">
+                                            <option value="@Eu5ModPlanner.Models.BuffDurationUnit.Days" data-i18n-option="duration-days">Days</option>
+                                            <option value="@Eu5ModPlanner.Models.BuffDurationUnit.Months" data-i18n-option="duration-months">Months</option>
+                                            <option value="@Eu5ModPlanner.Models.BuffDurationUnit.Years" data-i18n-option="duration-years">Years</option>
+                                            <option value="@Eu5ModPlanner.Models.BuffDurationUnit.UntilEndOfGame" data-i18n-option="duration-end-of-game">Until the end of the game</option>
+                                        </select>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" class="material-button danger-button small-button" data-remove-effect>
+                            <span data-i18n="remove-effect">Remove</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
+
+<template id="situation-action-effect-row-template">
+    <div class="effect-editor-card" data-effect-row>
+        <div class="effect-editor-grid">
+            <label class="effect-editor-wide">
+                <span data-i18n="effect-label">Effect label</span>
+                <input name="AdvanceForm.SituationActions[__ACTION_INDEX__].Effects[__INDEX__].Label" class="form-control" data-i18n-placeholder="effect-label-placeholder" list="effect-label-suggestions" />
+            </label>
+            <label>
+                <span data-i18n="effect-value-type">Effect kind</span>
+                <select name="AdvanceForm.SituationActions[__ACTION_INDEX__].Effects[__INDEX__].ValueType" class="form-select" data-effect-value-type>
+                    <option value="@Eu5ModPlanner.Models.EffectValueType.Numeric" data-i18n-option="effect-kind-numeric">Numeric</option>
+                    <option value="@Eu5ModPlanner.Models.EffectValueType.Boolean" data-i18n-option="effect-kind-boolean">Boolean</option>
+                    <option value="@Eu5ModPlanner.Models.EffectValueType.Text" data-i18n-option="effect-kind-text">Custom text</option>
+                    <option value="@Eu5ModPlanner.Models.EffectValueType.Buff" data-i18n-option="effect-kind-buff">Timed buff</option>
+                </select>
+            </label>
+            <label data-effect-numeric>
+                <span data-i18n="advance-modifier-amount">Modifier amount</span>
+                <input name="AdvanceForm.SituationActions[__ACTION_INDEX__].Effects[__INDEX__].NumericAmount" class="form-control" type="number" step="0.01" value="0" />
+                <input name="__Invariant" type="hidden" value="AdvanceForm.SituationActions[__ACTION_INDEX__].Effects[__INDEX__].NumericAmount" />
+            </label>
+            <label data-effect-numeric>
+                <span data-i18n="advance-modifier-unit">Value type</span>
+                <select name="AdvanceForm.SituationActions[__ACTION_INDEX__].Effects[__INDEX__].NumericUnit" class="form-select">
+                    <option value="@Eu5ModPlanner.Models.ModifierUnit.Flat" data-i18n-option="unit-flat">Flat value</option>
+                    <option value="@Eu5ModPlanner.Models.ModifierUnit.Percent" data-i18n-option="unit-percent">Percentage</option>
+                </select>
+            </label>
+            <label data-effect-boolean hidden>
+                <span data-i18n="bool-value">Boolean value</span>
+                <select name="AdvanceForm.SituationActions[__ACTION_INDEX__].Effects[__INDEX__].BoolValue" class="form-select">
+                    <option value="true" data-i18n-option="bool-true">True</option>
+                    <option value="false" selected data-i18n-option="bool-false">False</option>
+                </select>
+            </label>
+            <div data-effect-buff hidden class="effect-editor-wide">
+                <input name="AdvanceForm.SituationActions[__ACTION_INDEX__].Effects[__INDEX__].BuffId" type="hidden" data-buff-id-input />
+                <input name="AdvanceForm.SituationActions[__ACTION_INDEX__].Effects[__INDEX__].BuffName" type="hidden" data-buff-name-input />
+                <div class="effect-editor-grid">
+                    <label class="effect-editor-wide">
+                        <span data-i18n="effect-buff">Buff</span>
+                        <button type="button" class="material-button ghost-button" data-select-buff-button>
+                            <span data-i18n="select-buff">Select buff</span>
+                        </button>
+                        <span class="helper-copy" data-selected-buff-name data-i18n="no-buff-selected">No buff selected.</span>
+                    </label>
+                    <label>
+                        <span data-i18n="effect-buff-duration">Duration</span>
+                        <input name="AdvanceForm.SituationActions[__ACTION_INDEX__].Effects[__INDEX__].BuffDurationValue" class="form-control" type="number" min="1" step="1" value="1" />
+                    </label>
+                    <label>
+                        <span data-i18n="effect-buff-duration-unit">Duration unit</span>
+                        <select name="AdvanceForm.SituationActions[__ACTION_INDEX__].Effects[__INDEX__].BuffDurationUnit" class="form-select">
+                            <option value="@Eu5ModPlanner.Models.BuffDurationUnit.Days" data-i18n-option="duration-days">Days</option>
+                            <option value="@Eu5ModPlanner.Models.BuffDurationUnit.Months" data-i18n-option="duration-months">Months</option>
+                            <option value="@Eu5ModPlanner.Models.BuffDurationUnit.Years" data-i18n-option="duration-years">Years</option>
+                            <option value="@Eu5ModPlanner.Models.BuffDurationUnit.UntilEndOfGame" data-i18n-option="duration-end-of-game">Until the end of the game</option>
+                        </select>
+                    </label>
+                </div>
+            </div>
         </div>
         <button type="button" class="material-button danger-button small-button" data-remove-effect>
             <span data-i18n="remove-effect">Remove</span>
@@ -1371,6 +1814,7 @@
                     <option value="@Eu5ModPlanner.Models.EffectValueType.Numeric" data-i18n-option="effect-kind-numeric">Numeric</option>
                     <option value="@Eu5ModPlanner.Models.EffectValueType.Boolean" data-i18n-option="effect-kind-boolean">Boolean</option>
                     <option value="@Eu5ModPlanner.Models.EffectValueType.Text" data-i18n-option="effect-kind-text">Custom text</option>
+                    <option value="@Eu5ModPlanner.Models.EffectValueType.Buff" data-i18n-option="effect-kind-buff">Timed buff</option>
                 </select>
             </label>
             <label data-effect-numeric>
@@ -1440,7 +1884,53 @@
     </div>
 </template>
 
+<template id="buff-effect-row-template">
+    <div class="effect-editor-card" data-effect-row>
+        <div class="effect-editor-grid">
+            <label class="effect-editor-wide">
+                <span data-i18n="effect-label">Effect label</span>
+                <input name="BuffForm.Effects[__INDEX__].Label" class="form-control" data-i18n-placeholder="effect-label-placeholder" list="effect-label-suggestions" />
+            </label>
+            <label>
+                <span data-i18n="effect-value-type">Effect kind</span>
+                <select name="BuffForm.Effects[__INDEX__].ValueType" class="form-select" data-effect-value-type>
+                    <option value="@Eu5ModPlanner.Models.EffectValueType.Numeric" data-i18n-option="effect-kind-numeric">Numeric</option>
+                    <option value="@Eu5ModPlanner.Models.EffectValueType.Boolean" data-i18n-option="effect-kind-boolean">Boolean</option>
+                    <option value="@Eu5ModPlanner.Models.EffectValueType.Text" data-i18n-option="effect-kind-text">Custom text</option>
+                </select>
+            </label>
+            <label data-effect-numeric>
+                <span data-i18n="advance-modifier-amount">Modifier amount</span>
+                <input name="BuffForm.Effects[__INDEX__].NumericAmount" class="form-control" type="number" step="0.01" value="0" />
+                <input name="__Invariant" type="hidden" value="BuffForm.Effects[__INDEX__].NumericAmount" />
+            </label>
+            <label data-effect-numeric>
+                <span data-i18n="advance-modifier-unit">Value type</span>
+                <select name="BuffForm.Effects[__INDEX__].NumericUnit" class="form-select">
+                    <option value="@Eu5ModPlanner.Models.ModifierUnit.Flat" data-i18n-option="unit-flat">Flat value</option>
+                    <option value="@Eu5ModPlanner.Models.ModifierUnit.Percent" data-i18n-option="unit-percent">Percentage</option>
+                </select>
+            </label>
+            <label data-effect-boolean hidden>
+                <span data-i18n="bool-value">Boolean value</span>
+                <select name="BuffForm.Effects[__INDEX__].BoolValue" class="form-select">
+                    <option value="true" data-i18n-option="bool-true">True</option>
+                    <option value="false" selected data-i18n-option="bool-false">False</option>
+                </select>
+            </label>
+        </div>
+        <button type="button" class="material-button danger-button small-button" data-remove-effect>
+            <span data-i18n="remove-effect">Remove</span>
+        </button>
+    </div>
+</template>
+
 @if (Model.SelectedContentPayloadJson is not null)
 {
     <script type="application/json" id="selected-content-payload">@Html.Raw(Model.SelectedContentPayloadJson)</script>
+}
+
+@if (Model.AvailableBuffsPayloadJson is not null)
+{
+    <script type="application/json" id="available-buffs-payload">@Html.Raw(Model.AvailableBuffsPayloadJson)</script>
 }
