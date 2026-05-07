@@ -3,11 +3,13 @@ using Eu5ModPlanner.Models;
 using Eu5ModPlanner.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.DependencyInjection;
 using System.Security.Claims;
 using Xunit;
 
@@ -26,7 +28,25 @@ public sealed class PlannerControllerTests
         var view = Assert.IsType<ViewResult>(result);
         var model = Assert.IsType<PlannerIndexViewModel>(view.Model);
         Assert.True(model.HasWriteAccess);
-        Assert.False(model.CanManageWriteAccess);
+        Assert.False(model.IsAuthenticatedUser);
+        Assert.False(model.HasAnyAccounts);
+    }
+
+    [Fact]
+    public void Index_InDevelopmentWithAccounts_ExposesAuthTestingControls()
+    {
+        var repository = CreateRepositoryWithCountry();
+        AddUser(repository, "admin", "Admin User", PlannerUserRole.Admin, "password123");
+        var controller = CreateController(repository, isDevelopment: true);
+
+        var result = controller.Index(null, null, null, null, null);
+
+        var view = Assert.IsType<ViewResult>(result);
+        var model = Assert.IsType<PlannerIndexViewModel>(view.Model);
+        Assert.True(model.HasWriteAccess);
+        Assert.True(model.CanManageWriteAccess);
+        Assert.True(model.CanManageUsers);
+        Assert.True(model.CanRegisterUsers);
     }
 
     [Fact]
@@ -192,6 +212,30 @@ public sealed class PlannerControllerTests
     }
 
     [Fact]
+    public void SaveUser_InProductionWithAdmin_UpdatesExistingUserRoleWithoutPasswordChange()
+    {
+        var repository = CreateRepositoryWithCountry();
+        var admin = AddUser(repository, "admin", "Admin User", PlannerUserRole.Admin, "password123");
+        var viewer = AddUser(repository, "viewer", "Viewer User", PlannerUserRole.Viewer, "password123");
+        var controller = CreateController(repository, isDevelopment: false, signedInUser: admin);
+
+        var result = controller.SaveUser(new UserAccountInputModel
+        {
+            Id = viewer.Id,
+            Username = viewer.Username,
+            DisplayName = viewer.DisplayName,
+            Role = PlannerUserRole.Editor,
+            Password = string.Empty,
+            ConfirmPassword = string.Empty
+        }, null, null, null, null, null);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(PlannerController.Index), redirect.ActionName);
+        Assert.Equal(PlannerUserRole.Editor, repository.Data.Users.Single(user => user.Id == viewer.Id).Role);
+        Assert.Equal($"Updated user {viewer.Username}.", controller.TempData["Message"]);
+    }
+
+    [Fact]
     public void SaveUser_InProductionWithEditor_IsRejected()
     {
         var repository = CreateRepositoryWithCountry();
@@ -216,13 +260,13 @@ public sealed class PlannerControllerTests
     }
 
     [Fact]
-    public void Register_InProductionWithExistingAccounts_CreatesViewerUser()
+    public async Task Register_InProductionWithExistingAccounts_CreatesViewerUserAndSignsIn()
     {
         var repository = CreateRepositoryWithCountry();
         AddUser(repository, "admin", "Admin User", PlannerUserRole.Admin, "password123");
         var controller = CreateController(repository, isDevelopment: false);
 
-        var result = controller.Register(new UserRegistrationInputModel
+        var result = await controller.Register(new UserRegistrationInputModel
         {
             Username = "newuser",
             DisplayName = "New User",
@@ -233,17 +277,20 @@ public sealed class PlannerControllerTests
         var redirect = Assert.IsType<RedirectToActionResult>(result);
         Assert.Equal(nameof(PlannerController.Index), redirect.ActionName);
         Assert.Contains(repository.Data.Users, user => user.Username == "newuser" && user.Role == PlannerUserRole.Viewer && user.IsActive);
+        Assert.True(controller.HttpContext.User.Identity?.IsAuthenticated);
+        Assert.Equal("newuser", controller.HttpContext.User.Identity?.Name);
+        Assert.Equal("Account created and signed in as New User.", controller.TempData["Message"]);
     }
 
     [Fact]
-    public void Register_WithDuplicateUsername_IsRejected()
+    public async Task Register_WithDuplicateUsername_IsRejected()
     {
         var repository = CreateRepositoryWithCountry();
         AddUser(repository, "admin", "Admin User", PlannerUserRole.Admin, "password123");
         AddUser(repository, "newuser", "Existing User", PlannerUserRole.Viewer, "password123");
         var controller = CreateController(repository, isDevelopment: false);
 
-        var result = controller.Register(new UserRegistrationInputModel
+        var result = await controller.Register(new UserRegistrationInputModel
         {
             Username = "newuser",
             DisplayName = "Another User",
@@ -257,12 +304,12 @@ public sealed class PlannerControllerTests
     }
 
     [Fact]
-    public void Register_WithoutExistingAccounts_IsRejected()
+    public async Task Register_WithoutExistingAccounts_IsRejected()
     {
         var repository = CreateRepositoryWithCountry();
         var controller = CreateController(repository, isDevelopment: false);
 
-        var result = controller.Register(new UserRegistrationInputModel
+        var result = await controller.Register(new UserRegistrationInputModel
         {
             Username = "newuser",
             DisplayName = "New User",
@@ -1276,6 +1323,9 @@ public sealed class PlannerControllerTests
             new TestWebHostEnvironment(isDevelopment));
 
         var httpContext = new DefaultHttpContext();
+        var services = new ServiceCollection();
+        services.AddSingleton<IAuthenticationService, TestAuthenticationService>();
+        httpContext.RequestServices = services.BuildServiceProvider();
         if (signedInUser is not null)
         {
             httpContext.User = authService.CreatePrincipal(signedInUser);
@@ -1631,6 +1681,30 @@ public sealed class PlannerControllerTests
 
         public void SaveTempData(HttpContext context, IDictionary<string, object> values)
         {
+        }
+    }
+
+    private sealed class TestAuthenticationService : IAuthenticationService
+    {
+        public Task<AuthenticateResult> AuthenticateAsync(HttpContext context, string? scheme) =>
+            Task.FromResult(AuthenticateResult.NoResult());
+
+        public Task ChallengeAsync(HttpContext context, string? scheme, AuthenticationProperties? properties) =>
+            Task.CompletedTask;
+
+        public Task ForbidAsync(HttpContext context, string? scheme, AuthenticationProperties? properties) =>
+            Task.CompletedTask;
+
+        public Task SignInAsync(HttpContext context, string? scheme, ClaimsPrincipal principal, AuthenticationProperties? properties)
+        {
+            context.User = principal;
+            return Task.CompletedTask;
+        }
+
+        public Task SignOutAsync(HttpContext context, string? scheme, AuthenticationProperties? properties)
+        {
+            context.User = new ClaimsPrincipal(new ClaimsIdentity());
+            return Task.CompletedTask;
         }
     }
 }

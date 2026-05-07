@@ -90,9 +90,9 @@ public sealed class PlannerController : Controller
         var selectedCountryContent = new List<ContentEntry>();
         var hasWriteAccess = HasWriteAccess();
         var hasAnyAccounts = _authService.HasAnyAccounts();
-        var canManageWriteAccess = _environment.IsDevelopment() == false && hasAnyAccounts;
+        var canManageWriteAccess = hasAnyAccounts;
         var canManageUsers = _authService.CanManageUsers(User, _environment.IsDevelopment());
-        var canRegisterUsers = _environment.IsDevelopment() == false && hasAnyAccounts;
+        var canRegisterUsers = hasAnyAccounts;
         var currentRole = _authService.GetCurrentRole(User, _environment.IsDevelopment());
         var currentDisplayName = _authService.GetCurrentDisplayName(User, _environment.IsDevelopment());
         var availableCultureGroups = allCultureGroups.Where(entry => !entry.IsArchived).ToList();
@@ -398,12 +398,6 @@ public sealed class PlannerController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Login([Bind(Prefix = "LoginForm")] UserLoginInputModel input, Guid? countryId, Guid? cultureId, Guid? cultureGroupId, Guid? contentId, string? library)
     {
-        if (_environment.IsDevelopment())
-        {
-            TempData["Message"] = "Local development mode already has write access.";
-            return RedirectToAction(nameof(Index), new { countryId, cultureId, cultureGroupId, contentId, library });
-        }
-
         if (!_authService.HasAnyAccounts())
         {
             TempData["Message"] = "No active user accounts are configured yet.";
@@ -433,14 +427,8 @@ public sealed class PlannerController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public IActionResult Register([Bind(Prefix = "RegistrationForm")] UserRegistrationInputModel input, Guid? countryId, Guid? cultureId, Guid? cultureGroupId, Guid? contentId, string? library)
+    public async Task<IActionResult> Register([Bind(Prefix = "RegistrationForm")] UserRegistrationInputModel input, Guid? countryId, Guid? cultureId, Guid? cultureGroupId, Guid? contentId, string? library)
     {
-        if (_environment.IsDevelopment())
-        {
-            TempData["Message"] = "Local development mode already has full access.";
-            return RedirectToAction(nameof(Index), new { countryId, cultureId, cultureGroupId, contentId, library });
-        }
-
         if (!_authService.HasAnyAccounts())
         {
             TempData["Message"] = "Account registration is not available until the first admin account exists.";
@@ -455,7 +443,11 @@ public sealed class PlannerController : Controller
         }
 
         var user = _authService.RegisterUser(input);
-        TempData["Message"] = $"Account created for {user.DisplayName}. An admin can promote it to editor access if needed.";
+        await HttpContext.SignInAsync(
+            CookieAuthenticationDefaults.AuthenticationScheme,
+            _authService.CreatePrincipal(user));
+
+        TempData["Message"] = $"Account created and signed in as {user.DisplayName}.";
         return RedirectToAction(nameof(Index), new { countryId, cultureId, cultureGroupId, contentId, library });
     }
 
@@ -463,14 +455,10 @@ public sealed class PlannerController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Logout(Guid? countryId, Guid? cultureId, Guid? cultureGroupId, Guid? contentId, string? library)
     {
-        if (_environment.IsDevelopment())
-        {
-            TempData["Message"] = "Local development mode keeps write access enabled.";
-            return RedirectToAction(nameof(Index), new { countryId, cultureId, cultureGroupId, contentId, library });
-        }
-
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-        TempData["Message"] = "Signed out.";
+        TempData["Message"] = _environment.IsDevelopment()
+            ? "Signed out. Local development still keeps content editing enabled."
+            : "Signed out.";
         return RedirectToAction(nameof(Index), new { countryId, cultureId, cultureGroupId, contentId, library });
     }
 
@@ -484,11 +472,17 @@ public sealed class PlannerController : Controller
         }
 
         var isEdit = input.Id.HasValue && input.Id.Value != Guid.Empty;
+        if (isEdit && string.IsNullOrWhiteSpace(input.Password) && string.IsNullOrWhiteSpace(input.ConfirmPassword))
+        {
+            ModelState.Remove("UserForm.Password");
+            ModelState.Remove("UserForm.ConfirmPassword");
+        }
+
         var validation = _authService.ValidateUserInput(input, isEdit);
         if (!ModelState.IsValid || !validation.IsValid)
         {
             TempData["Message"] = validation.IsValid
-                ? (isEdit ? "User could not be updated." : "User could not be created.")
+                ? GetFirstModelStateError() ?? (isEdit ? "User could not be updated." : "User could not be created.")
                 : validation.Message;
             return RedirectToAction(nameof(Index), new { countryId, cultureId, cultureGroupId, contentId, library });
         }
@@ -946,6 +940,12 @@ public sealed class PlannerController : Controller
 
     private bool HasWriteAccess() =>
         _authService.CanWrite(User, _environment.IsDevelopment());
+
+    private string? GetFirstModelStateError() =>
+        ModelState.Values
+            .SelectMany(value => value.Errors)
+            .Select(error => string.IsNullOrWhiteSpace(error.ErrorMessage) ? null : error.ErrorMessage)
+            .FirstOrDefault(message => !string.IsNullOrWhiteSpace(message));
 
     private static bool HasInvalidBuffEffects(
         IEnumerable<AdvanceEffectInputModel>? source,

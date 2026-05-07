@@ -20,15 +20,21 @@
     <div class="auth-banner-copy">
         @if (Model.HasWriteAccess)
         {
-            <strong data-i18n="auth-write-title">Write access enabled</strong>
             @if (Model.IsAuthenticatedUser)
             {
+                <strong data-i18n="auth-write-title">Write access enabled</strong>
                 <span>@Model.CurrentUserDisplayName (@Model.CurrentUserRoleName) - <span data-i18n="auth-write-copy">You can add, edit, and delete content.</span></span>
             }
             else
             {
+                <strong data-i18n="auth-write-title">Write access enabled</strong>
                 <span data-i18n="auth-write-copy">You can add, edit, and delete content.</span>
             }
+        }
+        else if (Model.IsAuthenticatedUser)
+        {
+            <strong data-i18n="auth-signedin-title">Signed in</strong>
+            <span>@Model.CurrentUserDisplayName (@Model.CurrentUserRoleName) - <span data-i18n="auth-signedin-copy">Your account is currently read-only.</span></span>
         }
         else if (Model.HasAnyAccounts)
         {
@@ -42,7 +48,7 @@
         }
     </div>
     <div class="content-chip-row">
-        @if (Model.CanManageWriteAccess && Model.HasWriteAccess)
+        @if (Model.IsAuthenticatedUser)
         {
             <form asp-action="Logout" method="post">
                 @Html.AntiForgeryToken()
