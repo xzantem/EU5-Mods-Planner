@@ -14,19 +14,30 @@
     "auth-username": "Username",
     "auth-password": "Password",
     "auth-login-submit": "Sign in",
+    "library-kicker": "Library",
     "countries-kicker": "Countries",
-    "countries-title": "Available tags",
+    "countries-title": "Tags",
     "countries-active-title": "Active tags",
     "countries-archived-title": "Archived tags",
     "add-tag": "Add tag",
     "archived-tags-button": "Archived tags",
+    "archived-culture-groups-button": "Archived culture groups",
+    "archived-cultures-button": "Archived cultures",
     "countries-empty": "No countries yet. Add your first tag to begin.",
     "selected-country-kicker": "Selected tag",
+    "selected-culture-group-kicker": "Selected culture group",
+    "selected-culture-kicker": "Selected culture",
     "country-status-active": "Active",
     "country-status-archived": "Archived",
     "edit-country": "Edit tag",
     "archive-country": "Archive tag",
     "restore-country": "Restore tag",
+    "edit-culture-group": "Edit culture group",
+    "archive-culture-group": "Archive culture group",
+    "restore-culture-group": "Restore culture group",
+    "edit-culture": "Edit culture",
+    "archive-culture": "Archive culture",
+    "restore-culture": "Restore culture",
     "content-label-inline": "entries",
     "content-kicker": "Country content",
     "content-title-empty": "Pick a country",
@@ -43,9 +54,13 @@
     "type-building": "Building",
     "type-event": "Event",
     "type-situation": "Situation",
+    "type-culture": "Culture",
+    "type-culture-group": "Culture Group",
     "detail-kicker": "Details",
     "detail-title": "Selected content",
     "edit-content": "Edit",
+    "archive-library-entry": "Archive",
+    "restore-library-entry": "Restore",
     "delete-content": "Delete",
     "detail-empty": "Select a content piece to inspect its effect.",
     "country-modal-title": "Add country",
@@ -77,6 +92,26 @@
     "event-name-placeholder": "The City Falls",
     "situation-name": "Situation name",
     "situation-name-placeholder": "Religious Turmoil",
+    "culture-name": "Culture name",
+    "culture-name-placeholder": "Walloon",
+    "culture-group-name": "Culture Group name",
+    "culture-group-name-placeholder": "Low Countries",
+    "culture-groups-field": "Culture Groups",
+    "culture-groups-title": "Culture Groups",
+    "culture-groups-empty": "No culture groups exist yet.",
+    "culture-groups-helper": "Add one or more culture groups. Existing custom groups and built-in groups are both allowed.",
+    "cultures-title": "Cultures",
+    "cultures-empty": "No cultures exist yet.",
+    "add-culture": "Add culture",
+    "add-culture-group": "Add culture group",
+    "add-culture-membership": "Add culture group",
+    "culture-group-memberships": "groups",
+    "remove-culture-membership": "Remove",
+    "culture-group-content-kicker": "Culture group content",
+    "culture-group-content-empty": "This culture group has no content yet.",
+    "culture-group-select-empty": "Select a culture group to manage its shared content.",
+    "cultures-detail-empty": "Cultures are shared reference entities. Select one to inspect its memberships.",
+    "back-to-country": "Back to country",
     "value-left-label": "Left side",
     "value-left-placeholder": "Spiritual",
     "value-right-label": "Right side",
@@ -260,19 +295,30 @@
     "auth-username": "Login",
     "auth-password": "HasÅ‚o",
     "auth-login-submit": "Zaloguj siÄ™",
+    "library-kicker": "Biblioteka",
     "countries-kicker": "PaÅ„stwa",
-    "countries-title": "DostÄ™pne tagi",
+    "countries-title": "Tagi",
     "countries-active-title": "Aktywne tagi",
     "countries-archived-title": "Zarchiwizowane tagi",
     "add-tag": "Dodaj tag",
     "archived-tags-button": "Zarchiwizowane tagi",
+    "archived-culture-groups-button": "Zarchiwizowane grupy kulturowe",
+    "archived-cultures-button": "Zarchiwizowane kultury",
     "countries-empty": "Brak paÅ„stw. Dodaj pierwszy tag, aby zaczÄ…Ä‡.",
     "selected-country-kicker": "Wybrany tag",
+    "selected-culture-group-kicker": "Wybrana grupa kulturowa",
+    "selected-culture-kicker": "Wybrana kultura",
     "country-status-active": "Aktywny",
     "country-status-archived": "Zarchiwizowany",
     "edit-country": "Edytuj tag",
     "archive-country": "Archiwizuj tag",
     "restore-country": "PrzywrÃ³Ä‡ tag",
+    "edit-culture-group": "Edytuj grupÄ™ kulturowÄ…",
+    "archive-culture-group": "Archiwizuj grupÄ™ kulturowÄ…",
+    "restore-culture-group": "PrzywrÃ³Ä‡ grupÄ™ kulturowÄ…",
+    "edit-culture": "Edytuj kulturÄ™",
+    "archive-culture": "Archiwizuj kulturÄ™",
+    "restore-culture": "PrzywrÃ³Ä‡ kulturÄ™",
     "content-label-inline": "wpisÃ³w",
     "content-kicker": "ZawartoÅ›Ä‡ kraju",
     "content-title-empty": "Wybierz paÅ„stwo",
@@ -289,9 +335,13 @@
     "type-building": "Budynek",
     "type-event": "Wydarzenie",
     "type-situation": "Sytuacja",
+    "type-culture": "Kultura",
+    "type-culture-group": "Grupa kulturowa",
     "detail-kicker": "SzczegÃ³Å‚y",
     "detail-title": "Wybrana zawartoÅ›Ä‡",
     "edit-content": "Edytuj",
+    "archive-library-entry": "Archiwizuj",
+    "restore-library-entry": "Przywróć",
     "delete-content": "UsuÅ„",
     "detail-empty": "Wybierz element zawartoÅ›ci, aby zobaczyÄ‡ jego efekt.",
     "country-modal-title": "Dodaj paÅ„stwo",
@@ -321,6 +371,26 @@
     "event-name": "Nazwa wydarzenia",
     "event-name-placeholder": "Miasto upada",
     "building-name-placeholder": "Spichlerz paÅ„stwowy",
+    "culture-name": "Nazwa kultury",
+    "culture-name-placeholder": "Walońska",
+    "culture-group-name": "Nazwa grupy kulturowej",
+    "culture-group-name-placeholder": "Niderlandzka",
+    "culture-groups-field": "Grupy kulturowe",
+    "culture-groups-title": "Grupy kulturowe",
+    "culture-groups-empty": "Nie ma jeszcze żadnych grup kulturowych.",
+    "culture-groups-helper": "Dodaj jedną lub więcej grup kulturowych. Dozwolone są zarówno własne grupy, jak i wbudowane.",
+    "cultures-title": "Kultury",
+    "cultures-empty": "Nie ma jeszcze żadnych kultur.",
+    "add-culture": "Dodaj kulturę",
+    "add-culture-group": "Dodaj grupę kulturową",
+    "add-culture-membership": "Dodaj grupę kulturową",
+    "culture-group-memberships": "grup",
+    "remove-culture-membership": "Usuń",
+    "culture-group-content-kicker": "Zawartość grupy kulturowej",
+    "culture-group-content-empty": "Ta grupa kulturowa nie ma jeszcze żadnej zawartości.",
+    "culture-group-select-empty": "Wybierz grupę kulturową, aby zarządzać jej wspólną zawartością.",
+    "cultures-detail-empty": "Kultury są współdzielonymi bytami referencyjnymi. Wybierz jedną, aby sprawdzić jej przynależność do grup.",
+    "back-to-country": "Powrót do państwa",
     "value-left-label": "Lewa strona",
     "value-left-placeholder": "Duchowy",
     "value-right-label": "Prawa strona",
@@ -466,13 +536,16 @@ const lawCatalog = {
 };
 
 const body = document.body;
+const EMPTY_GUID = "00000000-0000-0000-0000-000000000000";
 const themeToggle = document.querySelector("[data-theme-toggle]");
 const languageButtons = document.querySelectorAll("[data-language]");
 const addContentButton = document.querySelector("[data-add-content-button]");
+const createTypeButtons = Array.from(document.querySelectorAll("[data-create-type]"));
 const editContentButton = document.querySelector("[data-edit-content-button]");
 const addContentModalElement = document.querySelector("#addContentModal");
 const contentForm = document.querySelector("#contentForm");
 const typeSelect = document.querySelector("[data-content-type-select]");
+const contentTypeRow = document.querySelector("[data-content-type-row]");
 const contentIdInput = document.querySelector("[data-content-id-input]");
 const contentModalTitle = document.querySelector("[data-content-modal-title]");
 const submitContentButton = document.querySelector("[data-submit-content-button]");
@@ -489,7 +562,12 @@ const valuePanel = document.querySelector("[data-value-panel]");
 const buildingPanel = document.querySelector("[data-building-panel]");
 const eventPanel = document.querySelector("[data-event-panel]");
 const situationPanel = document.querySelector("[data-situation-panel]");
+const culturePanel = document.querySelector("[data-culture-panel]");
+const cultureMembershipContainer = document.querySelector("[data-culture-membership-container]");
+const addCultureMembershipButton = document.querySelector("[data-add-culture-membership]");
+const cultureMembershipTemplate = document.querySelector("#culture-membership-row-template");
 const reformOptions = document.querySelector("[data-reform-options]");
+const cultureGroupScopeInput = document.querySelector('[name="AdvanceForm.CultureGroupId"]');
 const effectsContainer = document.querySelector("[data-effects-container]");
 const leftEffectsContainer = document.querySelector("[data-left-effects-container]");
 const rightEffectsContainer = document.querySelector("[data-right-effects-container]");
@@ -574,8 +652,44 @@ const contentNameKeys = {
   Law: { label: "law-name", placeholder: "law-name-placeholder" },
   Building: { label: "building-name", placeholder: "building-name-placeholder" },
   Event: { label: "event-name", placeholder: "event-name-placeholder" },
-  Situation: { label: "situation-name", placeholder: "situation-name-placeholder" }
+  Situation: { label: "situation-name", placeholder: "situation-name-placeholder" },
+  Culture: { label: "culture-name", placeholder: "culture-name-placeholder" },
+  CultureGroup: { label: "culture-group-name", placeholder: "culture-group-name-placeholder" }
 };
+
+const cultureGroupAllowedTypes = new Set(["Advance", "Reform", "Privilege", "Law", "Value", "Building"]);
+
+function syncTypeOptions() {
+  if (!typeSelect) return;
+  const lockedType = contentForm?.dataset.lockedType || "";
+  const activeLibrary = contentForm?.dataset.activeLibrary || "Countries";
+  const isCultureGroupScope = !!(cultureGroupScopeInput && cultureGroupScopeInput.value);
+  const editingScopeCultureGroup = !!(
+    isCultureGroupScope
+    && contentForm
+    && contentForm.dataset.mode === "edit"
+    && contentIdInput
+    && cultureGroupScopeInput
+    && contentIdInput.value
+    && contentIdInput.value === cultureGroupScopeInput.value
+  );
+  Array.from(typeSelect.options).forEach((option) => {
+    const disallowedInLibrary = activeLibrary === "Countries" && (option.value === "Culture" || option.value === "CultureGroup");
+    const allowed = !disallowedInLibrary && (!isCultureGroupScope
+      || cultureGroupAllowedTypes.has(option.value)
+      || (editingScopeCultureGroup && option.value === "CultureGroup"));
+    option.hidden = !allowed;
+    option.disabled = !allowed;
+  });
+
+  if (isCultureGroupScope && !editingScopeCultureGroup && !cultureGroupAllowedTypes.has(typeSelect.value)) {
+    typeSelect.value = "Advance";
+  }
+
+  if (lockedType) {
+    typeSelect.value = lockedType;
+  }
+}
 
 function applyLanguage(language) {
   const dictionary = translations[language] || translations.en;
@@ -659,7 +773,9 @@ function syncLawFields() {
 }
 
 function syncContentTypePanel() {
+  syncTypeOptions();
   const currentType = typeSelect ? typeSelect.value : "Advance";
+  if (contentTypeRow) contentTypeRow.hidden = !!(contentForm?.dataset.lockedType);
   if (effectsPanel) effectsPanel.hidden = !["Advance", "Reform", "Privilege", "Law", "Building"].includes(currentType);
   if (estateRenamePanel) estateRenamePanel.hidden = currentType !== "DefaultEstateRename";
   if (customEstatePanel) customEstatePanel.hidden = currentType !== "CustomEstate";
@@ -669,6 +785,7 @@ function syncContentTypePanel() {
   if (buildingPanel) buildingPanel.hidden = currentType !== "Building";
   if (eventPanel) eventPanel.hidden = currentType !== "Event";
   if (situationPanel) situationPanel.hidden = currentType !== "Situation";
+  if (culturePanel) culturePanel.hidden = currentType !== "Culture";
   if (reformOptions) reformOptions.hidden = currentType !== "Reform";
   if (contentNameRow) contentNameRow.hidden = currentType === "DefaultEstateRename" || currentType === "Value";
 
@@ -720,6 +837,50 @@ function bindEffectRow(row, container, namePrefix) {
     });
   }
   syncEffectRow(row);
+}
+
+function reindexCultureMembershipRows() {
+  if (!cultureMembershipContainer) return;
+  Array.from(cultureMembershipContainer.querySelectorAll("[data-culture-membership-row]")).forEach((row, index) => {
+    row.querySelectorAll("input").forEach((input) => {
+      if (input.name) {
+        input.name = input.name.replace(/AdvanceForm\.CultureGroupMembershipNames\[\d+\]/, `AdvanceForm.CultureGroupMembershipNames[${index}]`);
+      }
+    });
+  });
+}
+
+function bindCultureMembershipRow(row) {
+  const removeButton = row.querySelector("[data-remove-culture-membership]");
+  if (removeButton) {
+    removeButton.addEventListener("click", () => {
+      if (!cultureMembershipContainer) return;
+      if (cultureMembershipContainer.querySelectorAll("[data-culture-membership-row]").length > 1) {
+        row.remove();
+        reindexCultureMembershipRows();
+      }
+    });
+  }
+}
+
+function addCultureMembershipRow(value = "") {
+  if (!cultureMembershipContainer || !cultureMembershipTemplate) return;
+  const index = cultureMembershipContainer.querySelectorAll("[data-culture-membership-row]").length;
+  const markup = cultureMembershipTemplate.innerHTML.replace(/__INDEX__/g, String(index));
+  cultureMembershipContainer.insertAdjacentHTML("beforeend", markup);
+  const row = cultureMembershipContainer.lastElementChild;
+  if (!(row instanceof HTMLElement)) return;
+  const input = row.querySelector("input");
+  if (input) input.value = value;
+  bindCultureMembershipRow(row);
+  reindexCultureMembershipRows();
+}
+
+function buildCultureMembershipRows(values) {
+  if (!cultureMembershipContainer) return;
+  cultureMembershipContainer.innerHTML = "";
+  const normalized = (values && values.length ? values : [""]).map((value) => value ?? "");
+  normalized.forEach((value) => addCultureMembershipRow(value));
 }
 
 function reindexEffectRows(container, namePrefix) {
@@ -1627,13 +1788,17 @@ function updateModalModeText() {
 function resetFormForAddMode() {
   if (!contentForm) return;
   const countryIdField = contentForm.querySelector('[name="AdvanceForm.CountryId"]');
-  const countryId = countryIdField ? countryIdField.value : "";
+  const countryId = countryIdField ? (countryIdField.value || EMPTY_GUID) : EMPTY_GUID;
+  const cultureGroupId = cultureGroupScopeInput ? cultureGroupScopeInput.value : "";
   contentForm.reset();
   contentForm.action = contentForm.dataset.addAction;
   contentForm.dataset.mode = "add";
+  delete contentForm.dataset.lockedType;
   if (contentIdInput) contentIdInput.value = "";
   if (countryIdField) countryIdField.value = countryId;
+  if (cultureGroupScopeInput) cultureGroupScopeInput.value = cultureGroupId;
   if (typeSelect) typeSelect.value = "Advance";
+  buildCultureMembershipRows([""]);
   buildEffectRows(effectsContainer, effectTemplate, "AdvanceForm.Effects", [defaultEffect()]);
   buildEffectRows(leftEffectsContainer, leftEffectTemplate, "AdvanceForm.LeftEffects", [defaultEffect()]);
   buildEffectRows(rightEffectsContainer, rightEffectTemplate, "AdvanceForm.RightEffects", [defaultEffect()]);
@@ -1648,6 +1813,20 @@ function resetFormForAddMode() {
   buildSituationActionRows([defaultSituationAction()]);
   syncEventPrerequisites([], null);
   updateModalModeText();
+  syncContentTypePanel();
+}
+
+function openCreateType(typeName) {
+  resetFormForAddMode();
+  if (contentForm) contentForm.dataset.lockedType = typeName;
+  if (typeName === "Culture" || typeName === "CultureGroup") {
+    if (cultureGroupScopeInput) cultureGroupScopeInput.value = "";
+    const countryIdField = contentForm?.querySelector('[name="AdvanceForm.CountryId"]');
+    if (countryIdField) countryIdField.value = EMPTY_GUID;
+  }
+  if (typeSelect) {
+    typeSelect.value = typeName;
+  }
   syncContentTypePanel();
 }
 
@@ -1672,17 +1851,24 @@ function applyLawSelection(content) {
   }
 }
 
-function applySelectedContentToForm(content) {
+  function applySelectedContentToForm(content) {
   if (!contentForm || !content) return;
   const countryIdField = contentForm.querySelector('[name="AdvanceForm.CountryId"]');
-  const countryId = countryIdField ? countryIdField.value : "";
+  const countryId = countryIdField ? (countryIdField.value || EMPTY_GUID) : EMPTY_GUID;
+  const cultureGroupId = cultureGroupScopeInput ? cultureGroupScopeInput.value : "";
   contentForm.reset();
   contentForm.action = contentForm.dataset.editAction;
   contentForm.dataset.mode = "edit";
+  delete contentForm.dataset.lockedType;
+  if (content.type === "Culture" || content.type === "CultureGroup") {
+    contentForm.dataset.lockedType = content.type;
+  }
   if (contentIdInput) contentIdInput.value = content.id ?? "";
-  if (countryIdField) countryIdField.value = countryId;
+  if (countryIdField) countryIdField.value = content.type === "Culture" || content.type === "CultureGroup" ? EMPTY_GUID : countryId;
+  if (cultureGroupScopeInput) cultureGroupScopeInput.value = cultureGroupId;
   if (typeSelect) typeSelect.value = content.type ?? "Advance";
   setNamedFieldValue("AdvanceForm.Name", content.name ?? "");
+  buildCultureMembershipRows(content.cultureGroupMembershipNames ?? [""]);
   setNamedFieldValue("AdvanceForm.IsMajorReform", content.isMajorReform ?? false);
   setNamedFieldValue("AdvanceForm.NobilityEstateName", content.nobilityEstateName ?? "");
   setNamedFieldValue("AdvanceForm.BurghersEstateName", content.burghersEstateName ?? "");
@@ -1752,6 +1938,7 @@ renderBuffList();
 languageButtons.forEach((button) => button.addEventListener("click", () => applyLanguage(button.dataset.language)));
 if (themeToggle) themeToggle.addEventListener("click", () => applyTheme(body.classList.contains("theme-dark") ? "light" : "dark"));
 if (addContentButton) addContentButton.addEventListener("click", resetFormForAddMode);
+createTypeButtons.forEach((button) => button.addEventListener("click", () => openCreateType(button.dataset.createType || "Advance")));
 if (editContentButton) editContentButton.addEventListener("click", () => applySelectedContentToForm(selectedContentData));
 if (typeSelect) typeSelect.addEventListener("change", syncContentTypePanel);
 if (canPromoteToggle) canPromoteToggle.addEventListener("change", syncPromotionSpeed);
@@ -1769,6 +1956,7 @@ if (situationMonthlyEffectsContainer) situationMonthlyEffectsContainer.querySele
 if (situationEndingEffectsContainer) situationEndingEffectsContainer.querySelectorAll("[data-effect-row]").forEach((row) => bindEffectRow(row, situationEndingEffectsContainer, "AdvanceForm.SituationEndingEffects"));
 if (situationEndedEffectsContainer) situationEndedEffectsContainer.querySelectorAll("[data-effect-row]").forEach((row) => bindEffectRow(row, situationEndedEffectsContainer, "AdvanceForm.SituationEndedEffects"));
 if (buffEffectsContainer) buffEffectsContainer.querySelectorAll("[data-effect-row]").forEach((row) => bindEffectRow(row, buffEffectsContainer, "BuffForm.Effects"));
+if (cultureMembershipContainer) cultureMembershipContainer.querySelectorAll("[data-culture-membership-row]").forEach((row) => bindCultureMembershipRow(row));
 if (constructionCostsContainer) constructionCostsContainer.querySelectorAll("[data-resource-row]").forEach((row) => bindResourceRow(row, constructionCostsContainer, reindexConstructionCosts));
 if (productionMethodsContainer) productionMethodsContainer.querySelectorAll("[data-production-method-row]").forEach((row) => bindProductionMethodRow(row));
 if (eventOptionsContainer) eventOptionsContainer.querySelectorAll("[data-event-option-row]").forEach((row) => bindEventOptionRow(row));
@@ -1782,6 +1970,7 @@ if (addSituationMonthlyEffectButton) addSituationMonthlyEffectButton.addEventLis
 if (addSituationEndingEffectButton) addSituationEndingEffectButton.addEventListener("click", () => { addEffectRow(situationEndingEffectsContainer, situationEffectTemplate, "AdvanceForm.SituationEndingEffects"); reindexEffectRows(situationEndingEffectsContainer, "AdvanceForm.SituationEndingEffects"); });
 if (addSituationEndedEffectButton) addSituationEndedEffectButton.addEventListener("click", () => { addEffectRow(situationEndedEffectsContainer, situationEffectTemplate, "AdvanceForm.SituationEndedEffects"); reindexEffectRows(situationEndedEffectsContainer, "AdvanceForm.SituationEndedEffects"); });
 if (addBuffEffectButton) addBuffEffectButton.addEventListener("click", () => { addEffectRow(buffEffectsContainer, buffEffectTemplate, "BuffForm.Effects"); reindexEffectRows(buffEffectsContainer, "BuffForm.Effects"); });
+if (addCultureMembershipButton) addCultureMembershipButton.addEventListener("click", () => addCultureMembershipRow(""));
 if (addSituationActionButton) addSituationActionButton.addEventListener("click", () => addSituationActionRow(defaultSituationAction()));
 if (addConstructionCostButton) addConstructionCostButton.addEventListener("click", () => { addConstructionCostRow(); reindexConstructionCosts(); });
 if (addProductionMethodButton) addProductionMethodButton.addEventListener("click", () => addProductionMethodRow());

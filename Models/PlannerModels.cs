@@ -13,7 +13,9 @@ public enum ContentType
     Value,
     Building,
     Event,
-    Situation
+    Situation,
+    Culture,
+    CultureGroup
 }
 
 public enum EstateClass
@@ -121,6 +123,7 @@ public sealed class ContentEntry
     [Required, StringLength(100)]
     public string Name { get; set; } = string.Empty;
 
+    public bool IsArchived { get; set; }
     public bool IsMajorReform { get; set; }
 
     [StringLength(80)]
@@ -212,6 +215,10 @@ public sealed class ContentEntry
     [Range(0, 100)]
     public decimal? SituationMonthlySpawnChance { get; set; }
 
+    public List<Guid> CultureGroupIds { get; set; } = [];
+    public List<string> CultureGroupNames { get; set; } = [];
+    public List<Guid> CultureGroupContentEntryIds { get; set; } = [];
+
     public List<ContentEffect> Effects { get; set; } = [];
     public List<SituationAction> SituationActions { get; set; } = [];
     public List<ContentResourceAmount> ConstructionCosts { get; set; } = [];
@@ -233,6 +240,8 @@ public sealed class ContentEntry
         ContentType.Building => "type-building",
         ContentType.Situation => "type-situation",
         ContentType.Event => "type-event",
+        ContentType.Culture => "type-culture",
+        ContentType.CultureGroup => "type-culture-group",
         _ => "type-advance"
     };
 
@@ -247,7 +256,20 @@ public sealed class ContentEntry
             ContentType.Building => BuildingLines,
             ContentType.Situation => SituationLines,
             ContentType.Event => EventLines,
+            ContentType.Culture => CultureLines,
+            ContentType.CultureGroup => CultureGroupLines,
             _ => Effects.Select(effect => effect.DisplayText).ToList()
+        };
+
+    public IReadOnlyList<string> CultureLines =>
+        CultureGroupNames.Count == 0
+            ? new List<string> { "Culture Groups: None" }
+            : new[] { "Culture Groups:" }.Concat(CultureGroupNames.Select(name => $"- {name}")).ToList();
+
+    public IReadOnlyList<string> CultureGroupLines =>
+        new List<string>
+        {
+            $"Accessible Content Entries: {CultureGroupContentEntryIds.Count}"
         };
 
     public IReadOnlyList<string> EstateRenameLines =>

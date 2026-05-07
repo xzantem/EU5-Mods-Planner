@@ -19,7 +19,7 @@ public sealed class PlannerControllerTests
         var repository = CreateRepositoryWithCountry();
         var controller = CreateController(repository, isDevelopment: true);
 
-        var result = controller.Index(null, null);
+        var result = controller.Index(null, null, null, null, null);
 
         var view = Assert.IsType<ViewResult>(result);
         var model = Assert.IsType<PlannerIndexViewModel>(view.Model);
@@ -35,12 +35,63 @@ public sealed class PlannerControllerTests
         repository.Data.Countries.Add(new Country { Name = "Archivedonia", Tag = "ARC", IsArchived = true });
         var controller = CreateController(repository, isDevelopment: true);
 
-        var result = controller.Index(null, null);
+        var result = controller.Index(null, null, null, null, null);
 
         var view = Assert.IsType<ViewResult>(result);
         var model = Assert.IsType<PlannerIndexViewModel>(view.Model);
         Assert.Single(model.ActiveCountries);
         Assert.Single(model.ArchivedCountries);
+    }
+
+    [Fact]
+    public void Index_SeparatesCulturesAndCultureGroupsFromCountryContent()
+    {
+        var repository = CreateRepositoryWithCountryAndCultureGroup(out var country, out var cultureGroup);
+        var culture = new ContentEntry
+        {
+            Type = ContentType.Culture,
+            Name = "Walloon",
+            CultureGroupIds = [cultureGroup.Id],
+            CultureGroupNames = ["Low Countries"]
+        };
+        repository.AddContentEntry(culture);
+
+        var advance = new ContentEntry
+        {
+            Type = ContentType.Advance,
+            Name = "Centralized Arsenal"
+        };
+        repository.AddContentEntry(advance);
+        repository.AssignContentToCountry(country.Id, advance.Id);
+
+        var controller = CreateController(repository, isDevelopment: true);
+
+        var result = controller.Index(country.Id, null, null, null, "Countries");
+
+        var view = Assert.IsType<ViewResult>(result);
+        var model = Assert.IsType<PlannerIndexViewModel>(view.Model);
+        Assert.Single(model.AvailableCultures);
+        Assert.Single(model.AvailableCultureGroups);
+        Assert.Single(model.SelectedCountryContent);
+        Assert.Equal(ContentType.Advance, model.SelectedCountryContent[0].Type);
+        Assert.Equal(culture.Id, model.AvailableCultures[0].Id);
+        Assert.Equal(cultureGroup.Id, model.AvailableCultureGroups[0].Id);
+    }
+
+    [Fact]
+    public void Index_CultureGroupLibrary_DoesNotAlsoSelectCountry()
+    {
+        var repository = CreateRepositoryWithCountryAndCultureGroup(out var country, out var cultureGroup);
+        var controller = CreateController(repository, isDevelopment: true);
+
+        var result = controller.Index(country.Id, null, cultureGroup.Id, null, "CultureGroups");
+
+        var view = Assert.IsType<ViewResult>(result);
+        var model = Assert.IsType<PlannerIndexViewModel>(view.Model);
+        Assert.Equal("CultureGroups", model.ActiveLibrary);
+        Assert.Null(model.SelectedCountry);
+        Assert.NotNull(model.SelectedCultureGroup);
+        Assert.Equal(cultureGroup.Id, model.SelectedCultureGroup!.Id);
     }
 
     [Fact]
@@ -297,6 +348,322 @@ public sealed class PlannerControllerTests
     }
 
     [Fact]
+    public void AddContent_Culture_SavesCultureGroupMemberships()
+    {
+        var repository = CreateRepositoryWithCountryAndCultureGroup(out var country, out var cultureGroup);
+        var controller = CreateController(repository, isDevelopment: true);
+
+        controller.AddContent(new AdvanceInputModel
+        {
+            CountryId = country.Id,
+            Type = ContentType.Culture,
+            Name = "Walloon",
+            CultureGroupIds = [cultureGroup.Id]
+        });
+
+        var entry = repository.Data.ContentEntries.Single(item => item.Type == ContentType.Culture);
+        Assert.Equal("Walloon", entry.Name);
+        Assert.Single(entry.CultureGroupIds);
+        Assert.Equal(cultureGroup.Id, entry.CultureGroupIds[0]);
+        Assert.Contains("Low Countries", entry.CultureGroupNames);
+        Assert.DoesNotContain(entry.Id, country.ContentEntryIds);
+    }
+
+    [Fact]
+    public void AddContent_Culture_WithoutCountrySelection_SavesCulture()
+    {
+        var repository = CreateRepositoryWithCountryAndCultureGroup(out _, out var cultureGroup);
+        var controller = CreateController(repository, isDevelopment: true);
+
+        var result = controller.AddContent(new AdvanceInputModel
+        {
+            CountryId = Guid.Empty,
+            Type = ContentType.Culture,
+            Name = "Walloon",
+            CultureGroupIds = [cultureGroup.Id]
+        });
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(PlannerController.Index), redirect.ActionName);
+        var entry = repository.Data.ContentEntries.Single(item => item.Type == ContentType.Culture);
+        Assert.Equal("Walloon", entry.Name);
+        Assert.Equal(cultureGroup.Id, Assert.Single(entry.CultureGroupIds));
+    }
+
+    [Fact]
+    public void AddContent_Culture_WithoutCultureGroup_ShowsSpecificValidationMessage()
+    {
+        var repository = CreateRepositoryWithCountry();
+        var controller = CreateController(repository, isDevelopment: true);
+
+        var result = controller.AddContent(new AdvanceInputModel
+        {
+            CountryId = Guid.Empty,
+            Type = ContentType.Culture,
+            Name = "Walloon"
+        });
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(PlannerController.Index), redirect.ActionName);
+        Assert.DoesNotContain(repository.Data.ContentEntries, item => item.Type == ContentType.Culture);
+        Assert.Equal("Culture must belong to at least one existing culture group.", controller.TempData["Message"]);
+    }
+
+    [Fact]
+    public void AddContent_Culture_WithTypedCultureGroupNames_SavesCustomAndBuiltInGroups()
+    {
+        var repository = CreateRepositoryWithCountryAndCultureGroup(out _, out var cultureGroup);
+        var controller = CreateController(repository, isDevelopment: true);
+
+        controller.AddContent(new AdvanceInputModel
+        {
+            CountryId = Guid.Empty,
+            Type = ContentType.Culture,
+            Name = "Walloon",
+            CultureGroupMembershipNames = ["Low Countries", "Latin"]
+        });
+
+        var entry = repository.Data.ContentEntries.Single(item => item.Type == ContentType.Culture);
+        Assert.Equal(["Latin", "Low Countries"], entry.CultureGroupNames);
+        Assert.Equal(cultureGroup.Id, Assert.Single(entry.CultureGroupIds));
+    }
+
+    [Fact]
+    public void AddContent_CultureGroup_WithoutCountrySelection_SavesCultureGroup()
+    {
+        var repository = CreateRepositoryWithCountry();
+        var controller = CreateController(repository, isDevelopment: true);
+
+        var result = controller.AddContent(new AdvanceInputModel
+        {
+            CountryId = Guid.Empty,
+            Type = ContentType.CultureGroup,
+            Name = "Low Countries"
+        });
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(PlannerController.Index), redirect.ActionName);
+        var entry = repository.Data.ContentEntries.Single(item => item.Type == ContentType.CultureGroup);
+        Assert.Equal("Low Countries", entry.Name);
+    }
+
+    [Fact]
+    public void AddContent_CultureGroup_WithStaleCultureGroupScope_StillSavesCultureGroup()
+    {
+        var repository = CreateRepositoryWithCountryAndCultureGroup(out _, out var existingCultureGroup);
+        var controller = CreateController(repository, isDevelopment: true);
+
+        var result = controller.AddContent(new AdvanceInputModel
+        {
+            CountryId = Guid.Empty,
+            CultureGroupId = existingCultureGroup.Id,
+            Type = ContentType.CultureGroup,
+            Name = "Latin"
+        });
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(PlannerController.Index), redirect.ActionName);
+        Assert.Contains(repository.Data.ContentEntries, item => item.Type == ContentType.CultureGroup && item.Name == "Latin");
+    }
+
+    [Fact]
+    public void AddContent_Culture_WithStaleCultureGroupScope_StillSavesCulture()
+    {
+        var repository = CreateRepositoryWithCountryAndCultureGroup(out _, out var existingCultureGroup);
+        var controller = CreateController(repository, isDevelopment: true);
+
+        var result = controller.AddContent(new AdvanceInputModel
+        {
+            CountryId = Guid.Empty,
+            CultureGroupId = existingCultureGroup.Id,
+            Type = ContentType.Culture,
+            Name = "Walloon",
+            CultureGroupMembershipNames = ["Low Countries", "Latin"]
+        });
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(PlannerController.Index), redirect.ActionName);
+        Assert.Contains(repository.Data.ContentEntries, item => item.Type == ContentType.Culture && item.Name == "Walloon");
+    }
+
+    [Fact]
+    public void Index_CountryLibrary_ExcludesCultureEntitiesFromCountryContent()
+    {
+        var repository = CreateRepositoryWithCountryAndCultureGroup(out var country, out var cultureGroup);
+        var culture = new ContentEntry
+        {
+            Type = ContentType.Culture,
+            Name = "Walloon",
+            CultureGroupIds = [cultureGroup.Id],
+            CultureGroupNames = ["Low Countries"]
+        };
+        repository.AddContentEntry(culture);
+        repository.AssignContentToCountry(country.Id, culture.Id);
+
+        var controller = CreateController(repository, isDevelopment: true);
+
+        var result = controller.Index(country.Id, null, null, null, "Countries");
+
+        var view = Assert.IsType<ViewResult>(result);
+        var model = Assert.IsType<PlannerIndexViewModel>(view.Model);
+        Assert.DoesNotContain(model.SelectedCountryContent, item => item.Type is ContentType.Culture or ContentType.CultureGroup);
+    }
+
+    [Fact]
+    public void ArchiveAndRestoreCulture_TogglesArchivedFlag()
+    {
+        var repository = CreateRepositoryWithCountryAndCultureGroup(out _, out var cultureGroup);
+        var culture = new ContentEntry
+        {
+            Type = ContentType.Culture,
+            Name = "Walloon",
+            CultureGroupIds = [cultureGroup.Id],
+            CultureGroupNames = ["Low Countries"]
+        };
+        repository.AddContentEntry(culture);
+        var controller = CreateController(repository, isDevelopment: true);
+
+        var archiveResult = controller.ArchiveLibraryEntry(culture.Id, "Cultures");
+        var archiveRedirect = Assert.IsType<RedirectToActionResult>(archiveResult);
+        Assert.Equal(nameof(PlannerController.Index), archiveRedirect.ActionName);
+        Assert.True(culture.IsArchived);
+
+        var restoreResult = controller.RestoreLibraryEntry(culture.Id, "Cultures");
+        var restoreRedirect = Assert.IsType<RedirectToActionResult>(restoreResult);
+        Assert.Equal(nameof(PlannerController.Index), restoreRedirect.ActionName);
+        Assert.False(culture.IsArchived);
+    }
+
+    [Fact]
+    public void ArchiveAndRestoreCultureGroup_TogglesArchivedFlag()
+    {
+        var repository = CreateRepositoryWithCountryAndCultureGroup(out _, out var cultureGroup);
+        var controller = CreateController(repository, isDevelopment: true);
+
+        var archiveResult = controller.ArchiveLibraryEntry(cultureGroup.Id, "CultureGroups");
+        var archiveRedirect = Assert.IsType<RedirectToActionResult>(archiveResult);
+        Assert.Equal(nameof(PlannerController.Index), archiveRedirect.ActionName);
+        Assert.True(cultureGroup.IsArchived);
+
+        var restoreResult = controller.RestoreLibraryEntry(cultureGroup.Id, "CultureGroups");
+        var restoreRedirect = Assert.IsType<RedirectToActionResult>(restoreResult);
+        Assert.Equal(nameof(PlannerController.Index), restoreRedirect.ActionName);
+        Assert.False(cultureGroup.IsArchived);
+    }
+
+    [Fact]
+    public void EditCulture_UpdatesNameAndMemberships()
+    {
+        var repository = CreateRepositoryWithCountryAndCultureGroup(out _, out var cultureGroup);
+        var secondGroup = new ContentEntry
+        {
+            Type = ContentType.CultureGroup,
+            Name = "Latin"
+        };
+        repository.AddContentEntry(secondGroup);
+        var culture = new ContentEntry
+        {
+            Type = ContentType.Culture,
+            Name = "Walloon",
+            CultureGroupIds = [cultureGroup.Id],
+            CultureGroupNames = ["Low Countries"]
+        };
+        repository.AddContentEntry(culture);
+        var controller = CreateController(repository, isDevelopment: true);
+
+        var result = controller.EditContent(new AdvanceInputModel
+        {
+            ContentId = culture.Id,
+            CountryId = Guid.Empty,
+            Type = ContentType.Culture,
+            Name = "Picard",
+            CultureGroupMembershipNames = ["Latin"]
+        });
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(PlannerController.Index), redirect.ActionName);
+        var updated = repository.Data.ContentEntries.Single(item => item.Id == culture.Id);
+        Assert.Equal("Picard", updated.Name);
+        Assert.Equal(["Latin"], updated.CultureGroupNames);
+        Assert.Equal(secondGroup.Id, Assert.Single(updated.CultureGroupIds));
+    }
+
+    [Fact]
+    public void EditCultureGroup_UpdatesName()
+    {
+        var repository = CreateRepositoryWithCountryAndCultureGroup(out _, out var cultureGroup);
+        var controller = CreateController(repository, isDevelopment: true);
+
+        var result = controller.EditContent(new AdvanceInputModel
+        {
+            ContentId = cultureGroup.Id,
+            CountryId = Guid.Empty,
+            Type = ContentType.CultureGroup,
+            Name = "Benelux"
+        });
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(PlannerController.Index), redirect.ActionName);
+        var updated = repository.Data.ContentEntries.Single(item => item.Id == cultureGroup.Id);
+        Assert.Equal("Benelux", updated.Name);
+    }
+
+    [Fact]
+    public void AddContent_ToCultureGroup_AssignsScopedContent()
+    {
+        var repository = CreateRepositoryWithCountryAndCultureGroup(out var country, out var cultureGroup);
+        var controller = CreateController(repository, isDevelopment: true);
+
+        controller.AddContent(new AdvanceInputModel
+        {
+            CountryId = country.Id,
+            CultureGroupId = cultureGroup.Id,
+            Type = ContentType.Law,
+            Name = "Guild Harbor Ordinance",
+            LawCategory = "Custom",
+            LawCustomCategory = "Commercial Traditions",
+            LawSubcategory = "Custom",
+            LawCustomSubcategory = "Harbor Ordinances",
+            Effects = [NumericEffect("Naval Morale", 3, ModifierUnit.Flat)]
+        });
+
+        var entry = repository.Data.ContentEntries.Single(item => item.Type == ContentType.Law);
+        Assert.Contains(entry.Id, cultureGroup.CultureGroupContentEntryIds);
+        Assert.DoesNotContain(entry.Id, country.ContentEntryIds);
+    }
+
+    [Fact]
+    public void AddContent_Event_ToCultureGroup_IsRejected()
+    {
+        var repository = CreateRepositoryWithCountryAndCultureGroup(out var country, out var cultureGroup);
+        var controller = CreateController(repository, isDevelopment: true);
+
+        var result = controller.AddContent(new AdvanceInputModel
+        {
+            CountryId = country.Id,
+            CultureGroupId = cultureGroup.Id,
+            Type = ContentType.Event,
+            Name = "Forbidden Event",
+            EventDescription = "Nope",
+            EventTriggerMode = EventTriggerMode.MonthlyChance,
+            EventMonthlyChance = 5,
+            EventOptions =
+            [
+                new EventOptionInputModel
+                {
+                    Text = "Do it",
+                    Effects = [NumericEffect("Treasury", 10, ModifierUnit.Flat)]
+                }
+            ]
+        });
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(PlannerController.Index), redirect.ActionName);
+        Assert.DoesNotContain(repository.Data.ContentEntries, item => item.Type == ContentType.Event);
+        Assert.Equal("Content could not be added.", controller.TempData["Message"]);
+    }
+
+    [Fact]
     public void AddContent_Building_SavesCostsProductionMethodsAndEffects()
     {
         var repository = CreateRepositoryWithCountry();
@@ -475,7 +842,7 @@ public sealed class PlannerControllerTests
                 NumericEffect("Monthly Research Speed", 5, ModifierUnit.Percent),
                 BooleanEffect("Allows open sea exploration", true)
             ]
-        }, repository.Data.Countries[0].Id, null);
+        }, repository.Data.Countries[0].Id, null, null, null, "Countries");
 
         var redirect = Assert.IsType<RedirectToActionResult>(result);
         Assert.Equal(nameof(PlannerController.Index), redirect.ActionName);
@@ -539,7 +906,7 @@ public sealed class PlannerControllerTests
             [
                 BuffEffect(existingBuff.Id, existingBuff.Name, 30, BuffDurationUnit.Days)
             ]
-        }, repository.Data.Countries[0].Id, null);
+        }, repository.Data.Countries[0].Id, null, null, null, "Countries");
 
         var redirect = Assert.IsType<RedirectToActionResult>(result);
         Assert.Equal(nameof(PlannerController.Index), redirect.ActionName);
@@ -613,7 +980,7 @@ public sealed class PlannerControllerTests
         var repository = CreateRepositoryWithCountryAndAdvance(out var country, out var existingEntry);
         var controller = CreateController(repository, isDevelopment: true);
 
-        var result = controller.DeleteContent(country.Id, existingEntry.Id);
+        var result = controller.DeleteContent(country.Id, existingEntry.Id, null, null, "Countries");
 
         var redirect = Assert.IsType<RedirectToActionResult>(result);
         Assert.Equal(nameof(PlannerController.Index), redirect.ActionName);
@@ -788,6 +1155,19 @@ public sealed class PlannerControllerTests
         return repository;
     }
 
+    private static InMemoryPlannerRepository CreateRepositoryWithCountryAndCultureGroup(out Country country, out ContentEntry cultureGroup)
+    {
+        var repository = CreateRepositoryWithCountry();
+        country = repository.Data.Countries[0];
+        cultureGroup = new ContentEntry
+        {
+            Type = ContentType.CultureGroup,
+            Name = "Low Countries"
+        };
+        repository.AddContentEntry(cultureGroup);
+        return repository;
+    }
+
     private static InMemoryPlannerRepository CreateRepositoryWithCountryAndBuff(out Buff buff)
     {
         var repository = CreateRepositoryWithCountry();
@@ -899,11 +1279,28 @@ public sealed class PlannerControllerTests
             return entry;
         }
 
+        public bool SetContentArchived(Guid id, bool isArchived)
+        {
+            var entry = Data.ContentEntries.FirstOrDefault(item => item.Id == id);
+            if (entry is null)
+            {
+                return false;
+            }
+
+            entry.IsArchived = isArchived;
+            return true;
+        }
+
         public bool DeleteContentEntry(Guid id)
         {
             foreach (var country in Data.Countries)
             {
                 country.ContentEntryIds.Remove(id);
+            }
+
+            foreach (var cultureGroup in Data.ContentEntries.Where(entry => entry.Type == ContentType.CultureGroup))
+            {
+                cultureGroup.CultureGroupContentEntryIds.Remove(id);
             }
 
             return Data.ContentEntries.RemoveAll(entry => entry.Id == id) > 0;
@@ -920,6 +1317,22 @@ public sealed class PlannerControllerTests
             if (!country.ContentEntryIds.Contains(contentEntryId))
             {
                 country.ContentEntryIds.Add(contentEntryId);
+            }
+
+            return true;
+        }
+
+        public bool AssignContentToCultureGroup(Guid cultureGroupId, Guid contentEntryId)
+        {
+            var cultureGroup = Data.ContentEntries.FirstOrDefault(item => item.Id == cultureGroupId && item.Type == ContentType.CultureGroup);
+            if (cultureGroup is null)
+            {
+                return false;
+            }
+
+            if (!cultureGroup.CultureGroupContentEntryIds.Contains(contentEntryId))
+            {
+                cultureGroup.CultureGroupContentEntryIds.Add(contentEntryId);
             }
 
             return true;

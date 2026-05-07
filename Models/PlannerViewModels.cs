@@ -4,9 +4,14 @@ namespace Eu5ModPlanner.Models;
 
 public sealed class PlannerIndexViewModel
 {
+    public required string ActiveLibrary { get; init; }
     public required IReadOnlyList<Country> Countries { get; init; }
     public required IReadOnlyList<Country> ActiveCountries { get; init; }
     public required IReadOnlyList<Country> ArchivedCountries { get; init; }
+    public required IReadOnlyList<ContentEntry> AvailableCultures { get; init; }
+    public required IReadOnlyList<ContentEntry> ArchivedCultures { get; init; }
+    public required IReadOnlyList<ContentEntry> AvailableCultureGroups { get; init; }
+    public required IReadOnlyList<ContentEntry> ArchivedCultureGroups { get; init; }
     public required IReadOnlyList<ContentEntry> SelectedCountryContent { get; init; }
     public required IReadOnlyList<string> EffectLabelSuggestions { get; init; }
     public required IReadOnlyList<Buff> AvailableBuffs { get; init; }
@@ -17,7 +22,10 @@ public sealed class PlannerIndexViewModel
     public bool HasWriteAccess { get; init; }
     public bool IsLoginConfigured { get; init; }
     public bool CanManageWriteAccess { get; init; }
+    public bool IsCultureGroupScope { get; init; }
     public Country? SelectedCountry { get; init; }
+    public ContentEntry? SelectedCulture { get; init; }
+    public ContentEntry? SelectedCultureGroup { get; init; }
     public ContentEntry? SelectedContent { get; init; }
     public string? SelectedContentPayloadJson { get; init; }
     public string? AvailableBuffsPayloadJson { get; init; }
@@ -42,6 +50,8 @@ public sealed class AdvanceInputModel
 
     [Required]
     public Guid CountryId { get; set; }
+
+    public Guid? CultureGroupId { get; set; }
 
     [Required]
     public ContentType Type { get; set; } = ContentType.Advance;
@@ -176,6 +186,8 @@ public sealed class AdvanceInputModel
     public List<AdvanceEffectInputModel> SituationEndingEffects { get; set; } = [new()];
     public List<AdvanceEffectInputModel> SituationEndedEffects { get; set; } = [new()];
     public List<SituationActionInputModel> SituationActions { get; set; } = [new()];
+    public List<Guid> CultureGroupIds { get; set; } = [];
+    public List<string> CultureGroupMembershipNames { get; set; } = [string.Empty];
 }
 
 public sealed class AdvanceEffectInputModel

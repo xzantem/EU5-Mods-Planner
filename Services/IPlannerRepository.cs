@@ -13,6 +13,8 @@ public interface IPlannerRepository
     bool DeleteBuff(Guid id);
     ContentEntry AddContentEntry(ContentEntry entry);
     ContentEntry UpdateContentEntry(ContentEntry entry);
+    bool SetContentArchived(Guid id, bool isArchived);
     bool DeleteContentEntry(Guid id);
     bool AssignContentToCountry(Guid countryId, Guid contentEntryId);
+    bool AssignContentToCultureGroup(Guid cultureGroupId, Guid contentEntryId);
 }

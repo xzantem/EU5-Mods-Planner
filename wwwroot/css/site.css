@@ -122,11 +122,15 @@ body {
 }
 
 .segment {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-width: 3rem;
   padding: 0.5rem 0.75rem;
   background: transparent;
   color: var(--muted);
   font-weight: 600;
+  text-decoration: none;
 }
 
 .segment.is-active {
@@ -209,6 +213,11 @@ body {
 
 .pane-countries .pane-header-actions .material-button {
   min-width: 10rem;
+}
+
+.library-switcher {
+  width: fit-content;
+  flex-wrap: wrap;
 }
 
 .pane-header h1,
@@ -460,6 +469,12 @@ body {
   align-items: center;
   gap: 0.65rem;
   padding: 0.8rem 0;
+}
+
+.checkbox-grid {
+  display: grid;
+  gap: 0.35rem 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
 .form-control,

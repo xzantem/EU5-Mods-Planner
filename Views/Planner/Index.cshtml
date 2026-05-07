@@ -11,6 +11,9 @@
         .Where(entry => entry.Type == Eu5ModPlanner.Models.ContentType.Event)
         .OrderBy(entry => entry.Name)
         .ToList();
+    var availableCultureGroups = Model.AvailableCultureGroups
+        .OrderBy(entry => entry.Name)
+        .ToList();
 }
 
 <div class="auth-banner">
@@ -36,7 +39,10 @@
         {
             <form asp-action="Logout" method="post">
                 @Html.AntiForgeryToken()
+                <input type="hidden" name="library" value="@Model.ActiveLibrary" />
                 <input type="hidden" name="countryId" value="@Model.SelectedCountry?.Id" />
+                <input type="hidden" name="cultureId" value="@Model.SelectedCulture?.Id" />
+                <input type="hidden" name="cultureGroupId" value="@Model.SelectedCultureGroup?.Id" />
                 <input type="hidden" name="contentId" value="@Model.SelectedContent?.Id" />
                 <button type="submit" class="material-button ghost-button">
                     <span data-i18n="auth-logout">Disable write access</span>
@@ -125,9 +131,31 @@
     <aside class="planner-pane pane-countries">
         <div class="pane-header pane-header-stacked">
             <div>
-                <p class="pane-kicker" data-i18n="countries-kicker">Countries</p>
-                <h1 data-i18n="countries-title">Available tags</h1>
+                <p class="pane-kicker" data-i18n="library-kicker">Library</p>
+                <h1>
+                    @if (Model.ActiveLibrary == "CultureGroups")
+                    {
+                        <span data-i18n="culture-groups-title">Culture Groups</span>
+                    }
+                    else if (Model.ActiveLibrary == "Cultures")
+                    {
+                        <span data-i18n="cultures-title">Cultures</span>
+                    }
+                    else
+                    {
+                        <span data-i18n="countries-title">Tags</span>
+                    }
+                </h1>
             </div>
+            <div class="segmented-control library-switcher">
+                <a class="segment @(Model.ActiveLibrary == "Countries" ? "is-active" : null)" asp-action="Index" asp-route-library="Countries" data-i18n="countries-title">Tags</a>
+                <a class="segment @(Model.ActiveLibrary == "CultureGroups" ? "is-active" : null)" asp-action="Index" asp-route-library="CultureGroups" data-i18n="culture-groups-title">Culture Groups</a>
+                <a class="segment @(Model.ActiveLibrary == "Cultures" ? "is-active" : null)" asp-action="Index" asp-route-library="Cultures" data-i18n="cultures-title">Cultures</a>
+            </div>
+        </div>
+
+        @if (Model.ActiveLibrary == "Countries")
+        {
             <div class="pane-header-actions">
                 @if (Model.HasWriteAccess)
                 {
@@ -142,26 +170,23 @@
                     </button>
                 }
             </div>
-        </div>
 
-        @if (Model.Countries.Count == 0)
-        {
-            <div class="empty-panel">
-                <p data-i18n="countries-empty">No countries yet. Add your first tag to begin.</p>
-            </div>
-        }
-        else
-        {
-            @if (Model.ActiveCountries.Count > 0)
+            @if (Model.Countries.Count == 0)
+            {
+                <div class="empty-panel">
+                    <p data-i18n="countries-empty">No countries yet. Add your first tag to begin.</p>
+                </div>
+            }
+            else if (Model.ActiveCountries.Count > 0)
             {
                 <div class="country-section">
-                    <p class="country-section-title" data-i18n="countries-active-title">Active tags</p>
                     <div class="country-stack">
                         @foreach (var country in Model.ActiveCountries)
                         {
                             var isSelected = Model.SelectedCountry?.Id == country.Id;
                             <a class="country-tile @(isSelected ? "is-selected" : null)"
                                asp-action="Index"
+                               asp-route-library="Countries"
                                asp-route-countryId="@country.Id">
                                 <div class="country-tag">@country.Tag</div>
                                 <div class="country-copy">
@@ -174,91 +199,320 @@
                 </div>
             }
 
-        }
-
-        @if (Model.SelectedCountry is not null)
-        {
-            <div class="selected-country-card">
-                <div class="detail-topline">
-                    <div class="country-copy">
-                        <span class="pane-kicker" data-i18n="selected-country-kicker">Selected tag</span>
-                        <strong>@Model.SelectedCountry.Name</strong>
-                        <span>@Model.SelectedCountry.Tag</span>
+            @if (Model.SelectedCountry is not null)
+            {
+                <div class="selected-country-card">
+                    <div class="detail-topline">
+                        <div class="country-copy">
+                            <span class="pane-kicker" data-i18n="selected-country-kicker">Selected tag</span>
+                            <strong>@Model.SelectedCountry.Name</strong>
+                            <span>@Model.SelectedCountry.Tag</span>
+                        </div>
+                        <div class="content-chip-row">
+                            <span class="type-chip @(Model.SelectedCountry.IsArchived ? "archived-chip" : null)"
+                                  data-i18n="@(Model.SelectedCountry.IsArchived ? "country-status-archived" : "country-status-active")">
+                                @(Model.SelectedCountry.IsArchived ? "Archived" : "Active")
+                            </span>
+                        </div>
                     </div>
-                    <div class="content-chip-row">
-                        <span class="type-chip @(Model.SelectedCountry.IsArchived ? "archived-chip" : null)"
-                              data-i18n="@(Model.SelectedCountry.IsArchived ? "country-status-archived" : "country-status-active")">
-                            @(Model.SelectedCountry.IsArchived ? "Archived" : "Active")
-                        </span>
-                    </div>
+                    @if (Model.HasWriteAccess)
+                    {
+                        <div class="content-chip-row">
+                            <button type="button" class="material-button ghost-button" data-bs-toggle="modal" data-bs-target="#editCountryModal">
+                                <span data-i18n="edit-country">Edit tag</span>
+                            </button>
+                            @if (Model.SelectedCountry.IsArchived)
+                            {
+                                <form asp-action="RestoreCountry" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="countryId" value="@Model.SelectedCountry.Id" />
+                                    <button type="submit" class="material-button primary-button">
+                                        <span data-i18n="restore-country">Restore tag</span>
+                                    </button>
+                                </form>
+                            }
+                            else
+                            {
+                                <form asp-action="ArchiveCountry" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="countryId" value="@Model.SelectedCountry.Id" />
+                                    <button type="submit" class="material-button danger-button">
+                                        <span data-i18n="archive-country">Archive tag</span>
+                                    </button>
+                                </form>
+                            }
+                        </div>
+                    }
                 </div>
+            }
+        }
+        else if (Model.ActiveLibrary == "CultureGroups")
+        {
+            <div class="pane-header-actions">
                 @if (Model.HasWriteAccess)
                 {
-                    <div class="content-chip-row">
-                        <button type="button" class="material-button ghost-button" data-bs-toggle="modal" data-bs-target="#editCountryModal">
-                            <span data-i18n="edit-country">Edit tag</span>
-                        </button>
-                        @if (Model.SelectedCountry.IsArchived)
-                        {
-                            <form asp-action="RestoreCountry" method="post">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="countryId" value="@Model.SelectedCountry.Id" />
-                                <button type="submit" class="material-button primary-button">
-                                    <span data-i18n="restore-country">Restore tag</span>
-                                </button>
-                            </form>
-                        }
-                        else
-                        {
-                            <form asp-action="ArchiveCountry" method="post">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="countryId" value="@Model.SelectedCountry.Id" />
-                                <button type="submit" class="material-button danger-button">
-                                    <span data-i18n="archive-country">Archive tag</span>
-                                </button>
-                            </form>
-                        }
-                    </div>
+                    <button type="button" class="material-button primary-button" data-bs-toggle="modal" data-bs-target="#addContentModal" data-create-type="CultureGroup">
+                        <span data-i18n="add-culture-group">Add culture group</span>
+                    </button>
+                }
+                @if (Model.ArchivedCultureGroups.Count > 0)
+                {
+                    <button type="button" class="material-button ghost-button small-button" data-bs-toggle="modal" data-bs-target="#archivedCultureGroupsModal">
+                        <span data-i18n="archived-culture-groups-button">Archived culture groups</span>
+                    </button>
                 }
             </div>
+
+            @if (Model.AvailableCultureGroups.Count == 0)
+            {
+                <div class="empty-panel">
+                    <p data-i18n="culture-groups-empty">No culture groups exist yet.</p>
+                </div>
+            }
+            else
+            {
+                <div class="country-stack">
+                    @foreach (var group in Model.AvailableCultureGroups)
+                    {
+                        var isSelectedGroup = Model.SelectedCultureGroup?.Id == group.Id;
+                        <a class="country-tile @(isSelectedGroup ? "is-selected" : null)"
+                           asp-action="Index"
+                           asp-route-library="CultureGroups"
+                           asp-route-cultureGroupId="@group.Id">
+                            <div class="country-tag">CG</div>
+                            <div class="country-copy">
+                                <strong>@group.Name</strong>
+                                <span>@group.CultureGroupContentEntryIds.Count <span data-i18n="content-label-inline">entries</span></span>
+                            </div>
+                        </a>
+                    }
+                </div>
+            }
+
+            @if (Model.SelectedCultureGroup is not null)
+            {
+                <div class="selected-country-card">
+                    <div class="detail-topline">
+                        <div class="country-copy">
+                            <span class="pane-kicker" data-i18n="selected-culture-group-kicker">Selected culture group</span>
+                            <strong>@Model.SelectedCultureGroup.Name</strong>
+                            <span>@Model.SelectedCultureGroup.CultureGroupContentEntryIds.Count <span data-i18n="content-label-inline">entries</span></span>
+                        </div>
+                        <div class="content-chip-row">
+                            <span class="type-chip @(Model.SelectedCultureGroup.IsArchived ? "archived-chip" : null)"
+                                  data-i18n="@(Model.SelectedCultureGroup.IsArchived ? "country-status-archived" : "country-status-active")">
+                                @(Model.SelectedCultureGroup.IsArchived ? "Archived" : "Active")
+                            </span>
+                        </div>
+                    </div>
+                    @if (Model.HasWriteAccess)
+                    {
+                        <div class="content-chip-row">
+                            <button type="button" class="material-button ghost-button" data-edit-content-button data-bs-toggle="modal" data-bs-target="#addContentModal">
+                                <span data-i18n="edit-culture-group">Edit culture group</span>
+                            </button>
+                            @if (Model.SelectedCultureGroup.IsArchived)
+                            {
+                                <form asp-action="RestoreLibraryEntry" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="library" value="@Model.ActiveLibrary" />
+                                    <input type="hidden" name="contentId" value="@Model.SelectedCultureGroup.Id" />
+                                    <button type="submit" class="material-button primary-button">
+                                        <span data-i18n="restore-culture-group">Restore culture group</span>
+                                    </button>
+                                </form>
+                            }
+                            else
+                            {
+                                <form asp-action="ArchiveLibraryEntry" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="library" value="@Model.ActiveLibrary" />
+                                    <input type="hidden" name="contentId" value="@Model.SelectedCultureGroup.Id" />
+                                    <button type="submit" class="material-button danger-button">
+                                        <span data-i18n="archive-culture-group">Archive culture group</span>
+                                    </button>
+                                </form>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        }
+        else
+        {
+            <div class="pane-header-actions">
+                @if (Model.HasWriteAccess)
+                {
+                    <button type="button" class="material-button primary-button" data-bs-toggle="modal" data-bs-target="#addContentModal" data-create-type="Culture">
+                        <span data-i18n="add-culture">Add culture</span>
+                    </button>
+                }
+                @if (Model.ArchivedCultures.Count > 0)
+                {
+                    <button type="button" class="material-button ghost-button small-button" data-bs-toggle="modal" data-bs-target="#archivedCulturesModal">
+                        <span data-i18n="archived-cultures-button">Archived cultures</span>
+                    </button>
+                }
+            </div>
+
+            @if (Model.AvailableCultures.Count == 0)
+            {
+                <div class="empty-panel">
+                    <p data-i18n="cultures-empty">No cultures exist yet.</p>
+                </div>
+            }
+            else
+            {
+                <div class="country-stack">
+                    @foreach (var culture in Model.AvailableCultures)
+                    {
+                        var isSelectedCulture = Model.SelectedCulture?.Id == culture.Id;
+                        <a class="country-tile @(isSelectedCulture ? "is-selected" : null)"
+                           asp-action="Index"
+                           asp-route-library="Cultures"
+                           asp-route-cultureId="@culture.Id">
+                            <div class="country-tag">CU</div>
+                            <div class="country-copy">
+                                <strong>@culture.Name</strong>
+                                <span>@culture.CultureGroupNames.Count <span data-i18n="culture-group-memberships">groups</span></span>
+                            </div>
+                        </a>
+                    }
+                </div>
+            }
+
+            @if (Model.SelectedCulture is not null)
+            {
+                <div class="selected-country-card">
+                    <div class="detail-topline">
+                        <div class="country-copy">
+                            <span class="pane-kicker" data-i18n="selected-culture-kicker">Selected culture</span>
+                            <strong>@Model.SelectedCulture.Name</strong>
+                            <span>@Model.SelectedCulture.CultureGroupNames.Count <span data-i18n="culture-group-memberships">groups</span></span>
+                        </div>
+                        <div class="content-chip-row">
+                            <span class="type-chip @(Model.SelectedCulture.IsArchived ? "archived-chip" : null)"
+                                  data-i18n="@(Model.SelectedCulture.IsArchived ? "country-status-archived" : "country-status-active")">
+                                @(Model.SelectedCulture.IsArchived ? "Archived" : "Active")
+                            </span>
+                        </div>
+                    </div>
+                    <div class="effect-detail-list">
+                        @foreach (var groupName in Model.SelectedCulture.CultureGroupNames)
+                        {
+                            <div class="effect-detail-item">@groupName</div>
+                        }
+                    </div>
+                    @if (Model.HasWriteAccess)
+                    {
+                        <div class="content-chip-row">
+                            <button type="button" class="material-button ghost-button" data-edit-content-button data-bs-toggle="modal" data-bs-target="#addContentModal">
+                                <span data-i18n="edit-culture">Edit culture</span>
+                            </button>
+                            @if (Model.SelectedCulture.IsArchived)
+                            {
+                                <form asp-action="RestoreLibraryEntry" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="library" value="@Model.ActiveLibrary" />
+                                    <input type="hidden" name="contentId" value="@Model.SelectedCulture.Id" />
+                                    <button type="submit" class="material-button primary-button">
+                                        <span data-i18n="restore-culture">Restore culture</span>
+                                    </button>
+                                </form>
+                            }
+                            else
+                            {
+                                <form asp-action="ArchiveLibraryEntry" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="library" value="@Model.ActiveLibrary" />
+                                    <input type="hidden" name="contentId" value="@Model.SelectedCulture.Id" />
+                                    <button type="submit" class="material-button danger-button">
+                                        <span data-i18n="archive-culture">Archive culture</span>
+                                    </button>
+                                </form>
+                            }
+                        </div>
+                    }
+                </div>
+            }
         }
     </aside>
 
     <section class="planner-pane pane-content">
         <div class="pane-header">
             <div>
-                <p class="pane-kicker" data-i18n="content-kicker">Country content</p>
+                <p class="pane-kicker" data-i18n="@(Model.ActiveLibrary == "CultureGroups" ? "culture-group-content-kicker" : Model.ActiveLibrary == "Cultures" ? "cultures-title" : "content-kicker")">Country content</p>
                 <h2>
-                    @if (Model.SelectedCountry is null)
+                    @if (Model.ActiveLibrary == "Countries")
                     {
-                        <span data-i18n="content-title-empty">Pick a country</span>
+                        @if (Model.SelectedCountry is null)
+                        {
+                            <span data-i18n="content-title-empty">Pick a country</span>
+                        }
+                        else
+                        {
+                            <span>@Model.SelectedCountry.Tag</span>
+                        }
+                    }
+                    else if (Model.ActiveLibrary == "CultureGroups")
+                    {
+                        @if (Model.SelectedCultureGroup is null)
+                        {
+                            <span data-i18n="culture-groups-title">Culture Groups</span>
+                        }
+                        else
+                        {
+                            <span>@Model.SelectedCultureGroup.Name</span>
+                        }
                     }
                     else
                     {
-                        <span>@Model.SelectedCountry.Tag</span>
+                        @if (Model.SelectedCulture is null)
+                        {
+                            <span data-i18n="cultures-title">Cultures</span>
+                        }
+                        else
+                        {
+                            <span>@Model.SelectedCulture.Name</span>
+                        }
                     }
                 </h2>
             </div>
-            <button type="button"
-                    class="material-button primary-button"
-                    data-bs-toggle="modal"
-                    data-bs-target="#addContentModal"
-                    data-add-content-button
-                    disabled="@(Model.SelectedCountry is null || !Model.HasWriteAccess)">
-                <span data-i18n="add-content">Add content</span>
-            </button>
+            @if (Model.ActiveLibrary != "Cultures")
+            {
+                <button type="button"
+                        class="material-button primary-button"
+                        data-bs-toggle="modal"
+                        data-bs-target="#addContentModal"
+                        data-add-content-button
+                        disabled="@(((Model.ActiveLibrary == "Countries" && Model.SelectedCountry is null) || (Model.ActiveLibrary == "CultureGroups" && Model.SelectedCultureGroup is null)) || !Model.HasWriteAccess)">
+                    <span data-i18n="add-content">Add content</span>
+                </button>
+            }
         </div>
 
-        @if (Model.SelectedCountry is null)
+        @if (Model.ActiveLibrary == "Countries" && Model.SelectedCountry is null)
         {
             <div class="empty-panel">
                 <p data-i18n="select-country-empty">Create or select a country to manage its unique content.</p>
             </div>
         }
+        else if (Model.ActiveLibrary == "CultureGroups" && Model.SelectedCultureGroup is null)
+        {
+            <div class="empty-panel">
+                <p data-i18n="culture-group-select-empty">Select a culture group to manage its shared content.</p>
+            </div>
+        }
+        else if (Model.ActiveLibrary == "Cultures")
+        {
+            <div class="empty-panel">
+                <p data-i18n="cultures-detail-empty">Cultures are shared reference entities. Select one to inspect its memberships.</p>
+            </div>
+        }
         else if (Model.SelectedCountryContent.Count == 0)
         {
             <div class="empty-panel">
-                <p data-i18n="content-empty">This country has no unique content yet.</p>
+                <p data-i18n="@(Model.ActiveLibrary == "CultureGroups" ? "culture-group-content-empty" : "content-empty")">This country has no unique content yet.</p>
             </div>
         }
         else
@@ -269,11 +523,13 @@
                     var isSelected = Model.SelectedContent?.Id == item.Id;
                     <a class="content-tile @(isSelected ? "is-selected" : null)"
                        asp-action="Index"
-                       asp-route-countryId="@Model.SelectedCountry.Id"
+                       asp-route-library="@Model.ActiveLibrary"
+                       asp-route-countryId="@Model.SelectedCountry?.Id"
+                       asp-route-cultureGroupId="@Model.SelectedCultureGroup?.Id"
                        asp-route-contentId="@item.Id">
                         <div class="content-meta">
                             <div class="content-chip-row">
-                                <span class="type-chip" data-i18n="@item.TypeTranslationKey">@(item.Type switch { Eu5ModPlanner.Models.ContentType.Reform => "Reform", Eu5ModPlanner.Models.ContentType.DefaultEstateRename => "Default Estate Rename", Eu5ModPlanner.Models.ContentType.CustomEstate => "Custom Estate", Eu5ModPlanner.Models.ContentType.Privilege => "Privilege", Eu5ModPlanner.Models.ContentType.Law => "Law", Eu5ModPlanner.Models.ContentType.Value => "Value", Eu5ModPlanner.Models.ContentType.Building => "Building", Eu5ModPlanner.Models.ContentType.Event => "Event", Eu5ModPlanner.Models.ContentType.Situation => "Situation", _ => "Advance" })</span>
+                                <span class="type-chip" data-i18n="@item.TypeTranslationKey">@(item.Type switch { Eu5ModPlanner.Models.ContentType.Reform => "Reform", Eu5ModPlanner.Models.ContentType.DefaultEstateRename => "Default Estate Rename", Eu5ModPlanner.Models.ContentType.CustomEstate => "Custom Estate", Eu5ModPlanner.Models.ContentType.Privilege => "Privilege", Eu5ModPlanner.Models.ContentType.Law => "Law", Eu5ModPlanner.Models.ContentType.Value => "Value", Eu5ModPlanner.Models.ContentType.Building => "Building", Eu5ModPlanner.Models.ContentType.Event => "Event", Eu5ModPlanner.Models.ContentType.Situation => "Situation", Eu5ModPlanner.Models.ContentType.Culture => "Culture", Eu5ModPlanner.Models.ContentType.CultureGroup => "Culture Group", _ => "Advance" })</span>
                                 @if (item.Type == Eu5ModPlanner.Models.ContentType.Reform && item.IsMajorReform)
                                 {
                                     <span class="type-chip major-chip" data-i18n="major-reform">Major Reform</span>
@@ -293,17 +549,20 @@
                 <p class="pane-kicker" data-i18n="detail-kicker">Details</p>
                 <h2 data-i18n="detail-title">Selected content</h2>
             </div>
-            @if (Model.SelectedCountry is not null && Model.SelectedContent is not null)
+            @if (Model.SelectedContent is not null && Model.ActiveLibrary != "Cultures")
             {
                 <div class="pane-header-actions">
-                    @if (Model.HasWriteAccess)
+                    @if (Model.HasWriteAccess && Model.SelectedContent.Type is not Eu5ModPlanner.Models.ContentType.CultureGroup)
                     {
                         <button type="button" class="material-button ghost-button" data-edit-content-button data-bs-toggle="modal" data-bs-target="#addContentModal">
                             <span data-i18n="edit-content">Edit</span>
                         </button>
                         <form asp-action="DeleteContent" method="post">
                             @Html.AntiForgeryToken()
-                            <input type="hidden" name="countryId" value="@Model.SelectedCountry.Id" />
+                            <input type="hidden" name="library" value="@Model.ActiveLibrary" />
+                            <input type="hidden" name="countryId" value="@Model.SelectedCountry?.Id" />
+                            <input type="hidden" name="cultureId" value="@Model.SelectedCulture?.Id" />
+                            <input type="hidden" name="cultureGroupId" value="@Model.SelectedCultureGroup?.Id" />
                             <input type="hidden" name="contentId" value="@Model.SelectedContent.Id" />
                             <button type="submit" class="material-button danger-button">
                                 <span data-i18n="delete-content">Delete</span>
@@ -314,27 +573,52 @@
             }
         </div>
 
-        @if (Model.SelectedContent is null)
+        @if (Model.SelectedContent is null && Model.SelectedCultureGroup is null)
         {
             <div class="empty-panel">
                 <p data-i18n="detail-empty">Select a content piece to inspect its effect.</p>
             </div>
         }
-        else
+        else if (Model.SelectedContent is null && Model.SelectedCultureGroup is not null)
         {
             <div class="detail-card">
                 <div class="detail-topline">
                     <div class="content-chip-row">
-                        <span class="type-chip" data-i18n="@Model.SelectedContent.TypeTranslationKey">@(Model.SelectedContent.Type switch { Eu5ModPlanner.Models.ContentType.Reform => "Reform", Eu5ModPlanner.Models.ContentType.DefaultEstateRename => "Default Estate Rename", Eu5ModPlanner.Models.ContentType.CustomEstate => "Custom Estate", Eu5ModPlanner.Models.ContentType.Privilege => "Privilege", Eu5ModPlanner.Models.ContentType.Law => "Law", Eu5ModPlanner.Models.ContentType.Value => "Value", Eu5ModPlanner.Models.ContentType.Building => "Building", Eu5ModPlanner.Models.ContentType.Event => "Event", Eu5ModPlanner.Models.ContentType.Situation => "Situation", _ => "Advance" })</span>
-                        @if (Model.SelectedContent.Type == Eu5ModPlanner.Models.ContentType.Reform && Model.SelectedContent.IsMajorReform)
+                        <span class="type-chip" data-i18n="type-culture-group">Culture Group</span>
+                    </div>
+                    <h3>@Model.SelectedCultureGroup.Name</h3>
+                </div>
+                <div class="effect-detail-list">
+                    @foreach (var effect in Model.SelectedCultureGroup.DisplayLines)
+                    {
+                        <div class="effect-detail-item">@effect</div>
+                    }
+                </div>
+            </div>
+        }
+        else
+        {
+            var selectedContent = Model.SelectedContent!;
+            <div class="detail-card">
+                <div class="detail-topline">
+                    <div class="content-chip-row">
+                        <span class="type-chip" data-i18n="@selectedContent.TypeTranslationKey">@(selectedContent.Type switch { Eu5ModPlanner.Models.ContentType.Reform => "Reform", Eu5ModPlanner.Models.ContentType.DefaultEstateRename => "Default Estate Rename", Eu5ModPlanner.Models.ContentType.CustomEstate => "Custom Estate", Eu5ModPlanner.Models.ContentType.Privilege => "Privilege", Eu5ModPlanner.Models.ContentType.Law => "Law", Eu5ModPlanner.Models.ContentType.Value => "Value", Eu5ModPlanner.Models.ContentType.Building => "Building", Eu5ModPlanner.Models.ContentType.Event => "Event", Eu5ModPlanner.Models.ContentType.Situation => "Situation", Eu5ModPlanner.Models.ContentType.Culture => "Culture", Eu5ModPlanner.Models.ContentType.CultureGroup => "Culture Group", _ => "Advance" })</span>
+                        @if (selectedContent.Type is Eu5ModPlanner.Models.ContentType.Culture or Eu5ModPlanner.Models.ContentType.CultureGroup)
+                        {
+                            <span class="type-chip @(selectedContent.IsArchived ? "archived-chip" : null)"
+                                  data-i18n="@(selectedContent.IsArchived ? "country-status-archived" : "country-status-active")">
+                                @(selectedContent.IsArchived ? "Archived" : "Active")
+                            </span>
+                        }
+                        @if (selectedContent.Type == Eu5ModPlanner.Models.ContentType.Reform && selectedContent.IsMajorReform)
                         {
                             <span class="type-chip major-chip" data-i18n="major-reform">Major Reform</span>
                         }
                     </div>
-                    <h3>@Model.SelectedContent.Name</h3>
+                    <h3>@selectedContent.Name</h3>
                 </div>
                 <div class="effect-detail-list">
-                    @foreach (var effect in Model.SelectedContent.DisplayLines)
+                    @foreach (var effect in selectedContent.DisplayLines)
                     {
                         <div class="effect-detail-item">@effect</div>
                     }
@@ -355,7 +639,10 @@
             </div>
             <form asp-action="Login" method="post">
                 @Html.AntiForgeryToken()
+                <input type="hidden" name="library" value="@Model.ActiveLibrary" />
                 <input type="hidden" name="countryId" value="@Model.SelectedCountry?.Id" />
+                <input type="hidden" name="cultureId" value="@Model.SelectedCulture?.Id" />
+                <input type="hidden" name="cultureGroupId" value="@Model.SelectedCultureGroup?.Id" />
                 <input type="hidden" name="contentId" value="@Model.SelectedContent?.Id" />
                 <div class="modal-body modal-form">
                     <label>
@@ -423,11 +710,82 @@
                         var isSelected = Model.SelectedCountry?.Id == country.Id;
                         <a class="country-tile country-tile-archived @(isSelected ? "is-selected" : null)"
                            asp-action="Index"
+                           asp-route-library="Countries"
                            asp-route-countryId="@country.Id">
                             <div class="country-tag">@country.Tag</div>
                             <div class="country-copy">
                                 <strong>@country.Name</strong>
                                 <span><span data-i18n="country-status-archived">Archived</span> · @country.ContentEntryIds.Count <span data-i18n="content-label-inline">entries</span></span>
+                            </div>
+                        </a>
+                    }
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="material-button ghost-button" data-bs-dismiss="modal" data-i18n="close-archived-tags">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+}
+
+@if (Model.ArchivedCultureGroups.Count > 0)
+{
+<div class="modal fade" id="archivedCultureGroupsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content planner-modal">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" data-i18n="archived-culture-groups-button">Archived culture groups</h2>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="country-stack">
+                    @foreach (var group in Model.ArchivedCultureGroups)
+                    {
+                        var isSelected = Model.SelectedCultureGroup?.Id == group.Id;
+                        <a class="country-tile country-tile-archived @(isSelected ? "is-selected" : null)"
+                           asp-action="Index"
+                           asp-route-library="CultureGroups"
+                           asp-route-cultureGroupId="@group.Id">
+                            <div class="country-tag">CG</div>
+                            <div class="country-copy">
+                                <strong>@group.Name</strong>
+                                <span><span data-i18n="country-status-archived">Archived</span> · @group.CultureGroupContentEntryIds.Count <span data-i18n="content-label-inline">entries</span></span>
+                            </div>
+                        </a>
+                    }
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="material-button ghost-button" data-bs-dismiss="modal" data-i18n="close-archived-tags">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+}
+
+@if (Model.ArchivedCultures.Count > 0)
+{
+<div class="modal fade" id="archivedCulturesModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content planner-modal">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" data-i18n="archived-cultures-button">Archived cultures</h2>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="country-stack">
+                    @foreach (var culture in Model.ArchivedCultures)
+                    {
+                        var isSelected = Model.SelectedCulture?.Id == culture.Id;
+                        <a class="country-tile country-tile-archived @(isSelected ? "is-selected" : null)"
+                           asp-action="Index"
+                           asp-route-library="Cultures"
+                           asp-route-cultureId="@culture.Id">
+                            <div class="country-tag">CU</div>
+                            <div class="country-copy">
+                                <strong>@culture.Name</strong>
+                                <span><span data-i18n="country-status-archived">Archived</span> · @culture.CultureGroupNames.Count <span data-i18n="culture-group-memberships">groups</span></span>
                             </div>
                         </a>
                     }
@@ -480,12 +838,13 @@
                 <h2 class="modal-title fs-5" data-i18n="content-modal-title" data-content-modal-title data-add-title-key="content-modal-title" data-edit-title-key="content-modal-title-edit">Add new content</h2>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form asp-action="AddContent" method="post" id="contentForm" data-add-action="@Url.Action("AddContent", "Planner")" data-edit-action="@Url.Action("EditContent", "Planner")">
+            <form asp-action="AddContent" method="post" id="contentForm" data-add-action="@Url.Action("AddContent", "Planner")" data-edit-action="@Url.Action("EditContent", "Planner")" data-active-library="@Model.ActiveLibrary">
                 @Html.AntiForgeryToken()
                 <input asp-for="AdvanceForm.ContentId" type="hidden" data-content-id-input />
-                <input asp-for="AdvanceForm.CountryId" type="hidden" value="@Model.SelectedCountry?.Id" />
+                <input asp-for="AdvanceForm.CountryId" type="hidden" value="@(Model.SelectedCountry?.Id ?? Guid.Empty)" />
+                <input asp-for="AdvanceForm.CultureGroupId" type="hidden" value="@Model.SelectedCultureGroup?.Id" />
                 <div class="modal-body modal-form">
-                    <label>
+                    <label data-content-type-row>
                         <span data-i18n="content-type">Content type</span>
                         <select asp-for="AdvanceForm.Type" class="form-select" data-content-type-select>
                             <option value="@Eu5ModPlanner.Models.ContentType.Advance" data-i18n-option="type-advance">Advance</option>
@@ -498,6 +857,8 @@
                             <option value="@Eu5ModPlanner.Models.ContentType.Building" data-i18n-option="type-building">Building</option>
                             <option value="@Eu5ModPlanner.Models.ContentType.Event" data-i18n-option="type-event">Event</option>
                             <option value="@Eu5ModPlanner.Models.ContentType.Situation" data-i18n-option="type-situation">Situation</option>
+                            <option value="@Eu5ModPlanner.Models.ContentType.Culture" data-i18n-option="type-culture">Culture</option>
+                            <option value="@Eu5ModPlanner.Models.ContentType.CultureGroup" data-i18n-option="type-culture-group">Culture Group</option>
                         </select>
                     </label>
 
@@ -511,6 +872,35 @@
                             <input asp-for="AdvanceForm.IsMajorReform" class="form-check-input" type="checkbox" />
                             <span data-i18n="major-reform-toggle">Major Reform</span>
                         </label>
+                    </div>
+
+                    <div data-culture-panel hidden class="content-type-panel">
+                        <div class="effects-editor-header">
+                            <h3 data-i18n="culture-groups-field">Culture Groups</h3>
+                            <button type="button" class="material-button ghost-button" data-add-culture-membership>
+                                <span data-i18n="add-culture-membership">Add culture group</span>
+                            </button>
+                        </div>
+                        <p class="helper-copy" data-i18n="culture-groups-helper">Add one or more culture groups. Existing custom groups and built-in groups are both allowed.</p>
+                        <div data-culture-membership-container>
+                            @for (var i = 0; i < Model.AdvanceForm.CultureGroupMembershipNames.Count; i++)
+                            {
+                                <div class="effect-editor-card culture-membership-row" data-culture-membership-row>
+                                    <div class="effect-editor-grid">
+                                        <label class="effect-editor-wide">
+                                            <span data-i18n="culture-group-name">Culture Group name</span>
+                                            <input name="AdvanceForm.CultureGroupMembershipNames[@i]"
+                                                   class="form-control"
+                                                   value="@Model.AdvanceForm.CultureGroupMembershipNames[i]"
+                                                   data-i18n-placeholder="culture-group-name-placeholder" />
+                                        </label>
+                                    </div>
+                                    <button type="button" class="material-button danger-button small-button" data-remove-culture-membership>
+                                        <span data-i18n="remove-culture-membership">Remove</span>
+                                    </button>
+                                </div>
+                            }
+                        </div>
                     </div>
 
                     <div data-privilege-panel hidden class="content-type-panel">
@@ -1921,6 +2311,22 @@
         </div>
         <button type="button" class="material-button danger-button small-button" data-remove-effect>
             <span data-i18n="remove-effect">Remove</span>
+        </button>
+    </div>
+</template>
+
+<template id="culture-membership-row-template">
+    <div class="effect-editor-card culture-membership-row" data-culture-membership-row>
+        <div class="effect-editor-grid">
+            <label class="effect-editor-wide">
+                <span data-i18n="culture-group-name">Culture Group name</span>
+                <input name="AdvanceForm.CultureGroupMembershipNames[__INDEX__]"
+                       class="form-control"
+                       data-i18n-placeholder="culture-group-name-placeholder" />
+            </label>
+        </div>
+        <button type="button" class="material-button danger-button small-button" data-remove-culture-membership>
+            <span data-i18n="remove-culture-membership">Remove</span>
         </button>
     </div>
 </template>

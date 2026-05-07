@@ -65,7 +65,7 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
 
         using (var command = new NpgsqlCommand(
                    """
-                   select id, type, name, modifier_key, modifier_amount, modifier_unit, is_major_reform,
+                   select id, type, name, is_archived, modifier_key, modifier_amount, modifier_unit, is_major_reform,
                           nobility_estate_name, burghers_estate_name, clergy_estate_name, peasants_estate_name,
                           food_consumption_per_thousand, assimilation_conversion_speed,
                           estate_class, can_promote, promotion_speed, migration_speed,
@@ -88,51 +88,52 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
                     Id = reader.GetGuid(0),
                     Type = (ContentType)reader.GetInt32(1),
                     Name = reader.GetString(2),
-                    IsMajorReform = !reader.IsDBNull(6) && reader.GetBoolean(6),
-                    NobilityEstateName = reader.IsDBNull(7) ? string.Empty : reader.GetString(7),
-                    BurghersEstateName = reader.IsDBNull(8) ? string.Empty : reader.GetString(8),
-                    ClergyEstateName = reader.IsDBNull(9) ? string.Empty : reader.GetString(9),
-                    PeasantsEstateName = reader.IsDBNull(10) ? string.Empty : reader.GetString(10),
-                    FoodConsumptionPerThousand = reader.IsDBNull(11) ? 0 : decimal.ToInt32(reader.GetDecimal(11)),
-                    AssimilationConversionSpeed = reader.IsDBNull(12) ? 0m : reader.GetDecimal(12),
-                    EstateClass = reader.IsDBNull(13) ? EstateClass.Upper : (EstateClass)reader.GetInt32(13),
-                    CanPromote = !reader.IsDBNull(14) && reader.GetBoolean(14),
-                    PromotionSpeed = reader.IsDBNull(15) ? 0m : reader.GetDecimal(15),
-                    MigrationSpeed = reader.IsDBNull(16) ? 0m : reader.GetDecimal(16),
-                    PrivilegeEstateTarget = reader.IsDBNull(17) ? PrivilegeEstateTarget.Nobles : (PrivilegeEstateTarget)reader.GetInt32(17),
-                    PrivilegeCustomEstateName = reader.IsDBNull(18) ? string.Empty : reader.GetString(18),
-                    SatisfactionBonusPercent = reader.IsDBNull(19) ? 0 : reader.GetInt32(19),
-                    EstatePowerPercent = reader.IsDBNull(20) ? 0 : reader.GetInt32(20),
-                    LawCategoryName = reader.IsDBNull(21) ? string.Empty : reader.GetString(21),
-                    LawSubcategoryName = reader.IsDBNull(22) ? string.Empty : reader.GetString(22),
-                    LawEstatePreferenceTarget = reader.IsDBNull(23) ? PrivilegeEstateTarget.Nobles : (PrivilegeEstateTarget)reader.GetInt32(23),
-                    LawCustomEstateName = reader.IsDBNull(24) ? string.Empty : reader.GetString(24),
-                    ValueLeftLabel = reader.IsDBNull(25) ? string.Empty : reader.GetString(25),
-                    ValueRightLabel = reader.IsDBNull(26) ? string.Empty : reader.GetString(26),
-                    BuildingConstructionScope = reader.IsDBNull(27) ? BuildingConstructionScope.AllLocations : (BuildingConstructionScope)reader.GetInt32(27),
-                    BuildingDucatCost = reader.IsDBNull(28) ? 0m : reader.GetDecimal(28),
-                    BuildingTimeMonths = reader.IsDBNull(29) ? 0 : reader.GetInt32(29),
-                    EventDescription = reader.IsDBNull(30) ? string.Empty : reader.GetString(30),
-                    EventYearStart = reader.IsDBNull(31) ? null : reader.GetInt32(31),
-                    EventYearEnd = reader.IsDBNull(32) ? null : reader.GetInt32(32),
-                    EventTriggerMode = reader.IsDBNull(33) ? EventTriggerMode.MonthlyChance : (EventTriggerMode)reader.GetInt32(33),
-                    EventScenarioName = reader.IsDBNull(34) ? string.Empty : reader.GetString(34),
-                    EventMonthlyChance = reader.IsDBNull(35) ? 0m : reader.GetDecimal(35),
-                    SituationDescription = reader.IsDBNull(36) ? string.Empty : reader.GetString(36),
-                    SituationCanStart = reader.IsDBNull(37) ? string.Empty : reader.GetString(37),
-                    SituationVisible = reader.IsDBNull(38) ? string.Empty : reader.GetString(38),
-                    SituationCanEnd = reader.IsDBNull(39) ? string.Empty : reader.GetString(39),
-                    SituationMonthlySpawnChance = reader.IsDBNull(40) ? null : reader.GetDecimal(40)
+                    IsArchived = !reader.IsDBNull(3) && reader.GetBoolean(3),
+                    IsMajorReform = !reader.IsDBNull(7) && reader.GetBoolean(7),
+                    NobilityEstateName = reader.IsDBNull(8) ? string.Empty : reader.GetString(8),
+                    BurghersEstateName = reader.IsDBNull(9) ? string.Empty : reader.GetString(9),
+                    ClergyEstateName = reader.IsDBNull(10) ? string.Empty : reader.GetString(10),
+                    PeasantsEstateName = reader.IsDBNull(11) ? string.Empty : reader.GetString(11),
+                    FoodConsumptionPerThousand = reader.IsDBNull(12) ? 0 : decimal.ToInt32(reader.GetDecimal(12)),
+                    AssimilationConversionSpeed = reader.IsDBNull(13) ? 0m : reader.GetDecimal(13),
+                    EstateClass = reader.IsDBNull(14) ? EstateClass.Upper : (EstateClass)reader.GetInt32(14),
+                    CanPromote = !reader.IsDBNull(15) && reader.GetBoolean(15),
+                    PromotionSpeed = reader.IsDBNull(16) ? 0m : reader.GetDecimal(16),
+                    MigrationSpeed = reader.IsDBNull(17) ? 0m : reader.GetDecimal(17),
+                    PrivilegeEstateTarget = reader.IsDBNull(18) ? PrivilegeEstateTarget.Nobles : (PrivilegeEstateTarget)reader.GetInt32(18),
+                    PrivilegeCustomEstateName = reader.IsDBNull(19) ? string.Empty : reader.GetString(19),
+                    SatisfactionBonusPercent = reader.IsDBNull(20) ? 0 : reader.GetInt32(20),
+                    EstatePowerPercent = reader.IsDBNull(21) ? 0 : reader.GetInt32(21),
+                    LawCategoryName = reader.IsDBNull(22) ? string.Empty : reader.GetString(22),
+                    LawSubcategoryName = reader.IsDBNull(23) ? string.Empty : reader.GetString(23),
+                    LawEstatePreferenceTarget = reader.IsDBNull(24) ? PrivilegeEstateTarget.Nobles : (PrivilegeEstateTarget)reader.GetInt32(24),
+                    LawCustomEstateName = reader.IsDBNull(25) ? string.Empty : reader.GetString(25),
+                    ValueLeftLabel = reader.IsDBNull(26) ? string.Empty : reader.GetString(26),
+                    ValueRightLabel = reader.IsDBNull(27) ? string.Empty : reader.GetString(27),
+                    BuildingConstructionScope = reader.IsDBNull(28) ? BuildingConstructionScope.AllLocations : (BuildingConstructionScope)reader.GetInt32(28),
+                    BuildingDucatCost = reader.IsDBNull(29) ? 0m : reader.GetDecimal(29),
+                    BuildingTimeMonths = reader.IsDBNull(30) ? 0 : reader.GetInt32(30),
+                    EventDescription = reader.IsDBNull(31) ? string.Empty : reader.GetString(31),
+                    EventYearStart = reader.IsDBNull(32) ? null : reader.GetInt32(32),
+                    EventYearEnd = reader.IsDBNull(33) ? null : reader.GetInt32(33),
+                    EventTriggerMode = reader.IsDBNull(34) ? EventTriggerMode.MonthlyChance : (EventTriggerMode)reader.GetInt32(34),
+                    EventScenarioName = reader.IsDBNull(35) ? string.Empty : reader.GetString(35),
+                    EventMonthlyChance = reader.IsDBNull(36) ? 0m : reader.GetDecimal(36),
+                    SituationDescription = reader.IsDBNull(37) ? string.Empty : reader.GetString(37),
+                    SituationCanStart = reader.IsDBNull(38) ? string.Empty : reader.GetString(38),
+                    SituationVisible = reader.IsDBNull(39) ? string.Empty : reader.GetString(39),
+                    SituationCanEnd = reader.IsDBNull(40) ? string.Empty : reader.GetString(40),
+                    SituationMonthlySpawnChance = reader.IsDBNull(41) ? null : reader.GetDecimal(41)
                 };
 
-                if (!reader.IsDBNull(3))
+                if (!reader.IsDBNull(4))
                 {
                     entry.Effects.Add(new ContentEffect
                     {
-                        Label = reader.GetString(3),
+                        Label = reader.GetString(4),
                         ValueType = EffectValueType.Numeric,
-                        NumericAmount = reader.IsDBNull(4) ? 0m : reader.GetDecimal(4),
-                        NumericUnit = reader.IsDBNull(5) ? ModifierUnit.Flat : (ModifierUnit)reader.GetInt32(5)
+                        NumericAmount = reader.IsDBNull(5) ? 0m : reader.GetDecimal(5),
+                        NumericUnit = reader.IsDBNull(6) ? ModifierUnit.Flat : (ModifierUnit)reader.GetInt32(6)
                     });
                 }
 
@@ -456,6 +457,48 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
             }
         }
 
+        using (var command = new NpgsqlCommand(
+                   """
+                   select culture_content_entry_id, culture_group_id
+                   from culture_memberships;
+                   """,
+                   connection))
+        using (var reader = command.ExecuteReader())
+        {
+            var entriesById = data.ContentEntries.ToDictionary(entry => entry.Id);
+            while (reader.Read())
+            {
+                var cultureId = reader.GetGuid(0);
+                var cultureGroupId = reader.GetGuid(1);
+                if (entriesById.TryGetValue(cultureId, out var culture)
+                    && entriesById.TryGetValue(cultureGroupId, out var group))
+                {
+                    culture.CultureGroupIds.Add(cultureGroupId);
+                    culture.CultureGroupNames.Add(group.Name);
+                }
+            }
+        }
+
+        using (var command = new NpgsqlCommand(
+                   """
+                   select culture_group_id, content_entry_id
+                   from culture_group_content_entries;
+                   """,
+                   connection))
+        using (var reader = command.ExecuteReader())
+        {
+            var entriesById = data.ContentEntries.ToDictionary(entry => entry.Id);
+            while (reader.Read())
+            {
+                var cultureGroupId = reader.GetGuid(0);
+                var contentEntryId = reader.GetGuid(1);
+                if (entriesById.TryGetValue(cultureGroupId, out var group))
+                {
+                    group.CultureGroupContentEntryIds.Add(contentEntryId);
+                }
+            }
+        }
+
         return data;
     }
 
@@ -590,6 +633,7 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
         InsertEventOptions(entry, connection, transaction);
         InsertEventPrerequisites(entry, connection, transaction);
         InsertSituationActions(entry, connection, transaction);
+        InsertCultureMemberships(entry, connection, transaction);
 
         transaction.Commit();
         return entry;
@@ -630,6 +674,12 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
             deleteEventOptionsCommand.ExecuteNonQuery();
         }
 
+        using (var deleteCultureMembershipsCommand = new NpgsqlCommand("delete from culture_memberships where culture_content_entry_id = @contentEntryId;", connection, transaction))
+        {
+            deleteCultureMembershipsCommand.Parameters.AddWithValue("contentEntryId", entry.Id);
+            deleteCultureMembershipsCommand.ExecuteNonQuery();
+        }
+
         using (var deleteEventPrerequisitesCommand = new NpgsqlCommand("delete from content_event_prerequisites where content_entry_id = @contentEntryId;", connection, transaction))
         {
             deleteEventPrerequisitesCommand.Parameters.AddWithValue("contentEntryId", entry.Id);
@@ -647,6 +697,7 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
                    update content_entries
                    set type = @type,
                        name = @name,
+                       is_archived = @isArchived,
                        is_major_reform = @isMajorReform,
                        nobility_estate_name = @nobilityEstateName,
                        burghers_estate_name = @burghersEstateName,
@@ -698,9 +749,26 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
         InsertEventOptions(entry, connection, transaction);
         InsertEventPrerequisites(entry, connection, transaction);
         InsertSituationActions(entry, connection, transaction);
+        InsertCultureMemberships(entry, connection, transaction);
 
         transaction.Commit();
         return entry;
+    }
+
+    public bool SetContentArchived(Guid id, bool isArchived)
+    {
+        using var connection = OpenConnection();
+        using var command = new NpgsqlCommand(
+            """
+            update content_entries
+            set is_archived = @isArchived
+            where id = @id;
+            """,
+            connection);
+
+        command.Parameters.AddWithValue("id", id);
+        command.Parameters.AddWithValue("isArchived", isArchived);
+        return command.ExecuteNonQuery() > 0;
     }
 
     public bool DeleteContentEntry(Guid id)
@@ -723,6 +791,22 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
             connection);
 
         command.Parameters.AddWithValue("countryId", countryId);
+        command.Parameters.AddWithValue("contentEntryId", contentEntryId);
+        return command.ExecuteNonQuery() > 0;
+    }
+
+    public bool AssignContentToCultureGroup(Guid cultureGroupId, Guid contentEntryId)
+    {
+        using var connection = OpenConnection();
+        using var command = new NpgsqlCommand(
+            """
+            insert into culture_group_content_entries (culture_group_id, content_entry_id)
+            values (@cultureGroupId, @contentEntryId)
+            on conflict do nothing;
+            """,
+            connection);
+
+        command.Parameters.AddWithValue("cultureGroupId", cultureGroupId);
         command.Parameters.AddWithValue("contentEntryId", contentEntryId);
         return command.ExecuteNonQuery() > 0;
     }
@@ -754,6 +838,7 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
                 name varchar(100) not null
             );
 
+            alter table content_entries add column if not exists is_archived boolean not null default false;
             alter table content_entries add column if not exists modifier_key varchar(100);
             alter table content_entries add column if not exists modifier_amount numeric(12,2);
             alter table content_entries add column if not exists modifier_unit integer not null default 0;
@@ -841,6 +926,18 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
                 country_id uuid not null references countries(id) on delete cascade,
                 content_entry_id uuid not null references content_entries(id) on delete cascade,
                 primary key (country_id, content_entry_id)
+            );
+
+            create table if not exists culture_memberships (
+                culture_content_entry_id uuid not null references content_entries(id) on delete cascade,
+                culture_group_id uuid not null references content_entries(id) on delete cascade,
+                primary key (culture_content_entry_id, culture_group_id)
+            );
+
+            create table if not exists culture_group_content_entries (
+                culture_group_id uuid not null references content_entries(id) on delete cascade,
+                content_entry_id uuid not null references content_entries(id) on delete cascade,
+                primary key (culture_group_id, content_entry_id)
             );
 
             create table if not exists content_build_costs (
@@ -955,7 +1052,7 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
         using var command = new NpgsqlCommand(
             """
             insert into content_entries (
-                id, type, name, is_major_reform,
+                id, type, name, is_archived, is_major_reform,
                 nobility_estate_name, burghers_estate_name, clergy_estate_name, peasants_estate_name,
                 food_consumption_per_thousand, assimilation_conversion_speed,
                 estate_class, can_promote, promotion_speed, migration_speed,
@@ -966,7 +1063,7 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
                 event_description, event_year_start, event_year_end, event_trigger_mode, event_scenario_name, event_monthly_chance,
                 situation_description, situation_can_start, situation_visible, situation_can_end, situation_monthly_spawn_chance)
             values (
-                @id, @type, @name, @isMajorReform,
+                @id, @type, @name, @isArchived, @isMajorReform,
                 @nobilityEstateName, @burghersEstateName, @clergyEstateName, @peasantsEstateName,
                 @foodConsumptionPerThousand, @assimilationConversionSpeed,
                 @estateClass, @canPromote, @promotionSpeed, @migrationSpeed,
@@ -1322,6 +1419,25 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
         }
     }
 
+    private static void InsertCultureMemberships(ContentEntry entry, NpgsqlConnection connection, NpgsqlTransaction transaction)
+    {
+        for (var index = 0; index < entry.CultureGroupIds.Count; index++)
+        {
+            using var command = new NpgsqlCommand(
+                """
+                insert into culture_memberships (culture_content_entry_id, culture_group_id)
+                values (@cultureContentEntryId, @cultureGroupId)
+                on conflict do nothing;
+                """,
+                connection,
+                transaction);
+
+            command.Parameters.AddWithValue("cultureContentEntryId", entry.Id);
+            command.Parameters.AddWithValue("cultureGroupId", entry.CultureGroupIds[index]);
+            command.ExecuteNonQuery();
+        }
+    }
+
     private static ContentEffect ReadEffect(NpgsqlDataReader reader, int idOrdinal, int labelOrdinal, int valueTypeOrdinal, int numericAmountOrdinal, int numericUnitOrdinal, int boolValueOrdinal, int buffIdOrdinal, int buffNameOrdinal, int buffDurationValueOrdinal, int buffDurationUnitOrdinal, int? sideOrdinal = null) =>
         new()
         {
@@ -1343,6 +1459,7 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
         command.Parameters.AddWithValue("id", entry.Id);
         command.Parameters.AddWithValue("type", (int)entry.Type);
         command.Parameters.AddWithValue("name", entry.Name);
+        command.Parameters.AddWithValue("isArchived", entry.IsArchived);
         command.Parameters.AddWithValue("isMajorReform", entry.IsMajorReform);
         command.Parameters.AddWithValue("nobilityEstateName", ToDbValue(entry.NobilityEstateName));
         command.Parameters.AddWithValue("burghersEstateName", ToDbValue(entry.BurghersEstateName));

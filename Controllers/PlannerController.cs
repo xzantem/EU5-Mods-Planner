@@ -11,6 +11,20 @@ namespace Eu5ModPlanner.Controllers;
 
 public sealed class PlannerController : Controller
 {
+    private const string CountriesLibrary = "Countries";
+    private const string CultureGroupsLibrary = "CultureGroups";
+    private const string CulturesLibrary = "Cultures";
+
+    private static readonly HashSet<ContentType> AllowedCultureGroupContentTypes =
+    [
+        ContentType.Advance,
+        ContentType.Reform,
+        ContentType.Privilege,
+        ContentType.Law,
+        ContentType.Value,
+        ContentType.Building
+    ];
+
     private readonly IPlannerRepository _repository;
     private readonly AdminAuthOptions _adminAuthOptions;
     private readonly IWebHostEnvironment _environment;
@@ -24,12 +38,22 @@ public sealed class PlannerController : Controller
     }
 
     [HttpGet]
-    public IActionResult Index(Guid? countryId, Guid? contentId)
+    public IActionResult Index(Guid? countryId, Guid? cultureId, Guid? cultureGroupId, Guid? contentId, string? library)
     {
         var data = _repository.GetData();
         var countries = data.Countries.OrderBy(country => country.IsArchived).ThenBy(country => country.Tag).ThenBy(country => country.Name).ToList();
         var activeCountries = countries.Where(country => !country.IsArchived).ToList();
         var archivedCountries = countries.Where(country => country.IsArchived).ToList();
+        var allCultureGroups = data.ContentEntries
+            .Where(entry => entry.Type == ContentType.CultureGroup)
+            .OrderBy(entry => entry.IsArchived)
+            .ThenBy(entry => entry.Name)
+            .ToList();
+        var allCultures = data.ContentEntries
+            .Where(entry => entry.Type == ContentType.Culture)
+            .OrderBy(entry => entry.IsArchived)
+            .ThenBy(entry => entry.Name)
+            .ToList();
         var effectLabelSuggestions = data.ContentEntries
             .SelectMany(entry => entry.Effects
                 .Concat(entry.EventOptions.SelectMany(option => option.Effects))
@@ -41,44 +65,88 @@ public sealed class PlannerController : Controller
             .OrderBy(label => label)
             .ToList();
 
-        var selectedCountry = countries.FirstOrDefault(country => country.Id == countryId)
-            ?? activeCountries.FirstOrDefault()
-            ?? archivedCountries.FirstOrDefault();
+        var activeLibrary = ResolveActiveLibrary(library, countryId, cultureId, cultureGroupId);
+        var selectedCultureGroup = cultureGroupId.HasValue
+            ? allCultureGroups.FirstOrDefault(entry => entry.Id == cultureGroupId.Value)
+            : null;
+        var selectedCulture = cultureId.HasValue
+            ? allCultures.FirstOrDefault(entry => entry.Id == cultureId.Value)
+            : null;
+        var selectedCountry = activeLibrary == CountriesLibrary
+            ? countries.FirstOrDefault(country => country.Id == countryId)
+                ?? activeCountries.FirstOrDefault()
+                ?? archivedCountries.FirstOrDefault()
+            : null;
+        if (activeLibrary != CulturesLibrary)
+        {
+            selectedCulture = null;
+        }
+
+        if (activeLibrary != CultureGroupsLibrary)
+        {
+            selectedCultureGroup = null;
+        }
+
         var selectedContent = default(ContentEntry);
         var selectedCountryContent = new List<ContentEntry>();
         var hasWriteAccess = HasWriteAccess();
         var isLoginConfigured = IsLoginConfigured();
         var canManageWriteAccess = _environment.IsDevelopment() == false && isLoginConfigured;
+        var availableCultureGroups = allCultureGroups.Where(entry => !entry.IsArchived).ToList();
+        var archivedCultureGroups = allCultureGroups.Where(entry => entry.IsArchived).ToList();
+        var availableCultures = allCultures.Where(entry => !entry.IsArchived).ToList();
+        var archivedCultures = allCultures.Where(entry => entry.IsArchived).ToList();
 
-        if (selectedCountry is not null)
+        if (activeLibrary == CultureGroupsLibrary && selectedCultureGroup is not null)
         {
             selectedCountryContent = data.ContentEntries
-                .Where(entry => selectedCountry.ContentEntryIds.Contains(entry.Id))
+                .Where(entry => selectedCultureGroup.CultureGroupContentEntryIds.Contains(entry.Id))
                 .OrderBy(entry => entry.Type)
                 .ThenBy(entry => entry.Name)
                 .ToList();
-
-            selectedContent = selectedCountryContent.FirstOrDefault(entry => entry.Id == contentId)
-                ?? selectedCountryContent.FirstOrDefault();
         }
+        else if (activeLibrary == CountriesLibrary && selectedCountry is not null)
+        {
+            selectedCountryContent = data.ContentEntries
+                .Where(entry => selectedCountry.ContentEntryIds.Contains(entry.Id))
+                .Where(entry => entry.Type != ContentType.CultureGroup && entry.Type != ContentType.Culture)
+                .OrderBy(entry => entry.Type)
+                .ThenBy(entry => entry.Name)
+                .ToList();
+        }
+
+        selectedContent = activeLibrary switch
+        {
+            CulturesLibrary => selectedCulture,
+            CultureGroupsLibrary => selectedCountryContent.FirstOrDefault(entry => entry.Id == contentId) ?? selectedCultureGroup,
+            _ => selectedCountryContent.FirstOrDefault(entry => entry.Id == contentId) ?? selectedCountryContent.FirstOrDefault()
+        };
 
         var viewModel = new PlannerIndexViewModel
         {
+            ActiveLibrary = activeLibrary,
             Countries = countries,
             ActiveCountries = activeCountries,
             ArchivedCountries = archivedCountries,
+            AvailableCultures = availableCultures,
+            ArchivedCultures = archivedCultures,
+            AvailableCultureGroups = availableCultureGroups,
+            ArchivedCultureGroups = archivedCultureGroups,
             EffectLabelSuggestions = effectLabelSuggestions,
             AvailableBuffs = data.Buffs.OrderBy(buff => buff.Name).ToList(),
             SelectedCountry = selectedCountry,
+            SelectedCulture = selectedCulture,
+            SelectedCultureGroup = selectedCultureGroup,
             SelectedCountryContent = selectedCountryContent,
             SelectedContent = selectedContent,
             HasWriteAccess = hasWriteAccess,
             IsLoginConfigured = isLoginConfigured,
             CanManageWriteAccess = canManageWriteAccess,
+            IsCultureGroupScope = selectedCultureGroup is not null,
             SelectedContentPayloadJson = selectedContent is null ? null : JsonSerializer.Serialize(ToEditPayload(selectedContent)),
             AvailableBuffsPayloadJson = JsonSerializer.Serialize(data.Buffs.OrderBy(buff => buff.Name).Select(ToEditBuff).ToList()),
             CountryForm = new CountryInputModel(),
-            AdvanceForm = BuildDefaultInputModel(selectedCountry?.Id ?? Guid.Empty),
+            AdvanceForm = BuildDefaultInputModel(selectedCountry?.Id ?? Guid.Empty, selectedCultureGroup?.Id),
             BuffForm = new BuffInputModel(),
             LoginForm = new AdminLoginInputModel()
         };
@@ -173,6 +241,58 @@ public sealed class PlannerController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    public IActionResult ArchiveLibraryEntry(Guid contentId, string? library)
+    {
+        if (TryRejectWriteAccess(null))
+        {
+            return RedirectToAction(nameof(Index), new { contentId, library });
+        }
+
+        var entry = _repository.GetData().ContentEntries.FirstOrDefault(item => item.Id == contentId);
+        if (entry is null || (entry.Type != ContentType.Culture && entry.Type != ContentType.CultureGroup))
+        {
+            TempData["Message"] = "Entry could not be archived.";
+            return RedirectToAction(nameof(Index), new { library });
+        }
+
+        _repository.SetContentArchived(contentId, true);
+        TempData["Message"] = $"{entry.Type switch { ContentType.Culture => "Culture", _ => "Culture group" }} archived.";
+        return RedirectToAction(nameof(Index), new
+        {
+            library = entry.Type == ContentType.Culture ? CulturesLibrary : CultureGroupsLibrary,
+            cultureId = entry.Type == ContentType.Culture ? (Guid?)contentId : null,
+            cultureGroupId = entry.Type == ContentType.CultureGroup ? (Guid?)contentId : null
+        });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult RestoreLibraryEntry(Guid contentId, string? library)
+    {
+        if (TryRejectWriteAccess(null))
+        {
+            return RedirectToAction(nameof(Index), new { contentId, library });
+        }
+
+        var entry = _repository.GetData().ContentEntries.FirstOrDefault(item => item.Id == contentId);
+        if (entry is null || (entry.Type != ContentType.Culture && entry.Type != ContentType.CultureGroup))
+        {
+            TempData["Message"] = "Entry could not be restored.";
+            return RedirectToAction(nameof(Index), new { library });
+        }
+
+        _repository.SetContentArchived(contentId, false);
+        TempData["Message"] = $"{entry.Type switch { ContentType.Culture => "Culture", _ => "Culture group" }} restored.";
+        return RedirectToAction(nameof(Index), new
+        {
+            library = entry.Type == ContentType.Culture ? CulturesLibrary : CultureGroupsLibrary,
+            cultureId = entry.Type == ContentType.Culture ? (Guid?)contentId : null,
+            cultureGroupId = entry.Type == ContentType.CultureGroup ? (Guid?)contentId : null
+        });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public IActionResult AddContent([Bind(Prefix = "AdvanceForm")] AdvanceInputModel input)
     {
         if (TryRejectWriteAccess(input.CountryId))
@@ -197,40 +317,40 @@ public sealed class PlannerController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public IActionResult AddBuff([Bind(Prefix = "BuffForm")] BuffInputModel input, Guid? countryId, Guid? contentId)
+    public IActionResult AddBuff([Bind(Prefix = "BuffForm")] BuffInputModel input, Guid? countryId, Guid? cultureId, Guid? cultureGroupId, Guid? contentId, string? library)
     {
         if (TryRejectWriteAccess(countryId))
         {
-            return RedirectToAction(nameof(Index), new { countryId, contentId });
+            return RedirectToAction(nameof(Index), new { countryId, cultureId, cultureGroupId, contentId, library });
         }
 
-        return SaveBuff(input, isEdit: false, countryId, contentId);
+        return SaveBuff(input, isEdit: false, countryId, cultureId, cultureGroupId, contentId, library);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public IActionResult EditBuff([Bind(Prefix = "BuffForm")] BuffInputModel input, Guid? countryId, Guid? contentId)
+    public IActionResult EditBuff([Bind(Prefix = "BuffForm")] BuffInputModel input, Guid? countryId, Guid? cultureId, Guid? cultureGroupId, Guid? contentId, string? library)
     {
         if (TryRejectWriteAccess(countryId))
         {
-            return RedirectToAction(nameof(Index), new { countryId, contentId });
+            return RedirectToAction(nameof(Index), new { countryId, cultureId, cultureGroupId, contentId, library });
         }
 
-        return SaveBuff(input, isEdit: true, countryId, contentId);
+        return SaveBuff(input, isEdit: true, countryId, cultureId, cultureGroupId, contentId, library);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public IActionResult DeleteBuff(Guid buffId, Guid? countryId, Guid? contentId)
+    public IActionResult DeleteBuff(Guid buffId, Guid? countryId, Guid? cultureId, Guid? cultureGroupId, Guid? contentId, string? library)
     {
         if (TryRejectWriteAccess(countryId))
         {
-            return RedirectToAction(nameof(Index), new { countryId, contentId });
+            return RedirectToAction(nameof(Index), new { countryId, cultureId, cultureGroupId, contentId, library });
         }
 
         _repository.DeleteBuff(buffId);
         TempData["Message"] = "Buff deleted.";
-        return RedirectToAction(nameof(Index), new { countryId, contentId });
+        return RedirectToAction(nameof(Index), new { countryId, cultureId, cultureGroupId, contentId, library });
     }
 
     [HttpPost]
@@ -242,7 +362,7 @@ public sealed class PlannerController : Controller
             return StatusCode(StatusCodes.Status403Forbidden, new { ok = false, message = "Read-only mode. Sign in to edit the database." });
         }
 
-        return SaveBuff(input, isEdit, null, null, jsonResponse: true);
+        return SaveBuff(input, isEdit, null, null, null, null, null, jsonResponse: true);
     }
 
     [HttpPost]
@@ -265,24 +385,24 @@ public sealed class PlannerController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Login([Bind(Prefix = "LoginForm")] AdminLoginInputModel input, Guid? countryId, Guid? contentId)
+    public async Task<IActionResult> Login([Bind(Prefix = "LoginForm")] AdminLoginInputModel input, Guid? countryId, Guid? cultureId, Guid? cultureGroupId, Guid? contentId, string? library)
     {
         if (_environment.IsDevelopment())
         {
             TempData["Message"] = "Local development mode already has write access.";
-            return RedirectToAction(nameof(Index), new { countryId, contentId });
+            return RedirectToAction(nameof(Index), new { countryId, cultureId, cultureGroupId, contentId, library });
         }
 
         if (!IsLoginConfigured())
         {
             TempData["Message"] = "Admin login is not configured yet.";
-            return RedirectToAction(nameof(Index), new { countryId, contentId });
+            return RedirectToAction(nameof(Index), new { countryId, cultureId, cultureGroupId, contentId, library });
         }
 
         if (!ModelState.IsValid || !CredentialsMatch(input))
         {
             TempData["Message"] = "Invalid login details.";
-            return RedirectToAction(nameof(Index), new { countryId, contentId });
+            return RedirectToAction(nameof(Index), new { countryId, cultureId, cultureGroupId, contentId, library });
         }
 
         var claims = new List<Claim>
@@ -297,27 +417,30 @@ public sealed class PlannerController : Controller
             new ClaimsPrincipal(identity));
 
         TempData["Message"] = "Write access enabled.";
-        return RedirectToAction(nameof(Index), new { countryId, contentId });
+        return RedirectToAction(nameof(Index), new { countryId, cultureId, cultureGroupId, contentId, library });
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Logout(Guid? countryId, Guid? contentId)
+    public async Task<IActionResult> Logout(Guid? countryId, Guid? cultureId, Guid? cultureGroupId, Guid? contentId, string? library)
     {
         if (_environment.IsDevelopment())
         {
             TempData["Message"] = "Local development mode keeps write access enabled.";
-            return RedirectToAction(nameof(Index), new { countryId, contentId });
+            return RedirectToAction(nameof(Index), new { countryId, cultureId, cultureGroupId, contentId, library });
         }
 
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         TempData["Message"] = "Write access disabled.";
-        return RedirectToAction(nameof(Index), new { countryId, contentId });
+        return RedirectToAction(nameof(Index), new { countryId, cultureId, cultureGroupId, contentId, library });
     }
 
     private IActionResult SaveContent(AdvanceInputModel input, bool isEdit)
     {
         var data = _repository.GetData();
+        var normalizedCultureGroupScopeId = input.Type is ContentType.Culture or ContentType.CultureGroup
+            ? null
+            : input.CultureGroupId;
         var availableBuffs = data.Buffs.ToDictionary(buff => buff.Id, buff => buff);
         var effects = BuildEffects(input.Effects, ValueEffectSide.Default, availableBuffs, allowBuffEffects: false);
         var leftEffects = BuildEffects(input.LeftEffects, ValueEffectSide.Left, availableBuffs, allowBuffEffects: false);
@@ -327,6 +450,9 @@ public sealed class PlannerController : Controller
         var situationEndingEffects = BuildEffects(input.SituationEndingEffects, ValueEffectSide.SituationOnEnding, availableBuffs);
         var situationEndedEffects = BuildEffects(input.SituationEndedEffects, ValueEffectSide.SituationOnEnded, availableBuffs);
         var selectedCountry = data.Countries.FirstOrDefault(country => country.Id == input.CountryId);
+        var selectedCultureGroup = normalizedCultureGroupScopeId.HasValue
+            ? data.ContentEntries.FirstOrDefault(entry => entry.Id == normalizedCultureGroupScopeId.Value && entry.Type == ContentType.CultureGroup)
+            : null;
         var existingEntry = isEdit && input.ContentId.HasValue
             ? data.ContentEntries.FirstOrDefault(entry => entry.Id == input.ContentId.Value)
             : null;
@@ -342,11 +468,15 @@ public sealed class PlannerController : Controller
             : data.ContentEntries
                 .Where(entry => entry.Type == ContentType.Event && selectedCountry.ContentEntryIds.Contains(entry.Id))
                 .ToList();
+        var availableCultureGroups = data.ContentEntries
+            .Where(entry => entry.Type == ContentType.CultureGroup)
+            .OrderBy(entry => entry.Name)
+            .ToList();
         var hasEstateRename = !string.IsNullOrWhiteSpace(input.NobilityEstateName)
             || !string.IsNullOrWhiteSpace(input.BurghersEstateName)
             || !string.IsNullOrWhiteSpace(input.ClergyEstateName)
             || !string.IsNullOrWhiteSpace(input.PeasantsEstateName);
-        var hasNamedContent = input.Type is ContentType.Advance or ContentType.Reform or ContentType.CustomEstate or ContentType.Privilege or ContentType.Law or ContentType.Building or ContentType.Event or ContentType.Situation
+        var hasNamedContent = input.Type is ContentType.Advance or ContentType.Reform or ContentType.CustomEstate or ContentType.Privilege or ContentType.Law or ContentType.Building or ContentType.Event or ContentType.Situation or ContentType.Culture or ContentType.CultureGroup
             && !string.IsNullOrWhiteSpace(input.Name);
         var hasValueLabels = input.Type != ContentType.Value
             || (!string.IsNullOrWhiteSpace(input.ValueLeftLabel) && !string.IsNullOrWhiteSpace(input.ValueRightLabel));
@@ -356,6 +486,12 @@ public sealed class PlannerController : Controller
         var eventRequirements = BuildEventRequirements(input.EventRequirementTreeJson, input.EventRequirements);
         var eventOptions = BuildEventOptions(input.EventOptions, availableBuffs);
         var situationActions = BuildSituationActions(input.SituationActions, availableBuffs);
+        var resolvedCultureGroupNames = BuildCultureGroupNames(input.CultureGroupMembershipNames, input.CultureGroupIds, availableCultureGroups);
+        var resolvedCultureGroupIds = availableCultureGroups
+            .Where(group => resolvedCultureGroupNames.Contains(group.Name, StringComparer.OrdinalIgnoreCase))
+            .Select(group => group.Id)
+            .Distinct()
+            .ToList();
         var prerequisiteEventIds = (input.EventPrerequisiteIds ?? [])
             .Distinct()
             .ToList();
@@ -384,11 +520,21 @@ public sealed class PlannerController : Controller
             || HasInvalidBuffEffects(input.SituationEndedEffects, availableBuffs)
             || (input.EventOptions ?? []).Any(option => HasInvalidBuffEffects(option.Effects, availableBuffs))
             || (input.SituationActions ?? []).Any(action => HasInvalidBuffEffects(action.Effects, availableBuffs));
+        var invalidCultureGroupScope = normalizedCultureGroupScopeId.HasValue
+            && selectedCultureGroup is null;
+        var invalidCultureMembership = input.Type == ContentType.Culture
+            && resolvedCultureGroupNames.Count == 0;
+        var editingSelectedCultureGroup = isEdit
+            && selectedCultureGroup is not null
+            && existingEntry?.Id == selectedCultureGroup.Id;
+        var invalidCultureGroupContentType = normalizedCultureGroupScopeId.HasValue
+            && !editingSelectedCultureGroup
+            && AllowedCultureGroupContentTypes.Contains(input.Type) == false;
 
         var invalidEffects = input.Type is ContentType.Advance or ContentType.Reform or ContentType.Privilege or ContentType.Law or ContentType.Building && effects.Count == 0;
         var invalidValue = input.Type == ContentType.Value && (!hasValueLabels || leftEffects.Count == 0 || rightEffects.Count == 0);
         var invalidEstateRename = input.Type == ContentType.DefaultEstateRename && !hasEstateRename;
-        var invalidNamedContent = !hasNamedContent && input.Type is ContentType.Advance or ContentType.Reform or ContentType.CustomEstate or ContentType.Privilege or ContentType.Law or ContentType.Building or ContentType.Event or ContentType.Situation;
+        var invalidNamedContent = !hasNamedContent && input.Type is ContentType.Advance or ContentType.Reform or ContentType.CustomEstate or ContentType.Privilege or ContentType.Law or ContentType.Building or ContentType.Event or ContentType.Situation or ContentType.Culture or ContentType.CultureGroup;
         var invalidCustomEstate = input.Type == ContentType.CustomEstate && !hasCustomEstateName;
         var invalidBuilding = input.Type == ContentType.Building
             && (constructionCosts.Count == 0
@@ -416,11 +562,24 @@ public sealed class PlannerController : Controller
                         || !string.IsNullOrWhiteSpace(action.Cooldown)
                         || (action.Effects ?? []).Any(effect => !string.IsNullOrWhiteSpace(effect.Label))));
         var invalidEditTarget = isEdit && (input.ContentId is null || existingEntry is null);
+        var requiresCountryScope = input.CultureGroupId.HasValue == false
+            && input.Type is not ContentType.Culture
+            && input.Type is not ContentType.CultureGroup;
+        var invalidCountryScope = requiresCountryScope && selectedCountry is null;
 
-        if (!ModelState.IsValid || input.CountryId == Guid.Empty || invalidEffects || invalidValue || invalidEstateRename || invalidNamedContent || invalidCustomEstate || invalidPrivilegeCustomEstate || invalidLawCategory || invalidLawSubcategory || invalidLawCustomEstate || invalidBuilding || invalidEvent || invalidSituation || invalidSituationAction || invalidBuffEffects || invalidEditTarget)
+        if (!ModelState.IsValid || invalidCountryScope || invalidCultureGroupScope || invalidCultureMembership || invalidCultureGroupContentType || invalidEffects || invalidValue || invalidEstateRename || invalidNamedContent || invalidCustomEstate || invalidPrivilegeCustomEstate || invalidLawCategory || invalidLawSubcategory || invalidLawCustomEstate || invalidBuilding || invalidEvent || invalidSituation || invalidSituationAction || invalidBuffEffects || invalidEditTarget)
         {
-            TempData["Message"] = isEdit ? "Content could not be updated." : "Content could not be added.";
-            return RedirectToAction(nameof(Index), new { countryId = input.CountryId });
+            TempData["Message"] = invalidCultureMembership
+                ? "Culture must belong to at least one existing culture group."
+                : isEdit ? "Content could not be updated." : "Content could not be added.";
+            return RedirectToAction(nameof(Index), new
+            {
+                countryId = selectedCountry?.Id,
+                cultureId = input.Type == ContentType.Culture ? input.ContentId : null,
+                cultureGroupId = normalizedCultureGroupScopeId ?? (input.Type == ContentType.CultureGroup ? input.ContentId : null),
+                contentId = input.Type is ContentType.Culture or ContentType.CultureGroup ? null : input.ContentId,
+                library = GetLibraryForContent(input.Type, normalizedCultureGroupScopeId)
+            });
         }
 
         var valueLeftLabel = input.ValueLeftLabel?.Trim() ?? string.Empty;
@@ -444,10 +603,13 @@ public sealed class PlannerController : Controller
         {
             Id = existingEntry?.Id ?? Guid.NewGuid(),
             Type = input.Type,
+            IsArchived = existingEntry?.IsArchived ?? false,
             Name = input.Type switch
             {
                 ContentType.DefaultEstateRename => "Default Estate Rename",
                 ContentType.Value => $"{valueLeftLabel} vs {valueRightLabel}",
+                ContentType.Culture => input.Name!.Trim(),
+                ContentType.CultureGroup => input.Name!.Trim(),
                 ContentType.Event => input.Name!.Trim(),
                 ContentType.Situation => input.Name!.Trim(),
                 _ => input.Name!.Trim()
@@ -493,6 +655,13 @@ public sealed class PlannerController : Controller
             SituationVisible = input.SituationVisible?.Trim() ?? string.Empty,
             SituationCanEnd = input.SituationCanEnd?.Trim() ?? string.Empty,
             SituationMonthlySpawnChance = input.SituationMonthlySpawnChance,
+            CultureGroupIds = input.Type == ContentType.Culture
+                ? resolvedCultureGroupIds
+                : [],
+            CultureGroupNames = input.Type == ContentType.Culture
+                ? resolvedCultureGroupNames
+                : [],
+            CultureGroupContentEntryIds = existingEntry?.CultureGroupContentEntryIds ?? [],
             SituationActions = situationActions,
             ConstructionCosts = constructionCosts,
             ProductionMethods = productionMethods,
@@ -501,7 +670,7 @@ public sealed class PlannerController : Controller
             EventPrerequisites = prerequisiteLinks,
             Effects = input.Type switch
             {
-                ContentType.DefaultEstateRename or ContentType.CustomEstate or ContentType.Event => [],
+                ContentType.DefaultEstateRename or ContentType.CustomEstate or ContentType.Event or ContentType.Culture or ContentType.CultureGroup => [],
                 ContentType.Value => combinedValueEffects,
                 ContentType.Situation => combinedSituationEffects,
                 _ => effects
@@ -515,7 +684,14 @@ public sealed class PlannerController : Controller
         else
         {
             _repository.AddContentEntry(entry);
-            _repository.AssignContentToCountry(input.CountryId, entry.Id);
+            if (normalizedCultureGroupScopeId.HasValue)
+            {
+                _repository.AssignContentToCultureGroup(normalizedCultureGroupScopeId.Value, entry.Id);
+            }
+            else if (entry.Type is not ContentType.Culture and not ContentType.CultureGroup)
+            {
+                _repository.AssignContentToCountry(input.CountryId, entry.Id);
+            }
         }
 
         var contentName = entry.Type switch
@@ -529,15 +705,26 @@ public sealed class PlannerController : Controller
             ContentType.Building => "building",
             ContentType.Event => "event",
             ContentType.Situation => "situation",
+            ContentType.Culture => "culture",
+            ContentType.CultureGroup => "culture group",
             _ => "advance"
         };
         TempData["Message"] = isEdit
             ? $"Updated {contentName} {entry.Name}."
             : $"Added {contentName} {entry.Name}.";
-        return RedirectToAction(nameof(Index), new { countryId = input.CountryId, contentId = entry.Id });
+        return RedirectToAction(nameof(Index), new
+        {
+            countryId = entry.Type is ContentType.Culture or ContentType.CultureGroup
+                ? selectedCountry?.Id
+                : input.CountryId,
+            cultureId = entry.Type == ContentType.Culture ? (Guid?)entry.Id : null,
+            cultureGroupId = normalizedCultureGroupScopeId ?? (entry.Type == ContentType.CultureGroup ? (Guid?)entry.Id : null),
+            contentId = entry.Type is ContentType.Culture or ContentType.CultureGroup ? (Guid?)null : entry.Id,
+            library = GetLibraryForContent(entry.Type, normalizedCultureGroupScopeId)
+        });
     }
 
-    private IActionResult SaveBuff(BuffInputModel input, bool isEdit, Guid? countryId, Guid? contentId, bool jsonResponse = false)
+    private IActionResult SaveBuff(BuffInputModel input, bool isEdit, Guid? countryId, Guid? cultureId, Guid? cultureGroupId, Guid? contentId, string? library, bool jsonResponse = false)
     {
         var data = _repository.GetData();
         var availableBuffs = data.Buffs.ToDictionary(buff => buff.Id, buff => buff);
@@ -563,7 +750,7 @@ public sealed class PlannerController : Controller
             }
 
             TempData["Message"] = isEdit ? "Buff could not be updated." : "Buff could not be added.";
-            return RedirectToAction(nameof(Index), new { countryId, contentId });
+            return RedirectToAction(nameof(Index), new { countryId, cultureId, cultureGroupId, contentId, library });
         }
 
         var buff = new Buff
@@ -594,22 +781,54 @@ public sealed class PlannerController : Controller
             TempData["Message"] = $"Added buff {buff.Name}.";
         }
 
-        return RedirectToAction(nameof(Index), new { countryId, contentId });
+        return RedirectToAction(nameof(Index), new { countryId, cultureId, cultureGroupId, contentId, library });
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public IActionResult DeleteContent(Guid countryId, Guid contentId)
+    public IActionResult DeleteContent(Guid? countryId, Guid contentId, Guid? cultureId, Guid? cultureGroupId, string? library)
     {
         if (TryRejectWriteAccess(countryId))
         {
-            return RedirectToAction(nameof(Index), new { countryId, contentId });
+            return RedirectToAction(nameof(Index), new { countryId, cultureId, cultureGroupId, contentId, library });
         }
 
         _repository.DeleteContentEntry(contentId);
         TempData["Message"] = "Content deleted.";
-        return RedirectToAction(nameof(Index), new { countryId });
+        return RedirectToAction(nameof(Index), new { countryId, cultureId, cultureGroupId, library });
     }
+
+    private static string ResolveActiveLibrary(string? library, Guid? countryId, Guid? cultureId, Guid? cultureGroupId)
+    {
+        if (string.Equals(library, CultureGroupsLibrary, StringComparison.OrdinalIgnoreCase))
+        {
+            return CultureGroupsLibrary;
+        }
+
+        if (string.Equals(library, CulturesLibrary, StringComparison.OrdinalIgnoreCase))
+        {
+            return CulturesLibrary;
+        }
+
+        if (cultureGroupId.HasValue)
+        {
+            return CultureGroupsLibrary;
+        }
+
+        if (cultureId.HasValue)
+        {
+            return CulturesLibrary;
+        }
+
+        return CountriesLibrary;
+    }
+
+    private static string GetLibraryForContent(ContentType type, Guid? cultureGroupId) =>
+        cultureGroupId.HasValue || type == ContentType.CultureGroup
+            ? CultureGroupsLibrary
+            : type == ContentType.Culture
+                ? CulturesLibrary
+                : CountriesLibrary;
 
     private bool TryRejectWriteAccess(Guid? countryId)
     {
@@ -677,10 +896,11 @@ public sealed class PlannerController : Controller
             })
             .ToList();
 
-    private static AdvanceInputModel BuildDefaultInputModel(Guid countryId) =>
+    private static AdvanceInputModel BuildDefaultInputModel(Guid countryId, Guid? cultureGroupId) =>
         new()
         {
             CountryId = countryId,
+            CultureGroupId = cultureGroupId,
             Type = ContentType.Advance,
             IsMajorReform = false,
             Effects = [new AdvanceEffectInputModel()],
@@ -703,6 +923,10 @@ public sealed class PlannerController : Controller
         id = entry.Id,
         type = entry.Type.ToString(),
         name = entry.Type == ContentType.DefaultEstateRename || entry.Type == ContentType.Value ? string.Empty : entry.Name,
+        cultureGroupIds = entry.CultureGroupIds,
+        cultureGroupMembershipNames = entry.CultureGroupNames.Count == 0
+            ? new List<string> { string.Empty }
+            : entry.CultureGroupNames.ToList(),
         isMajorReform = entry.IsMajorReform,
         nobilityEstateName = entry.NobilityEstateName,
         burghersEstateName = entry.BurghersEstateName,
@@ -884,6 +1108,33 @@ public sealed class PlannerController : Controller
                 Effects = BuildEffects(option.Effects, ValueEffectSide.Default, availableBuffs)
             })
             .ToList();
+
+    private static List<string> BuildCultureGroupNames(IEnumerable<string>? typedNames, IEnumerable<Guid>? selectedIds, IReadOnlyList<ContentEntry> availableCultureGroups)
+    {
+        var names = new List<string>();
+
+        if (typedNames is not null)
+        {
+            names.AddRange(
+                typedNames
+                    .Where(name => !string.IsNullOrWhiteSpace(name))
+                    .Select(name => name.Trim())
+                    .Where(name => !string.IsNullOrWhiteSpace(name)));
+        }
+
+        if (selectedIds is not null)
+        {
+            names.AddRange(
+                availableCultureGroups
+                    .Where(group => selectedIds.Contains(group.Id))
+                    .Select(group => group.Name));
+        }
+
+        return names
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(name => name)
+            .ToList();
+    }
 
     private static List<SituationAction> BuildSituationActions(IEnumerable<SituationActionInputModel>? source, IReadOnlyDictionary<Guid, Buff> availableBuffs) =>
         (source ?? [])
