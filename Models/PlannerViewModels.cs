@@ -15,14 +15,20 @@ public sealed class PlannerIndexViewModel
     public required IReadOnlyList<ContentEntry> SelectedCountryContent { get; init; }
     public required IReadOnlyList<string> EffectLabelSuggestions { get; init; }
     public required IReadOnlyList<Buff> AvailableBuffs { get; init; }
+    public required IReadOnlyList<PlannerUser> Users { get; init; }
     public required CountryInputModel CountryForm { get; init; }
     public required AdvanceInputModel AdvanceForm { get; init; }
     public required BuffInputModel BuffForm { get; init; }
-    public required AdminLoginInputModel LoginForm { get; init; }
+    public required UserLoginInputModel LoginForm { get; init; }
+    public required UserAccountInputModel UserForm { get; init; }
     public bool HasWriteAccess { get; init; }
-    public bool IsLoginConfigured { get; init; }
+    public bool HasAnyAccounts { get; init; }
     public bool CanManageWriteAccess { get; init; }
+    public bool CanManageUsers { get; init; }
+    public bool IsAuthenticatedUser { get; init; }
     public bool IsCultureGroupScope { get; init; }
+    public string CurrentUserDisplayName { get; init; } = string.Empty;
+    public string CurrentUserRoleName { get; init; } = string.Empty;
     public Country? SelectedCountry { get; init; }
     public ContentEntry? SelectedCulture { get; init; }
     public ContentEntry? SelectedCultureGroup { get; init; }
@@ -274,13 +280,4 @@ public sealed class BuffInputModel
     public string Name { get; set; } = string.Empty;
 
     public List<AdvanceEffectInputModel> Effects { get; set; } = [new()];
-}
-
-public sealed class AdminLoginInputModel
-{
-    [Required]
-    public string Username { get; set; } = string.Empty;
-
-    [Required]
-    public string Password { get; set; } = string.Empty;
 }

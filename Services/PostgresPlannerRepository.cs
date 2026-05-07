@@ -25,6 +25,31 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
 
         using (var command = new NpgsqlCommand(
                    """
+                   select id, username, display_name, password_hash, role, is_active, created_utc, updated_utc
+                   from planner_users
+                   order by username;
+                   """,
+                   connection))
+        using (var reader = command.ExecuteReader())
+        {
+            while (reader.Read())
+            {
+                data.Users.Add(new PlannerUser
+                {
+                    Id = reader.GetGuid(0),
+                    Username = reader.GetString(1),
+                    DisplayName = reader.GetString(2),
+                    PasswordHash = reader.GetString(3),
+                    Role = (PlannerUserRole)reader.GetInt32(4),
+                    IsActive = reader.GetBoolean(5),
+                    CreatedUtc = reader.GetDateTime(6),
+                    UpdatedUtc = reader.GetDateTime(7)
+                });
+            }
+        }
+
+        using (var command = new NpgsqlCommand(
+                   """
                    select id, name, tag, is_archived
                    from countries
                    order by is_archived, tag, name;
@@ -521,6 +546,69 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
         return country;
     }
 
+    public IReadOnlyList<PlannerUser> GetUsers() =>
+        GetData().Users;
+
+    public PlannerUser? GetUserById(Guid id) =>
+        GetData().Users.FirstOrDefault(user => user.Id == id);
+
+    public PlannerUser? GetUserByUsername(string username) =>
+        GetData().Users.FirstOrDefault(user => string.Equals(user.Username, username, StringComparison.OrdinalIgnoreCase));
+
+    public PlannerUser AddUser(PlannerUser user)
+    {
+        using var connection = OpenConnection();
+        using var command = new NpgsqlCommand(
+            """
+            insert into planner_users (id, username, display_name, password_hash, role, is_active, created_utc, updated_utc)
+            values (@id, @username, @displayName, @passwordHash, @role, @isActive, @createdUtc, @updatedUtc);
+            """,
+            connection);
+
+        AddPlannerUserParameters(command, user);
+        command.ExecuteNonQuery();
+        return user;
+    }
+
+    public PlannerUser UpdateUser(PlannerUser user)
+    {
+        using var connection = OpenConnection();
+        using var command = new NpgsqlCommand(
+            """
+            update planner_users
+            set username = @username,
+                display_name = @displayName,
+                password_hash = @passwordHash,
+                role = @role,
+                is_active = @isActive,
+                updated_utc = @updatedUtc
+            where id = @id;
+            """,
+            connection);
+
+        AddPlannerUserParameters(command, user);
+        command.ExecuteNonQuery();
+        return user;
+    }
+
+    public bool SetUserActive(Guid id, bool isActive)
+    {
+        using var connection = OpenConnection();
+        using var command = new NpgsqlCommand(
+            """
+            update planner_users
+            set is_active = @isActive,
+                updated_utc = @updatedUtc
+            where id = @id;
+            """,
+            connection);
+
+        command.Parameters.AddWithValue("id", id);
+        command.Parameters.AddWithValue("isActive", isActive);
+        command.Parameters.AddWithValue("updatedUtc", DateTime.UtcNow);
+        return command.ExecuteNonQuery() > 0;
+    }
+
     public Country UpdateCountry(Country country)
     {
         using var connection = OpenConnection();
@@ -816,6 +904,24 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
         using var connection = OpenConnection();
         using var command = new NpgsqlCommand(
             """
+            create table if not exists planner_users (
+                id uuid primary key,
+                username varchar(60) not null unique,
+                display_name varchar(100) not null,
+                password_hash text not null,
+                role integer not null default 0,
+                is_active boolean not null default true,
+                created_utc timestamp without time zone not null default now(),
+                updated_utc timestamp without time zone not null default now()
+            );
+
+            alter table planner_users add column if not exists display_name varchar(100);
+            alter table planner_users add column if not exists password_hash text;
+            alter table planner_users add column if not exists role integer not null default 0;
+            alter table planner_users add column if not exists is_active boolean not null default true;
+            alter table planner_users add column if not exists created_utc timestamp without time zone not null default now();
+            alter table planner_users add column if not exists updated_utc timestamp without time zone not null default now();
+
             create table if not exists countries (
                 id uuid primary key,
                 name varchar(80) not null,
@@ -1495,6 +1601,18 @@ public sealed class PostgresPlannerRepository : IPlannerRepository
         command.Parameters.AddWithValue("situationVisible", ToDbValue(entry.SituationVisible));
         command.Parameters.AddWithValue("situationCanEnd", ToDbValue(entry.SituationCanEnd));
         command.Parameters.AddWithValue("situationMonthlySpawnChance", entry.SituationMonthlySpawnChance.HasValue ? entry.SituationMonthlySpawnChance.Value : DBNull.Value);
+    }
+
+    private static void AddPlannerUserParameters(NpgsqlCommand command, PlannerUser user)
+    {
+        command.Parameters.AddWithValue("id", user.Id);
+        command.Parameters.AddWithValue("username", user.Username);
+        command.Parameters.AddWithValue("displayName", user.DisplayName);
+        command.Parameters.AddWithValue("passwordHash", user.PasswordHash);
+        command.Parameters.AddWithValue("role", (int)user.Role);
+        command.Parameters.AddWithValue("isActive", user.IsActive);
+        command.Parameters.AddWithValue("createdUtc", user.CreatedUtc);
+        command.Parameters.AddWithValue("updatedUtc", user.UpdatedUtc);
     }
 
     private static object ToDbValue(string? value) =>

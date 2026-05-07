@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 using System.Text.Json;
 
 namespace Eu5ModPlanner.Controllers;
@@ -26,14 +25,14 @@ public sealed class PlannerController : Controller
     ];
 
     private readonly IPlannerRepository _repository;
-    private readonly AdminAuthOptions _adminAuthOptions;
+    private readonly IPlannerAuthService _authService;
     private readonly IWebHostEnvironment _environment;
     private static readonly JsonSerializerOptions EventRequirementJsonOptions = new(JsonSerializerDefaults.Web);
 
-    public PlannerController(IPlannerRepository repository, IOptions<AdminAuthOptions> adminAuthOptions, IWebHostEnvironment environment)
+    public PlannerController(IPlannerRepository repository, IPlannerAuthService authService, IWebHostEnvironment environment)
     {
         _repository = repository;
-        _adminAuthOptions = adminAuthOptions.Value;
+        _authService = authService;
         _environment = environment;
     }
 
@@ -90,8 +89,11 @@ public sealed class PlannerController : Controller
         var selectedContent = default(ContentEntry);
         var selectedCountryContent = new List<ContentEntry>();
         var hasWriteAccess = HasWriteAccess();
-        var isLoginConfigured = IsLoginConfigured();
-        var canManageWriteAccess = _environment.IsDevelopment() == false && isLoginConfigured;
+        var hasAnyAccounts = _authService.HasAnyAccounts();
+        var canManageWriteAccess = _environment.IsDevelopment() == false && hasAnyAccounts;
+        var canManageUsers = _authService.CanManageUsers(User, _environment.IsDevelopment());
+        var currentRole = _authService.GetCurrentRole(User, _environment.IsDevelopment());
+        var currentDisplayName = _authService.GetCurrentDisplayName(User, _environment.IsDevelopment());
         var availableCultureGroups = allCultureGroups.Where(entry => !entry.IsArchived).ToList();
         var archivedCultureGroups = allCultureGroups.Where(entry => entry.IsArchived).ToList();
         var availableCultures = allCultures.Where(entry => !entry.IsArchived).ToList();
@@ -140,15 +142,21 @@ public sealed class PlannerController : Controller
             SelectedCountryContent = selectedCountryContent,
             SelectedContent = selectedContent,
             HasWriteAccess = hasWriteAccess,
-            IsLoginConfigured = isLoginConfigured,
+            HasAnyAccounts = hasAnyAccounts,
             CanManageWriteAccess = canManageWriteAccess,
+            CanManageUsers = canManageUsers,
+            IsAuthenticatedUser = User.Identity?.IsAuthenticated == true,
             IsCultureGroupScope = selectedCultureGroup is not null,
+            CurrentUserDisplayName = currentDisplayName,
+            CurrentUserRoleName = currentRole?.ToString() ?? string.Empty,
             SelectedContentPayloadJson = selectedContent is null ? null : JsonSerializer.Serialize(ToEditPayload(selectedContent)),
             AvailableBuffsPayloadJson = JsonSerializer.Serialize(data.Buffs.OrderBy(buff => buff.Name).Select(ToEditBuff).ToList()),
+            Users = data.Users.OrderBy(user => user.IsActive ? 0 : 1).ThenBy(user => user.Username).ToList(),
             CountryForm = new CountryInputModel(),
             AdvanceForm = BuildDefaultInputModel(selectedCountry?.Id ?? Guid.Empty, selectedCultureGroup?.Id),
             BuffForm = new BuffInputModel(),
-            LoginForm = new AdminLoginInputModel()
+            LoginForm = new UserLoginInputModel(),
+            UserForm = new UserAccountInputModel()
         };
 
         return View(viewModel);
@@ -385,7 +393,7 @@ public sealed class PlannerController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Login([Bind(Prefix = "LoginForm")] AdminLoginInputModel input, Guid? countryId, Guid? cultureId, Guid? cultureGroupId, Guid? contentId, string? library)
+    public async Task<IActionResult> Login([Bind(Prefix = "LoginForm")] UserLoginInputModel input, Guid? countryId, Guid? cultureId, Guid? cultureGroupId, Guid? contentId, string? library)
     {
         if (_environment.IsDevelopment())
         {
@@ -393,30 +401,30 @@ public sealed class PlannerController : Controller
             return RedirectToAction(nameof(Index), new { countryId, cultureId, cultureGroupId, contentId, library });
         }
 
-        if (!IsLoginConfigured())
+        if (!_authService.HasAnyAccounts())
         {
-            TempData["Message"] = "Admin login is not configured yet.";
+            TempData["Message"] = "No active user accounts are configured yet.";
             return RedirectToAction(nameof(Index), new { countryId, cultureId, cultureGroupId, contentId, library });
         }
 
-        if (!ModelState.IsValid || !CredentialsMatch(input))
+        if (!ModelState.IsValid)
         {
             TempData["Message"] = "Invalid login details.";
             return RedirectToAction(nameof(Index), new { countryId, cultureId, cultureGroupId, contentId, library });
         }
 
-        var claims = new List<Claim>
+        var user = _authService.Authenticate(input.Username, input.Password);
+        if (user is null)
         {
-            new(ClaimTypes.Name, _adminAuthOptions.Username),
-            new("planner_access", "write")
-        };
+            TempData["Message"] = "Invalid login details.";
+            return RedirectToAction(nameof(Index), new { countryId, cultureId, cultureGroupId, contentId, library });
+        }
 
-        var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
         await HttpContext.SignInAsync(
             CookieAuthenticationDefaults.AuthenticationScheme,
-            new ClaimsPrincipal(identity));
+            _authService.CreatePrincipal(user));
 
-        TempData["Message"] = "Write access enabled.";
+        TempData["Message"] = $"Signed in as {user.DisplayName}.";
         return RedirectToAction(nameof(Index), new { countryId, cultureId, cultureGroupId, contentId, library });
     }
 
@@ -431,7 +439,50 @@ public sealed class PlannerController : Controller
         }
 
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-        TempData["Message"] = "Write access disabled.";
+        TempData["Message"] = "Signed out.";
+        return RedirectToAction(nameof(Index), new { countryId, cultureId, cultureGroupId, contentId, library });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult SaveUser([Bind(Prefix = "UserForm")] UserAccountInputModel input, Guid? countryId, Guid? cultureId, Guid? cultureGroupId, Guid? contentId, string? library)
+    {
+        if (TryRejectUserManagement(countryId))
+        {
+            return RedirectToAction(nameof(Index), new { countryId, cultureId, cultureGroupId, contentId, library });
+        }
+
+        var isEdit = input.Id.HasValue && input.Id.Value != Guid.Empty;
+        var validation = _authService.ValidateUserInput(input, isEdit);
+        if (!ModelState.IsValid || !validation.IsValid)
+        {
+            TempData["Message"] = validation.IsValid
+                ? (isEdit ? "User could not be updated." : "User could not be created.")
+                : validation.Message;
+            return RedirectToAction(nameof(Index), new { countryId, cultureId, cultureGroupId, contentId, library });
+        }
+
+        var user = isEdit
+            ? _authService.UpdateUser(input)
+            : _authService.CreateUser(input);
+
+        TempData["Message"] = isEdit
+            ? $"Updated user {user.Username}."
+            : $"Created user {user.Username}.";
+        return RedirectToAction(nameof(Index), new { countryId, cultureId, cultureGroupId, contentId, library });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult SetUserActive(Guid userId, bool isActive, Guid? countryId, Guid? cultureId, Guid? cultureGroupId, Guid? contentId, string? library)
+    {
+        if (TryRejectUserManagement(countryId))
+        {
+            return RedirectToAction(nameof(Index), new { countryId, cultureId, cultureGroupId, contentId, library });
+        }
+
+        _authService.SetUserActive(userId, isActive, out var message);
+        TempData["Message"] = message;
         return RedirectToAction(nameof(Index), new { countryId, cultureId, cultureGroupId, contentId, library });
     }
 
@@ -451,7 +502,7 @@ public sealed class PlannerController : Controller
         var situationEndedEffects = BuildEffects(input.SituationEndedEffects, ValueEffectSide.SituationOnEnded, availableBuffs);
         var selectedCountry = data.Countries.FirstOrDefault(country => country.Id == input.CountryId);
         var selectedCultureGroup = normalizedCultureGroupScopeId.HasValue
-            ? data.ContentEntries.FirstOrDefault(entry => entry.Id == normalizedCultureGroupScopeId.Value && entry.Type == ContentType.CultureGroup)
+            ? data.ContentEntries.FirstOrDefault(entry => entry.Id == normalizedCultureGroupScopeId.Value && entry.Type == ContentType.CultureGroup && !entry.IsArchived)
             : null;
         var existingEntry = isEdit && input.ContentId.HasValue
             ? data.ContentEntries.FirstOrDefault(entry => entry.Id == input.ContentId.Value)
@@ -469,9 +520,13 @@ public sealed class PlannerController : Controller
                 .Where(entry => entry.Type == ContentType.Event && selectedCountry.ContentEntryIds.Contains(entry.Id))
                 .ToList();
         var availableCultureGroups = data.ContentEntries
-            .Where(entry => entry.Type == ContentType.CultureGroup)
+            .Where(entry => entry.Type == ContentType.CultureGroup && !entry.IsArchived)
             .OrderBy(entry => entry.Name)
             .ToList();
+        var archivedCultureGroupNames = data.ContentEntries
+            .Where(entry => entry.Type == ContentType.CultureGroup && entry.IsArchived)
+            .Select(entry => entry.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var hasEstateRename = !string.IsNullOrWhiteSpace(input.NobilityEstateName)
             || !string.IsNullOrWhiteSpace(input.BurghersEstateName)
             || !string.IsNullOrWhiteSpace(input.ClergyEstateName)
@@ -524,6 +579,10 @@ public sealed class PlannerController : Controller
             && selectedCultureGroup is null;
         var invalidCultureMembership = input.Type == ContentType.Culture
             && resolvedCultureGroupNames.Count == 0;
+        var invalidArchivedCultureMembership = input.Type == ContentType.Culture
+            && resolvedCultureGroupNames.Any(name => archivedCultureGroupNames.Contains(name));
+        var invalidTopLevelCultureEntityCountryScope = selectedCountry is not null
+            && input.Type is ContentType.Culture or ContentType.CultureGroup;
         var editingSelectedCultureGroup = isEdit
             && selectedCultureGroup is not null
             && existingEntry?.Id == selectedCultureGroup.Id;
@@ -567,9 +626,9 @@ public sealed class PlannerController : Controller
             && input.Type is not ContentType.CultureGroup;
         var invalidCountryScope = requiresCountryScope && selectedCountry is null;
 
-        if (!ModelState.IsValid || invalidCountryScope || invalidCultureGroupScope || invalidCultureMembership || invalidCultureGroupContentType || invalidEffects || invalidValue || invalidEstateRename || invalidNamedContent || invalidCustomEstate || invalidPrivilegeCustomEstate || invalidLawCategory || invalidLawSubcategory || invalidLawCustomEstate || invalidBuilding || invalidEvent || invalidSituation || invalidSituationAction || invalidBuffEffects || invalidEditTarget)
+        if (!ModelState.IsValid || invalidCountryScope || invalidCultureGroupScope || invalidCultureMembership || invalidArchivedCultureMembership || invalidTopLevelCultureEntityCountryScope || invalidCultureGroupContentType || invalidEffects || invalidValue || invalidEstateRename || invalidNamedContent || invalidCustomEstate || invalidPrivilegeCustomEstate || invalidLawCategory || invalidLawSubcategory || invalidLawCustomEstate || invalidBuilding || invalidEvent || invalidSituation || invalidSituationAction || invalidBuffEffects || invalidEditTarget)
         {
-            TempData["Message"] = invalidCultureMembership
+            TempData["Message"] = invalidCultureMembership || invalidArchivedCultureMembership
                 ? "Culture must belong to at least one existing culture group."
                 : isEdit ? "Content could not be updated." : "Content could not be added.";
             return RedirectToAction(nameof(Index), new
@@ -837,24 +896,25 @@ public sealed class PlannerController : Controller
             return false;
         }
 
-        TempData["Message"] = IsLoginConfigured()
+        TempData["Message"] = _authService.HasAnyAccounts()
             ? "Read-only mode. Sign in to edit the database."
-            : "Read-only mode. Configure admin credentials to enable editing.";
+            : "Read-only mode. No active user accounts are configured yet.";
+        return true;
+    }
+
+    private bool TryRejectUserManagement(Guid? countryId)
+    {
+        if (_authService.CanManageUsers(User, _environment.IsDevelopment()))
+        {
+            return false;
+        }
+
+        TempData["Message"] = "Only admins can manage user accounts.";
         return true;
     }
 
     private bool HasWriteAccess() =>
-        _environment.IsDevelopment()
-        || (User.Identity?.IsAuthenticated == true
-            && User.Claims.Any(claim => claim.Type == "planner_access" && claim.Value == "write"));
-
-    private bool IsLoginConfigured() =>
-        string.IsNullOrWhiteSpace(_adminAuthOptions.Username) == false
-        && string.IsNullOrWhiteSpace(_adminAuthOptions.Password) == false;
-
-    private bool CredentialsMatch(AdminLoginInputModel input) =>
-        string.Equals(input.Username?.Trim(), _adminAuthOptions.Username, StringComparison.Ordinal)
-        && string.Equals(input.Password, _adminAuthOptions.Password, StringComparison.Ordinal);
+        _authService.CanWrite(User, _environment.IsDevelopment());
 
     private static bool HasInvalidBuffEffects(
         IEnumerable<AdvanceEffectInputModel>? source,

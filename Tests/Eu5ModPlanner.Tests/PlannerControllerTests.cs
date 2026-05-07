@@ -1,12 +1,14 @@
 using Eu5ModPlanner.Controllers;
 using Eu5ModPlanner.Models;
 using Eu5ModPlanner.Services;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Options;
+using System.Security.Claims;
 using Xunit;
 
 namespace Eu5ModPlanner.Tests;
@@ -130,7 +132,87 @@ public sealed class PlannerControllerTests
         var redirect = Assert.IsType<RedirectToActionResult>(result);
         Assert.Equal(nameof(PlannerController.Index), redirect.ActionName);
         Assert.Empty(repository.Data.Countries);
-        Assert.Equal("Read-only mode. Sign in to edit the database.", controller.TempData["Message"]);
+        Assert.Equal("Read-only mode. No active user accounts are configured yet.", controller.TempData["Message"]);
+    }
+
+    [Fact]
+    public void AddCountry_InProductionWithEditorRole_AllowsWrite()
+    {
+        var repository = new InMemoryPlannerRepository();
+        var editor = AddUser(repository, "editor", "Editor User", PlannerUserRole.Editor, "password123");
+        var controller = CreateController(repository, isDevelopment: false, signedInUser: editor);
+
+        var result = controller.AddCountry(new CountryInputModel
+        {
+            Name = "Wallonia",
+            Tag = "WAL"
+        });
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(PlannerController.Index), redirect.ActionName);
+        Assert.Single(repository.Data.Countries);
+    }
+
+    [Fact]
+    public void Index_InProductionWithAdminRole_ShowsUserManagement()
+    {
+        var repository = CreateRepositoryWithCountry();
+        var admin = AddUser(repository, "admin", "Admin User", PlannerUserRole.Admin, "password123");
+        var controller = CreateController(repository, isDevelopment: false, signedInUser: admin);
+
+        var result = controller.Index(null, null, null, null, null);
+
+        var view = Assert.IsType<ViewResult>(result);
+        var model = Assert.IsType<PlannerIndexViewModel>(view.Model);
+        Assert.True(model.HasWriteAccess);
+        Assert.True(model.CanManageUsers);
+        Assert.Equal("Admin User", model.CurrentUserDisplayName);
+        Assert.Equal("Admin", model.CurrentUserRoleName);
+    }
+
+    [Fact]
+    public void SaveUser_InProductionWithAdmin_CreatesUser()
+    {
+        var repository = CreateRepositoryWithCountry();
+        var admin = AddUser(repository, "admin", "Admin User", PlannerUserRole.Admin, "password123");
+        var controller = CreateController(repository, isDevelopment: false, signedInUser: admin);
+
+        var result = controller.SaveUser(new UserAccountInputModel
+        {
+            Username = "writer",
+            DisplayName = "Writer User",
+            Role = PlannerUserRole.Editor,
+            Password = "writer-pass",
+            ConfirmPassword = "writer-pass"
+        }, null, null, null, null, null);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(PlannerController.Index), redirect.ActionName);
+        Assert.Contains(repository.Data.Users, user => user.Username == "writer" && user.Role == PlannerUserRole.Editor);
+    }
+
+    [Fact]
+    public void SaveUser_InProductionWithEditor_IsRejected()
+    {
+        var repository = CreateRepositoryWithCountry();
+        var admin = AddUser(repository, "admin", "Admin User", PlannerUserRole.Admin, "password123");
+        var editor = AddUser(repository, "editor", "Editor User", PlannerUserRole.Editor, "password123");
+        var controller = CreateController(repository, isDevelopment: false, signedInUser: editor);
+
+        var result = controller.SaveUser(new UserAccountInputModel
+        {
+            Username = "viewer",
+            DisplayName = "Viewer User",
+            Role = PlannerUserRole.Viewer,
+            Password = "viewer-pass",
+            ConfirmPassword = "viewer-pass"
+        }, null, null, null, null, null);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(PlannerController.Index), redirect.ActionName);
+        Assert.DoesNotContain(repository.Data.Users, user => user.Username == "viewer");
+        Assert.Equal("Only admins can manage user accounts.", controller.TempData["Message"]);
+        Assert.NotNull(admin);
     }
 
     [Fact]
@@ -350,12 +432,12 @@ public sealed class PlannerControllerTests
     [Fact]
     public void AddContent_Culture_SavesCultureGroupMemberships()
     {
-        var repository = CreateRepositoryWithCountryAndCultureGroup(out var country, out var cultureGroup);
+        var repository = CreateRepositoryWithCountryAndCultureGroup(out _, out var cultureGroup);
         var controller = CreateController(repository, isDevelopment: true);
 
         controller.AddContent(new AdvanceInputModel
         {
-            CountryId = country.Id,
+            CountryId = Guid.Empty,
             Type = ContentType.Culture,
             Name = "Walloon",
             CultureGroupIds = [cultureGroup.Id]
@@ -366,7 +448,7 @@ public sealed class PlannerControllerTests
         Assert.Single(entry.CultureGroupIds);
         Assert.Equal(cultureGroup.Id, entry.CultureGroupIds[0]);
         Assert.Contains("Low Countries", entry.CultureGroupNames);
-        Assert.DoesNotContain(entry.Id, country.ContentEntryIds);
+        Assert.DoesNotContain(repository.Data.Countries.SelectMany(item => item.ContentEntryIds), id => id == entry.Id);
     }
 
     [Fact]
@@ -429,6 +511,26 @@ public sealed class PlannerControllerTests
     }
 
     [Fact]
+    public void AddContent_Culture_FromCountryScope_IsRejected()
+    {
+        var repository = CreateRepositoryWithCountryAndCultureGroup(out var country, out var cultureGroup);
+        var controller = CreateController(repository, isDevelopment: true);
+
+        var result = controller.AddContent(new AdvanceInputModel
+        {
+            CountryId = country.Id,
+            Type = ContentType.Culture,
+            Name = "Walloon",
+            CultureGroupIds = [cultureGroup.Id]
+        });
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(PlannerController.Index), redirect.ActionName);
+        Assert.DoesNotContain(repository.Data.ContentEntries, item => item.Type == ContentType.Culture);
+        Assert.Equal("Content could not be added.", controller.TempData["Message"]);
+    }
+
+    [Fact]
     public void AddContent_CultureGroup_WithoutCountrySelection_SavesCultureGroup()
     {
         var repository = CreateRepositoryWithCountry();
@@ -467,6 +569,25 @@ public sealed class PlannerControllerTests
     }
 
     [Fact]
+    public void AddContent_CultureGroup_FromCountryScope_IsRejected()
+    {
+        var repository = CreateRepositoryWithCountry();
+        var controller = CreateController(repository, isDevelopment: true);
+
+        var result = controller.AddContent(new AdvanceInputModel
+        {
+            CountryId = repository.Data.Countries[0].Id,
+            Type = ContentType.CultureGroup,
+            Name = "Low Countries"
+        });
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(PlannerController.Index), redirect.ActionName);
+        Assert.DoesNotContain(repository.Data.ContentEntries, item => item.Type == ContentType.CultureGroup);
+        Assert.Equal("Content could not be added.", controller.TempData["Message"]);
+    }
+
+    [Fact]
     public void AddContent_Culture_WithStaleCultureGroupScope_StillSavesCulture()
     {
         var repository = CreateRepositoryWithCountryAndCultureGroup(out _, out var existingCultureGroup);
@@ -484,6 +605,27 @@ public sealed class PlannerControllerTests
         var redirect = Assert.IsType<RedirectToActionResult>(result);
         Assert.Equal(nameof(PlannerController.Index), redirect.ActionName);
         Assert.Contains(repository.Data.ContentEntries, item => item.Type == ContentType.Culture && item.Name == "Walloon");
+    }
+
+    [Fact]
+    public void AddContent_Culture_WithArchivedCultureGroup_IsRejected()
+    {
+        var repository = CreateRepositoryWithCountryAndCultureGroup(out _, out var cultureGroup);
+        cultureGroup.IsArchived = true;
+        var controller = CreateController(repository, isDevelopment: true);
+
+        var result = controller.AddContent(new AdvanceInputModel
+        {
+            CountryId = Guid.Empty,
+            Type = ContentType.Culture,
+            Name = "Walloon",
+            CultureGroupMembershipNames = ["Low Countries"]
+        });
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(PlannerController.Index), redirect.ActionName);
+        Assert.DoesNotContain(repository.Data.ContentEntries, item => item.Type == ContentType.Culture);
+        Assert.Equal("Culture must belong to at least one existing culture group.", controller.TempData["Message"]);
     }
 
     [Fact]
@@ -1064,18 +1206,20 @@ public sealed class PlannerControllerTests
         Assert.Equal("Content could not be added.", controller.TempData["Message"]);
     }
 
-    private static PlannerController CreateController(InMemoryPlannerRepository repository, bool isDevelopment)
+    private static PlannerController CreateController(InMemoryPlannerRepository repository, bool isDevelopment, PlannerUser? signedInUser = null)
     {
+        var authService = CreateAuthService(repository);
         var controller = new PlannerController(
             repository,
-            Options.Create(new AdminAuthOptions
-            {
-                Username = "admin",
-                Password = "password"
-            }),
+            authService,
             new TestWebHostEnvironment(isDevelopment));
 
         var httpContext = new DefaultHttpContext();
+        if (signedInUser is not null)
+        {
+            httpContext.User = authService.CreatePrincipal(signedInUser);
+        }
+
         controller.ControllerContext = new ControllerContext
         {
             HttpContext = httpContext
@@ -1083,6 +1227,17 @@ public sealed class PlannerControllerTests
         controller.TempData = new TempDataDictionary(httpContext, new NullTempDataProvider());
         return controller;
     }
+
+    private static IPlannerAuthService CreateAuthService(InMemoryPlannerRepository repository) =>
+        new PlannerAuthService(
+            repository,
+            new PasswordHasher<PlannerUser>(),
+            Options.Create(new BootstrapAdminOptions
+            {
+                Username = "admin",
+                Password = "password",
+                DisplayName = "Bootstrap Admin"
+            }));
 
     private static InMemoryPlannerRepository CreateRepositoryWithCountry()
     {
@@ -1189,6 +1344,22 @@ public sealed class PlannerControllerTests
         return repository;
     }
 
+    private static PlannerUser AddUser(InMemoryPlannerRepository repository, string username, string displayName, PlannerUserRole role, string password)
+    {
+        var user = new PlannerUser
+        {
+            Username = username,
+            DisplayName = displayName,
+            Role = role,
+            IsActive = true,
+            CreatedUtc = DateTime.UtcNow,
+            UpdatedUtc = DateTime.UtcNow
+        };
+        user.PasswordHash = new PasswordHasher<PlannerUser>().HashPassword(user, password);
+        repository.AddUser(user);
+        return user;
+    }
+
     private static AdvanceEffectInputModel NumericEffect(string label, decimal amount, ModifierUnit unit) =>
         new()
         {
@@ -1228,6 +1399,40 @@ public sealed class PlannerControllerTests
         public ModPlannerData Data { get; } = new();
 
         public ModPlannerData GetData() => Data;
+
+        public IReadOnlyList<PlannerUser> GetUsers() => Data.Users;
+
+        public PlannerUser? GetUserById(Guid id) => Data.Users.FirstOrDefault(user => user.Id == id);
+
+        public PlannerUser? GetUserByUsername(string username) =>
+            Data.Users.FirstOrDefault(user => string.Equals(user.Username, username, StringComparison.OrdinalIgnoreCase));
+
+        public PlannerUser AddUser(PlannerUser user)
+        {
+            Data.Users.Add(user);
+            return user;
+        }
+
+        public PlannerUser UpdateUser(PlannerUser user)
+        {
+            var existing = Data.Users.First(item => item.Id == user.Id);
+            var index = Data.Users.IndexOf(existing);
+            Data.Users[index] = user;
+            return user;
+        }
+
+        public bool SetUserActive(Guid id, bool isActive)
+        {
+            var user = Data.Users.FirstOrDefault(item => item.Id == id);
+            if (user is null)
+            {
+                return false;
+            }
+
+            user.IsActive = isActive;
+            user.UpdatedUtc = DateTime.UtcNow;
+            return true;
+        }
 
         public Country AddCountry(Country country)
         {

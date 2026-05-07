@@ -21,9 +21,16 @@
         @if (Model.HasWriteAccess)
         {
             <strong data-i18n="auth-write-title">Write access enabled</strong>
-            <span data-i18n="auth-write-copy">You can add, edit, and delete content.</span>
+            @if (Model.IsAuthenticatedUser)
+            {
+                <span>@Model.CurrentUserDisplayName (@Model.CurrentUserRoleName) - <span data-i18n="auth-write-copy">You can add, edit, and delete content.</span></span>
+            }
+            else
+            {
+                <span data-i18n="auth-write-copy">You can add, edit, and delete content.</span>
+            }
         }
-        else if (Model.IsLoginConfigured)
+        else if (Model.HasAnyAccounts)
         {
             <strong data-i18n="auth-readonly-title">Read-only mode</strong>
             <span data-i18n="auth-readonly-copy">Browsing is public. Sign in to edit the database.</span>
@@ -31,7 +38,7 @@
         else
         {
             <strong data-i18n="auth-unconfigured-title">Read-only mode</strong>
-            <span data-i18n="auth-unconfigured-copy">Admin credentials are not configured yet, so editing is disabled.</span>
+            <span data-i18n="auth-unconfigured-copy">No active user accounts are configured yet, so editing is disabled.</span>
         }
     </div>
     <div class="content-chip-row">
@@ -45,14 +52,20 @@
                 <input type="hidden" name="cultureGroupId" value="@Model.SelectedCultureGroup?.Id" />
                 <input type="hidden" name="contentId" value="@Model.SelectedContent?.Id" />
                 <button type="submit" class="material-button ghost-button">
-                    <span data-i18n="auth-logout">Disable write access</span>
+                    <span data-i18n="auth-logout">Sign out</span>
                 </button>
             </form>
         }
         else if (Model.CanManageWriteAccess)
         {
             <button type="button" class="material-button primary-button" data-bs-toggle="modal" data-bs-target="#loginModal">
-                <span data-i18n="auth-login">Enable write access</span>
+                <span data-i18n="auth-login">Sign in</span>
+            </button>
+        }
+        @if (Model.CanManageUsers)
+        {
+            <button type="button" class="material-button ghost-button" data-bs-toggle="modal" data-bs-target="#usersModal">
+                <span data-i18n="auth-manage-users">Manage users</span>
             </button>
         }
     </div>
@@ -634,7 +647,7 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content planner-modal">
             <div class="modal-header">
-                <h2 class="modal-title fs-5" data-i18n="auth-login-title">Enable write access</h2>
+                <h2 class="modal-title fs-5" data-i18n="auth-login-title">Sign in</h2>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form asp-action="Login" method="post">
@@ -659,6 +672,107 @@
                     <button type="submit" class="material-button primary-button" data-i18n="auth-login-submit">Sign in</button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+}
+
+@if (Model.CanManageUsers)
+{
+<div class="modal fade" id="usersModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content planner-modal">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" data-i18n="users-modal-title">Manage users</h2>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="buff-library-panel">
+                    <div class="buff-library-list">
+                        @foreach (var user in Model.Users)
+                        {
+                            <article class="buff-library-card">
+                                <div class="buff-library-card-header">
+                                    <div>
+                                        <strong>@user.DisplayName</strong>
+                                        <div class="helper-copy">@user.Username</div>
+                                    </div>
+                                    <div class="content-chip-row">
+                                        <span class="content-type-chip">@user.Role</span>
+                                        <span class="content-type-chip">@(user.IsActive ? "Active" : "Inactive")</span>
+                                    </div>
+                                </div>
+                                <div class="content-chip-row">
+                                    <button type="button"
+                                            class="material-button ghost-button small-button"
+                                            data-user-edit-button
+                                            data-user-id="@user.Id"
+                                            data-user-username="@user.Username"
+                                            data-user-display-name="@user.DisplayName"
+                                            data-user-role="@user.Role">
+                                        <span data-i18n="edit-user">Edit user</span>
+                                    </button>
+                                    <form asp-action="SetUserActive" method="post">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="library" value="@Model.ActiveLibrary" />
+                                        <input type="hidden" name="countryId" value="@Model.SelectedCountry?.Id" />
+                                        <input type="hidden" name="cultureId" value="@Model.SelectedCulture?.Id" />
+                                        <input type="hidden" name="cultureGroupId" value="@Model.SelectedCultureGroup?.Id" />
+                                        <input type="hidden" name="contentId" value="@Model.SelectedContent?.Id" />
+                                        <input type="hidden" name="userId" value="@user.Id" />
+                                        <input type="hidden" name="isActive" value="@(!user.IsActive)" />
+                                        <button type="submit" class="material-button ghost-button small-button">
+                                            <span data-i18n="@(user.IsActive ? "deactivate-user" : "activate-user")">@(user.IsActive ? "Deactivate" : "Activate")</span>
+                                        </button>
+                                    </form>
+                                </div>
+                            </article>
+                        }
+                    </div>
+                    <form asp-action="SaveUser" method="post" class="modal-form" data-user-form>
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="library" value="@Model.ActiveLibrary" />
+                        <input type="hidden" name="countryId" value="@Model.SelectedCountry?.Id" />
+                        <input type="hidden" name="cultureId" value="@Model.SelectedCulture?.Id" />
+                        <input type="hidden" name="cultureGroupId" value="@Model.SelectedCultureGroup?.Id" />
+                        <input type="hidden" name="contentId" value="@Model.SelectedContent?.Id" />
+                        <input asp-for="UserForm.Id" type="hidden" data-user-form-id />
+                        <div class="effects-editor-header">
+                            <h3 data-user-form-title data-i18n="new-user">New user</h3>
+                            <button type="button" class="material-button ghost-button small-button" data-user-new-button>
+                                <span data-i18n="new-user">New user</span>
+                            </button>
+                        </div>
+                        <label>
+                            <span data-i18n="auth-username">Username</span>
+                            <input asp-for="UserForm.Username" class="form-control" autocomplete="username" data-user-form-username />
+                        </label>
+                        <label>
+                            <span data-i18n="user-display-name">Display name</span>
+                            <input asp-for="UserForm.DisplayName" class="form-control" autocomplete="name" data-user-form-display-name />
+                        </label>
+                        <label>
+                            <span data-i18n="user-role">Role</span>
+                            <select asp-for="UserForm.Role" class="form-select" data-user-form-role>
+                                <option value="Viewer" data-i18n-option="user-role-viewer">Viewer</option>
+                                <option value="Editor" data-i18n-option="user-role-editor">Editor</option>
+                                <option value="Admin" data-i18n-option="user-role-admin">Admin</option>
+                            </select>
+                        </label>
+                        <label>
+                            <span data-i18n="auth-password">Password</span>
+                            <input asp-for="UserForm.Password" class="form-control" type="password" autocomplete="new-password" data-user-form-password />
+                        </label>
+                        <label>
+                            <span data-i18n="user-confirm-password">Confirm password</span>
+                            <input asp-for="UserForm.ConfirmPassword" class="form-control" type="password" autocomplete="new-password" data-user-form-confirm-password />
+                        </label>
+                        <div class="modal-footer">
+                            <button type="submit" class="material-button primary-button" data-user-form-submit data-i18n="create-user">Create user</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
     </div>
 </div>

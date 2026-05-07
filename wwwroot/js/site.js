@@ -7,13 +7,27 @@
     "auth-readonly-title": "Read-only mode",
     "auth-readonly-copy": "Browsing is public. Sign in to edit the database.",
     "auth-unconfigured-title": "Read-only mode",
-    "auth-unconfigured-copy": "Admin credentials are not configured yet, so editing is disabled.",
-    "auth-login": "Enable write access",
-    "auth-logout": "Disable write access",
-    "auth-login-title": "Enable write access",
+    "auth-unconfigured-copy": "No active user accounts are configured yet, so editing is disabled.",
+    "auth-login": "Sign in",
+    "auth-logout": "Sign out",
+    "auth-login-title": "Sign in",
     "auth-username": "Username",
     "auth-password": "Password",
     "auth-login-submit": "Sign in",
+    "auth-manage-users": "Manage users",
+    "users-modal-title": "Manage users",
+    "edit-user": "Edit user",
+    "activate-user": "Activate",
+    "deactivate-user": "Deactivate",
+    "new-user": "New user",
+    "create-user": "Create user",
+    "update-user": "Update user",
+    "user-display-name": "Display name",
+    "user-role": "Role",
+    "user-role-viewer": "Viewer",
+    "user-role-editor": "Editor",
+    "user-role-admin": "Admin",
+    "user-confirm-password": "Confirm password",
     "library-kicker": "Library",
     "countries-kicker": "Countries",
     "countries-title": "Tags",
@@ -283,18 +297,32 @@
   pl: {
     "shell-subtitle": "Edytor zawartoÅ›ci kraju",
     "toggle-theme": "Tryb ciemny",
-    "auth-write-title": "Tryb edycji wÅ‚Ä…czony",
+    "auth-write-title": "Tryb edycji włączony",
     "auth-write-copy": "MoÅ¼esz dodawaÄ‡, edytowaÄ‡ i usuwaÄ‡ zawartoÅ›Ä‡.",
     "auth-readonly-title": "Tryb tylko do odczytu",
     "auth-readonly-copy": "PrzeglÄ…danie jest publiczne. Zaloguj siÄ™, aby edytowaÄ‡ bazÄ™.",
     "auth-unconfigured-title": "Tryb tylko do odczytu",
-    "auth-unconfigured-copy": "Dane logowania administratora nie sÄ… jeszcze skonfigurowane, wiÄ™c edycja jest wyÅ‚Ä…czona.",
-    "auth-login": "WÅ‚Ä…cz edycjÄ™",
-    "auth-logout": "WyÅ‚Ä…cz edycjÄ™",
-    "auth-login-title": "WÅ‚Ä…cz edycjÄ™",
+    "auth-unconfigured-copy": "Brak aktywnych kont użytkowników, więc edycja jest wyłączona.",
+    "auth-login": "Zaloguj się",
+    "auth-logout": "Wyloguj się",
+    "auth-login-title": "Zaloguj się",
     "auth-username": "Login",
     "auth-password": "HasÅ‚o",
     "auth-login-submit": "Zaloguj siÄ™",
+    "auth-manage-users": "Zarządzaj użytkownikami",
+    "users-modal-title": "Zarządzaj użytkownikami",
+    "edit-user": "Edytuj użytkownika",
+    "activate-user": "Aktywuj",
+    "deactivate-user": "Dezaktywuj",
+    "new-user": "Nowy użytkownik",
+    "create-user": "Utwórz użytkownika",
+    "update-user": "Zapisz użytkownika",
+    "user-display-name": "Nazwa wyświetlana",
+    "user-role": "Rola",
+    "user-role-viewer": "Odczyt",
+    "user-role-editor": "Edytor",
+    "user-role-admin": "Administrator",
+    "user-confirm-password": "Potwierdź hasło",
     "library-kicker": "Biblioteka",
     "countries-kicker": "PaÅ„stwa",
     "countries-title": "Tagi",
@@ -2095,5 +2123,67 @@ if (eventRequirementBuilder) {
     draggedRequirementNodeId = null;
     renderRequirementTree();
   });
+}
+
+const userForm = document.querySelector("[data-user-form]");
+const userFormIdInput = document.querySelector("[data-user-form-id]");
+const userFormUsernameInput = document.querySelector("[data-user-form-username]");
+const userFormDisplayNameInput = document.querySelector("[data-user-form-display-name]");
+const userFormRoleInput = document.querySelector("[data-user-form-role]");
+const userFormPasswordInput = document.querySelector("[data-user-form-password]");
+const userFormConfirmPasswordInput = document.querySelector("[data-user-form-confirm-password]");
+const userFormTitle = document.querySelector("[data-user-form-title]");
+const userFormSubmitButton = document.querySelector("[data-user-form-submit]");
+const userEditButtons = document.querySelectorAll("[data-user-edit-button]");
+const userNewButton = document.querySelector("[data-user-new-button]");
+
+function resetUserForm() {
+  const dictionary = translations[body.dataset.lang || "en"] || translations.en;
+  if (userFormIdInput) userFormIdInput.value = "";
+  if (userFormUsernameInput) userFormUsernameInput.value = "";
+  if (userFormDisplayNameInput) userFormDisplayNameInput.value = "";
+  if (userFormRoleInput) userFormRoleInput.value = "Viewer";
+  if (userFormPasswordInput) userFormPasswordInput.value = "";
+  if (userFormConfirmPasswordInput) userFormConfirmPasswordInput.value = "";
+  if (userFormTitle) {
+    userFormTitle.dataset.i18n = "new-user";
+    userFormTitle.textContent = dictionary["new-user"] || "New user";
+  }
+  if (userFormSubmitButton) {
+    userFormSubmitButton.dataset.i18n = "create-user";
+    userFormSubmitButton.textContent = dictionary["create-user"] || "Create user";
+  }
+}
+
+function populateUserForm(button) {
+  const dictionary = translations[body.dataset.lang || "en"] || translations.en;
+  if (userFormIdInput) userFormIdInput.value = button.dataset.userId || "";
+  if (userFormUsernameInput) userFormUsernameInput.value = button.dataset.userUsername || "";
+  if (userFormDisplayNameInput) userFormDisplayNameInput.value = button.dataset.userDisplayName || "";
+  if (userFormRoleInput) userFormRoleInput.value = button.dataset.userRole || "Viewer";
+  if (userFormPasswordInput) userFormPasswordInput.value = "";
+  if (userFormConfirmPasswordInput) userFormConfirmPasswordInput.value = "";
+  if (userFormTitle) {
+    userFormTitle.dataset.i18n = "edit-user";
+    userFormTitle.textContent = dictionary["edit-user"] || "Edit user";
+  }
+  if (userFormSubmitButton) {
+    userFormSubmitButton.dataset.i18n = "update-user";
+    userFormSubmitButton.textContent = dictionary["update-user"] || "Update user";
+  }
+}
+
+if (userNewButton) {
+  userNewButton.addEventListener("click", resetUserForm);
+}
+
+if (userEditButtons.length > 0) {
+  userEditButtons.forEach((button) => {
+    button.addEventListener("click", () => populateUserForm(button));
+  });
+}
+
+if (userForm) {
+  resetUserForm();
 }
 

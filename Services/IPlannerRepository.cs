@@ -8,6 +8,12 @@ public interface IPlannerRepository
     Country AddCountry(Country country);
     Country UpdateCountry(Country country);
     bool SetCountryArchived(Guid id, bool isArchived);
+    IReadOnlyList<PlannerUser> GetUsers();
+    PlannerUser? GetUserById(Guid id);
+    PlannerUser? GetUserByUsername(string username);
+    PlannerUser AddUser(PlannerUser user);
+    PlannerUser UpdateUser(PlannerUser user);
+    bool SetUserActive(Guid id, bool isActive);
     Buff AddBuff(Buff buff);
     Buff UpdateBuff(Buff buff);
     bool DeleteBuff(Guid id);

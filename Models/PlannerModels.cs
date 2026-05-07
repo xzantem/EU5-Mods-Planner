@@ -98,6 +98,7 @@ public sealed class ModPlannerData
     public List<Country> Countries { get; set; } = [];
     public List<ContentEntry> ContentEntries { get; set; } = [];
     public List<Buff> Buffs { get; set; } = [];
+    public List<PlannerUser> Users { get; set; } = [];
 }
 
 public sealed class Country
