@@ -185,6 +185,31 @@ public sealed class PlannerAuthService : IPlannerAuthService
         return (true, string.Empty);
     }
 
+    public (bool IsValid, string Message) ValidateRegistration(UserRegistrationInputModel input)
+    {
+        if (string.IsNullOrWhiteSpace(input.Username) || string.IsNullOrWhiteSpace(input.DisplayName))
+        {
+            return (false, "Account could not be created.");
+        }
+
+        if (_repository.GetUserByUsername(input.Username.Trim()) is not null)
+        {
+            return (false, "Username is already taken.");
+        }
+
+        if (string.IsNullOrWhiteSpace(input.Password) || input.Password.Length < 8)
+        {
+            return (false, "Passwords must be at least 8 characters long.");
+        }
+
+        if (!string.Equals(input.Password, input.ConfirmPassword, StringComparison.Ordinal))
+        {
+            return (false, "Passwords do not match.");
+        }
+
+        return (true, string.Empty);
+    }
+
     public PlannerUser CreateUser(UserAccountInputModel input)
     {
         var user = new PlannerUser
@@ -192,6 +217,21 @@ public sealed class PlannerAuthService : IPlannerAuthService
             Username = input.Username.Trim(),
             DisplayName = input.DisplayName.Trim(),
             Role = input.Role,
+            IsActive = true,
+            CreatedUtc = DateTime.UtcNow,
+            UpdatedUtc = DateTime.UtcNow
+        };
+        user.PasswordHash = _passwordHasher.HashPassword(user, input.Password);
+        return _repository.AddUser(user);
+    }
+
+    public PlannerUser RegisterUser(UserRegistrationInputModel input)
+    {
+        var user = new PlannerUser
+        {
+            Username = input.Username.Trim(),
+            DisplayName = input.DisplayName.Trim(),
+            Role = PlannerUserRole.Viewer,
             IsActive = true,
             CreatedUtc = DateTime.UtcNow,
             UpdatedUtc = DateTime.UtcNow

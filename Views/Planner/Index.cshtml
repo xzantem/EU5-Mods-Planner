@@ -62,6 +62,12 @@
                 <span data-i18n="auth-login">Sign in</span>
             </button>
         }
+        @if (Model.CanRegisterUsers && !Model.IsAuthenticatedUser)
+        {
+            <button type="button" class="material-button ghost-button" data-bs-toggle="modal" data-bs-target="#registerModal">
+                <span data-i18n="auth-register">Create account</span>
+            </button>
+        }
         @if (Model.CanManageUsers)
         {
             <button type="button" class="material-button ghost-button" data-bs-toggle="modal" data-bs-target="#usersModal">
@@ -670,6 +676,51 @@
                 <div class="modal-footer">
                     <button type="button" class="material-button ghost-button" data-bs-dismiss="modal" data-i18n="cancel">Cancel</button>
                     <button type="submit" class="material-button primary-button" data-i18n="auth-login-submit">Sign in</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+}
+
+@if (Model.CanRegisterUsers)
+{
+<div class="modal fade" id="registerModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content planner-modal">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" data-i18n="auth-register-title">Create account</h2>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form asp-action="Register" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="library" value="@Model.ActiveLibrary" />
+                <input type="hidden" name="countryId" value="@Model.SelectedCountry?.Id" />
+                <input type="hidden" name="cultureId" value="@Model.SelectedCulture?.Id" />
+                <input type="hidden" name="cultureGroupId" value="@Model.SelectedCultureGroup?.Id" />
+                <input type="hidden" name="contentId" value="@Model.SelectedContent?.Id" />
+                <div class="modal-body modal-form">
+                    <label>
+                        <span data-i18n="auth-username">Username</span>
+                        <input asp-for="RegistrationForm.Username" class="form-control" autocomplete="username" />
+                    </label>
+                    <label>
+                        <span data-i18n="user-display-name">Display name</span>
+                        <input asp-for="RegistrationForm.DisplayName" class="form-control" autocomplete="name" />
+                    </label>
+                    <label>
+                        <span data-i18n="auth-password">Password</span>
+                        <input asp-for="RegistrationForm.Password" class="form-control" type="password" autocomplete="new-password" />
+                    </label>
+                    <label>
+                        <span data-i18n="user-confirm-password">Confirm password</span>
+                        <input asp-for="RegistrationForm.ConfirmPassword" class="form-control" type="password" autocomplete="new-password" />
+                    </label>
+                    <p class="helper-copy" data-i18n="auth-register-copy">New accounts start as read-only viewers. An admin can promote them later.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="material-button ghost-button" data-bs-dismiss="modal" data-i18n="cancel">Cancel</button>
+                    <button type="submit" class="material-button primary-button" data-i18n="auth-register-submit">Create account</button>
                 </div>
             </form>
         </div>

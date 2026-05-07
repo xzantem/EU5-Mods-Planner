@@ -14,7 +14,9 @@ public interface IPlannerAuthService
     string GetCurrentDisplayName(ClaimsPrincipal principal, bool isDevelopment);
     void EnsureBootstrapAdmin();
     (bool IsValid, string Message) ValidateUserInput(UserAccountInputModel input, bool isEdit);
+    (bool IsValid, string Message) ValidateRegistration(UserRegistrationInputModel input);
     PlannerUser CreateUser(UserAccountInputModel input);
+    PlannerUser RegisterUser(UserRegistrationInputModel input);
     PlannerUser UpdateUser(UserAccountInputModel input);
     bool SetUserActive(Guid userId, bool isActive, out string message);
 }

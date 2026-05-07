@@ -20,11 +20,13 @@ public sealed class PlannerIndexViewModel
     public required AdvanceInputModel AdvanceForm { get; init; }
     public required BuffInputModel BuffForm { get; init; }
     public required UserLoginInputModel LoginForm { get; init; }
+    public required UserRegistrationInputModel RegistrationForm { get; init; }
     public required UserAccountInputModel UserForm { get; init; }
     public bool HasWriteAccess { get; init; }
     public bool HasAnyAccounts { get; init; }
     public bool CanManageWriteAccess { get; init; }
     public bool CanManageUsers { get; init; }
+    public bool CanRegisterUsers { get; init; }
     public bool IsAuthenticatedUser { get; init; }
     public bool IsCultureGroupScope { get; init; }
     public string CurrentUserDisplayName { get; init; } = string.Empty;

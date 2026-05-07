@@ -92,6 +92,7 @@ public sealed class PlannerController : Controller
         var hasAnyAccounts = _authService.HasAnyAccounts();
         var canManageWriteAccess = _environment.IsDevelopment() == false && hasAnyAccounts;
         var canManageUsers = _authService.CanManageUsers(User, _environment.IsDevelopment());
+        var canRegisterUsers = _environment.IsDevelopment() == false && hasAnyAccounts;
         var currentRole = _authService.GetCurrentRole(User, _environment.IsDevelopment());
         var currentDisplayName = _authService.GetCurrentDisplayName(User, _environment.IsDevelopment());
         var availableCultureGroups = allCultureGroups.Where(entry => !entry.IsArchived).ToList();
@@ -145,6 +146,7 @@ public sealed class PlannerController : Controller
             HasAnyAccounts = hasAnyAccounts,
             CanManageWriteAccess = canManageWriteAccess,
             CanManageUsers = canManageUsers,
+            CanRegisterUsers = canRegisterUsers,
             IsAuthenticatedUser = User.Identity?.IsAuthenticated == true,
             IsCultureGroupScope = selectedCultureGroup is not null,
             CurrentUserDisplayName = currentDisplayName,
@@ -156,6 +158,7 @@ public sealed class PlannerController : Controller
             AdvanceForm = BuildDefaultInputModel(selectedCountry?.Id ?? Guid.Empty, selectedCultureGroup?.Id),
             BuffForm = new BuffInputModel(),
             LoginForm = new UserLoginInputModel(),
+            RegistrationForm = new UserRegistrationInputModel(),
             UserForm = new UserAccountInputModel()
         };
 
@@ -425,6 +428,34 @@ public sealed class PlannerController : Controller
             _authService.CreatePrincipal(user));
 
         TempData["Message"] = $"Signed in as {user.DisplayName}.";
+        return RedirectToAction(nameof(Index), new { countryId, cultureId, cultureGroupId, contentId, library });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult Register([Bind(Prefix = "RegistrationForm")] UserRegistrationInputModel input, Guid? countryId, Guid? cultureId, Guid? cultureGroupId, Guid? contentId, string? library)
+    {
+        if (_environment.IsDevelopment())
+        {
+            TempData["Message"] = "Local development mode already has full access.";
+            return RedirectToAction(nameof(Index), new { countryId, cultureId, cultureGroupId, contentId, library });
+        }
+
+        if (!_authService.HasAnyAccounts())
+        {
+            TempData["Message"] = "Account registration is not available until the first admin account exists.";
+            return RedirectToAction(nameof(Index), new { countryId, cultureId, cultureGroupId, contentId, library });
+        }
+
+        var validation = _authService.ValidateRegistration(input);
+        if (!ModelState.IsValid || !validation.IsValid)
+        {
+            TempData["Message"] = validation.IsValid ? "Account could not be created." : validation.Message;
+            return RedirectToAction(nameof(Index), new { countryId, cultureId, cultureGroupId, contentId, library });
+        }
+
+        var user = _authService.RegisterUser(input);
+        TempData["Message"] = $"Account created for {user.DisplayName}. An admin can promote it to editor access if needed.";
         return RedirectToAction(nameof(Index), new { countryId, cultureId, cultureGroupId, contentId, library });
     }
 

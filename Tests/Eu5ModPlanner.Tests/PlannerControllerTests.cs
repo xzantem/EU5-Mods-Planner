@@ -216,6 +216,67 @@ public sealed class PlannerControllerTests
     }
 
     [Fact]
+    public void Register_InProductionWithExistingAccounts_CreatesViewerUser()
+    {
+        var repository = CreateRepositoryWithCountry();
+        AddUser(repository, "admin", "Admin User", PlannerUserRole.Admin, "password123");
+        var controller = CreateController(repository, isDevelopment: false);
+
+        var result = controller.Register(new UserRegistrationInputModel
+        {
+            Username = "newuser",
+            DisplayName = "New User",
+            Password = "password123",
+            ConfirmPassword = "password123"
+        }, null, null, null, null, null);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(PlannerController.Index), redirect.ActionName);
+        Assert.Contains(repository.Data.Users, user => user.Username == "newuser" && user.Role == PlannerUserRole.Viewer && user.IsActive);
+    }
+
+    [Fact]
+    public void Register_WithDuplicateUsername_IsRejected()
+    {
+        var repository = CreateRepositoryWithCountry();
+        AddUser(repository, "admin", "Admin User", PlannerUserRole.Admin, "password123");
+        AddUser(repository, "newuser", "Existing User", PlannerUserRole.Viewer, "password123");
+        var controller = CreateController(repository, isDevelopment: false);
+
+        var result = controller.Register(new UserRegistrationInputModel
+        {
+            Username = "newuser",
+            DisplayName = "Another User",
+            Password = "password123",
+            ConfirmPassword = "password123"
+        }, null, null, null, null, null);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(PlannerController.Index), redirect.ActionName);
+        Assert.Equal("Username is already taken.", controller.TempData["Message"]);
+    }
+
+    [Fact]
+    public void Register_WithoutExistingAccounts_IsRejected()
+    {
+        var repository = CreateRepositoryWithCountry();
+        var controller = CreateController(repository, isDevelopment: false);
+
+        var result = controller.Register(new UserRegistrationInputModel
+        {
+            Username = "newuser",
+            DisplayName = "New User",
+            Password = "password123",
+            ConfirmPassword = "password123"
+        }, null, null, null, null, null);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(PlannerController.Index), redirect.ActionName);
+        Assert.Equal("Account registration is not available until the first admin account exists.", controller.TempData["Message"]);
+        Assert.Empty(repository.Data.Users);
+    }
+
+    [Fact]
     public void UpdateCountry_UpdatesExistingCountryDetails()
     {
         var repository = CreateRepositoryWithCountry();
