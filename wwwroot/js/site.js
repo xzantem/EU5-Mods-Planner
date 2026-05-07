@@ -1,10 +1,57 @@
-const translations = {
+﻿const translations = {
   en: {
     "shell-subtitle": "Country content editor",
     "toggle-theme": "Dark mode",
+    "auth-write-title": "Write access enabled",
+    "auth-write-copy": "You can add, edit, and delete content.",
+    "auth-readonly-title": "Read-only mode",
+    "auth-readonly-copy": "Browsing is public. Sign in to edit the database.",
+    "auth-unconfigured-title": "Read-only mode",
+    "auth-unconfigured-copy": "No active user accounts are configured yet, so editing is disabled.",
+    "auth-login": "Sign in",
+    "auth-logout": "Sign out",
+    "auth-login-title": "Sign in",
+    "auth-username": "Username",
+    "auth-password": "Password",
+    "auth-login-submit": "Sign in",
+    "auth-manage-users": "Manage users",
+    "users-modal-title": "Manage users",
+    "edit-user": "Edit user",
+    "activate-user": "Activate",
+    "deactivate-user": "Deactivate",
+    "new-user": "New user",
+    "create-user": "Create user",
+    "update-user": "Update user",
+    "user-display-name": "Display name",
+    "user-role": "Role",
+    "user-role-viewer": "Viewer",
+    "user-role-editor": "Editor",
+    "user-role-admin": "Admin",
+    "user-confirm-password": "Confirm password",
+    "library-kicker": "Library",
     "countries-kicker": "Countries",
-    "countries-title": "Available tags",
+    "countries-title": "Tags",
+    "countries-active-title": "Active tags",
+    "countries-archived-title": "Archived tags",
+    "add-tag": "Add tag",
+    "archived-tags-button": "Archived tags",
+    "archived-culture-groups-button": "Archived culture groups",
+    "archived-cultures-button": "Archived cultures",
     "countries-empty": "No countries yet. Add your first tag to begin.",
+    "selected-country-kicker": "Selected tag",
+    "selected-culture-group-kicker": "Selected culture group",
+    "selected-culture-kicker": "Selected culture",
+    "country-status-active": "Active",
+    "country-status-archived": "Archived",
+    "edit-country": "Edit tag",
+    "archive-country": "Archive tag",
+    "restore-country": "Restore tag",
+    "edit-culture-group": "Edit culture group",
+    "archive-culture-group": "Archive culture group",
+    "restore-culture-group": "Restore culture group",
+    "edit-culture": "Edit culture",
+    "archive-culture": "Archive culture",
+    "restore-culture": "Restore culture",
     "content-label-inline": "entries",
     "content-kicker": "Country content",
     "content-title-empty": "Pick a country",
@@ -20,18 +67,26 @@ const translations = {
     "type-value": "Value",
     "type-building": "Building",
     "type-event": "Event",
+    "type-situation": "Situation",
+    "type-culture": "Culture",
+    "type-culture-group": "Culture Group",
     "detail-kicker": "Details",
     "detail-title": "Selected content",
     "edit-content": "Edit",
+    "archive-library-entry": "Archive",
+    "restore-library-entry": "Restore",
     "delete-content": "Delete",
     "detail-empty": "Select a content piece to inspect its effect.",
     "country-modal-title": "Add country",
+    "country-modal-title-edit": "Edit tag",
     "country-name": "Country name",
     "country-name-placeholder": "Kingdom of Example",
     "country-tag": "Country tag",
     "country-tag-placeholder": "EXM",
     "cancel": "Cancel",
     "save-country": "Save country",
+    "save-country-edit": "Save changes",
+    "close-archived-tags": "Close",
     "content-modal-title": "Add new content",
     "content-modal-title-edit": "Edit content",
     "content-type": "Content type",
@@ -49,8 +104,28 @@ const translations = {
     "building-name-placeholder": "State Granary",
     "event-name": "Event name",
     "event-name-placeholder": "The City Falls",
-    "event-name": "Event name",
-    "event-name-placeholder": "The City Falls",
+    "situation-name": "Situation name",
+    "situation-name-placeholder": "Religious Turmoil",
+    "culture-name": "Culture name",
+    "culture-name-placeholder": "Walloon",
+    "culture-group-name": "Culture Group name",
+    "culture-group-name-placeholder": "Low Countries",
+    "culture-groups-field": "Culture Groups",
+    "culture-groups-title": "Culture Groups",
+    "culture-groups-empty": "No culture groups exist yet.",
+    "culture-groups-helper": "Add one or more culture groups. Existing custom groups and built-in groups are both allowed.",
+    "cultures-title": "Cultures",
+    "cultures-empty": "No cultures exist yet.",
+    "add-culture": "Add culture",
+    "add-culture-group": "Add culture group",
+    "add-culture-membership": "Add culture group",
+    "culture-group-memberships": "groups",
+    "remove-culture-membership": "Remove",
+    "culture-group-content-kicker": "Culture group content",
+    "culture-group-content-empty": "This culture group has no content yet.",
+    "culture-group-select-empty": "Select a culture group to manage its shared content.",
+    "cultures-detail-empty": "Cultures are shared reference entities. Select one to inspect its memberships.",
+    "back-to-country": "Back to country",
     "value-left-label": "Left side",
     "value-left-placeholder": "Spiritual",
     "value-right-label": "Right side",
@@ -74,6 +149,27 @@ const translations = {
     "effect-kind-numeric": "Numeric",
     "effect-kind-boolean": "Boolean",
     "effect-kind-text": "Custom text",
+    "effect-kind-buff": "Add timed buff",
+    "effect-buff": "Buff",
+    "select-buff": "Select buff",
+    "no-buff-selected": "No buff selected.",
+    "effect-buff-duration": "Duration",
+    "effect-buff-duration-unit": "Duration unit",
+    "duration-days": "Days",
+    "duration-months": "Months",
+    "duration-years": "Years",
+    "duration-end-of-game": "Until the end of the game",
+    "buff-library-title": "Buff library",
+    "available-buffs": "Available buffs",
+    "buff-library-empty": "No buffs yet. Create the first one here.",
+    "new-buff": "New buff",
+    "buff-name": "Buff name",
+    "buff-name-placeholder": "Monthly Research Drive",
+    "save-buff": "Save buff",
+    "save-buff-edit": "Save changes",
+    "delete-buff": "Delete buff",
+    "use-buff": "Use buff",
+    "edit-buff": "Edit buff",
     "bool-value": "Boolean value",
     "bool-true": "True",
     "bool-false": "False",
@@ -170,58 +266,159 @@ const translations = {
     "event-option-text": "Option text",
     "event-option-placeholder": "Seize the treasury",
     "event-option-effects": "Option effects",
-    "event-no-instant-effect": "No instant effect"
+    "event-no-instant-effect": "No instant effect",
+    "situation-description": "Description / narrative",
+    "situation-description-placeholder": "Long-running tensions are spilling into daily political life.",
+    "situation-monthly-spawn-chance": "Monthly spawn chance (%)",
+    "situation-can-start": "Can start",
+    "situation-can-start-placeholder": "stability < 0",
+    "situation-visible": "Visible",
+    "situation-visible-placeholder": "has_country_flag = fractured_realm",
+    "situation-can-end": "Can end",
+    "situation-can-end-placeholder": "stability >= 1",
+    "situation-on-start-effects": "On start effects",
+    "situation-on-monthly-effects": "Monthly effects",
+    "situation-on-ending-effects": "On ending effects",
+    "situation-on-ended-effects": "On ended effects",
+    "situation-actions": "Situation actions",
+    "add-situation-action": "Add action",
+    "remove-action": "Remove action",
+    "situation-action-title": "Action",
+    "situation-action-name": "Action name",
+    "situation-action-name-placeholder": "Change sides",
+    "situation-action-requirements": "Requirements",
+    "situation-action-requirements-placeholder": "country is at peace",
+    "situation-action-cost": "Cost",
+    "situation-action-cost-placeholder": "10 Stability and Honor",
+    "situation-action-cooldown": "Cooldown",
+    "situation-action-cooldown-placeholder": "5 years",
+    "situation-action-effects": "Action effects"
   },
   pl: {
-    "shell-subtitle": "Edytor zawartości kraju",
+    "shell-subtitle": "Edytor zawartoÅ›ci kraju",
     "toggle-theme": "Tryb ciemny",
-    "countries-kicker": "Państwa",
-    "countries-title": "Dostępne tagi",
-    "countries-empty": "Brak państw. Dodaj pierwszy tag, aby zacząć.",
-    "content-label-inline": "wpisów",
-    "content-kicker": "Zawartość kraju",
-    "content-title-empty": "Wybierz państwo",
-    "add-content": "Dodaj zawartość",
-    "select-country-empty": "Utwórz lub wybierz państwo, aby zarządzać jego unikalną zawartością.",
-    "content-empty": "To państwo nie ma jeszcze unikalnej zawartości.",
-    "type-advance": "Postęp",
+    "auth-write-title": "Tryb edycji włączony",
+    "auth-write-copy": "MoÅ¼esz dodawaÄ‡, edytowaÄ‡ i usuwaÄ‡ zawartoÅ›Ä‡.",
+    "auth-readonly-title": "Tryb tylko do odczytu",
+    "auth-readonly-copy": "PrzeglÄ…danie jest publiczne. Zaloguj siÄ™, aby edytowaÄ‡ bazÄ™.",
+    "auth-unconfigured-title": "Tryb tylko do odczytu",
+    "auth-unconfigured-copy": "Brak aktywnych kont użytkowników, więc edycja jest wyłączona.",
+    "auth-login": "Zaloguj się",
+    "auth-logout": "Wyloguj się",
+    "auth-login-title": "Zaloguj się",
+    "auth-username": "Login",
+    "auth-password": "HasÅ‚o",
+    "auth-login-submit": "Zaloguj siÄ™",
+    "auth-manage-users": "Zarządzaj użytkownikami",
+    "users-modal-title": "Zarządzaj użytkownikami",
+    "edit-user": "Edytuj użytkownika",
+    "activate-user": "Aktywuj",
+    "deactivate-user": "Dezaktywuj",
+    "new-user": "Nowy użytkownik",
+    "create-user": "Utwórz użytkownika",
+    "update-user": "Zapisz użytkownika",
+    "user-display-name": "Nazwa wyświetlana",
+    "user-role": "Rola",
+    "user-role-viewer": "Odczyt",
+    "user-role-editor": "Edytor",
+    "user-role-admin": "Administrator",
+    "user-confirm-password": "Potwierdź hasło",
+    "library-kicker": "Biblioteka",
+    "countries-kicker": "PaÅ„stwa",
+    "countries-title": "Tagi",
+    "countries-active-title": "Aktywne tagi",
+    "countries-archived-title": "Zarchiwizowane tagi",
+    "add-tag": "Dodaj tag",
+    "archived-tags-button": "Zarchiwizowane tagi",
+    "archived-culture-groups-button": "Zarchiwizowane grupy kulturowe",
+    "archived-cultures-button": "Zarchiwizowane kultury",
+    "countries-empty": "Brak paÅ„stw. Dodaj pierwszy tag, aby zaczÄ…Ä‡.",
+    "selected-country-kicker": "Wybrany tag",
+    "selected-culture-group-kicker": "Wybrana grupa kulturowa",
+    "selected-culture-kicker": "Wybrana kultura",
+    "country-status-active": "Aktywny",
+    "country-status-archived": "Zarchiwizowany",
+    "edit-country": "Edytuj tag",
+    "archive-country": "Archiwizuj tag",
+    "restore-country": "PrzywrÃ³Ä‡ tag",
+    "edit-culture-group": "Edytuj grupÄ™ kulturowÄ…",
+    "archive-culture-group": "Archiwizuj grupÄ™ kulturowÄ…",
+    "restore-culture-group": "PrzywrÃ³Ä‡ grupÄ™ kulturowÄ…",
+    "edit-culture": "Edytuj kulturÄ™",
+    "archive-culture": "Archiwizuj kulturÄ™",
+    "restore-culture": "PrzywrÃ³Ä‡ kulturÄ™",
+    "content-label-inline": "wpisÃ³w",
+    "content-kicker": "ZawartoÅ›Ä‡ kraju",
+    "content-title-empty": "Wybierz paÅ„stwo",
+    "add-content": "Dodaj zawartoÅ›Ä‡",
+    "select-country-empty": "UtwÃ³rz lub wybierz paÅ„stwo, aby zarzÄ…dzaÄ‡ jego unikalnÄ… zawartoÅ›ciÄ….",
+    "content-empty": "To paÅ„stwo nie ma jeszcze unikalnej zawartoÅ›ci.",
+    "type-advance": "PostÄ™p",
     "type-reform": "Reforma",
-    "type-default-estate-rename": "Zmiana nazw podstawowych stanów",
-    "type-custom-estate": "Własny stan",
+    "type-default-estate-rename": "Zmiana nazw podstawowych stanÃ³w",
+    "type-custom-estate": "WÅ‚asny stan",
     "type-privilege": "Przywilej",
     "type-law": "Prawo",
-    "type-value": "Wartość",
+    "type-value": "WartoÅ›Ä‡",
     "type-building": "Budynek",
     "type-event": "Wydarzenie",
-    "detail-kicker": "Szczegóły",
-    "detail-title": "Wybrana zawartość",
+    "type-situation": "Sytuacja",
+    "type-culture": "Kultura",
+    "type-culture-group": "Grupa kulturowa",
+    "detail-kicker": "SzczegÃ³Å‚y",
+    "detail-title": "Wybrana zawartoÅ›Ä‡",
     "edit-content": "Edytuj",
-    "delete-content": "Usuń",
-    "detail-empty": "Wybierz element zawartości, aby zobaczyć jego efekt.",
-    "country-modal-title": "Dodaj państwo",
-    "country-name": "Nazwa państwa",
-    "country-name-placeholder": "Królestwo Przykładu",
-    "country-tag": "Tag państwa",
+    "archive-library-entry": "Archiwizuj",
+    "restore-library-entry": "Przywróć",
+    "delete-content": "UsuÅ„",
+    "detail-empty": "Wybierz element zawartoÅ›ci, aby zobaczyÄ‡ jego efekt.",
+    "country-modal-title": "Dodaj paÅ„stwo",
+    "country-modal-title-edit": "Edytuj tag",
+    "country-name": "Nazwa paÅ„stwa",
+    "country-name-placeholder": "KrÃ³lestwo PrzykÅ‚adu",
+    "country-tag": "Tag paÅ„stwa",
     "country-tag-placeholder": "PRZ",
     "cancel": "Anuluj",
-    "save-country": "Zapisz państwo",
-    "content-modal-title": "Dodaj nową zawartość",
-    "content-modal-title-edit": "Edytuj zawartość",
-    "content-type": "Typ zawartości",
-    "advance-name": "Nazwa postępu",
-    "advance-name-placeholder": "Scentralizowany arsenał",
+    "save-country": "Zapisz paÅ„stwo",
+    "save-country-edit": "Zapisz zmiany",
+    "close-archived-tags": "Zamknij",
+    "content-modal-title": "Dodaj nowÄ… zawartoÅ›Ä‡",
+    "content-modal-title-edit": "Edytuj zawartoÅ›Ä‡",
+    "content-type": "Typ zawartoÅ›ci",
+    "advance-name": "Nazwa postÄ™pu",
+    "advance-name-placeholder": "Scentralizowany arsenaÅ‚",
     "reform-name": "Nazwa reformy",
-    "reform-name-placeholder": "Królewski kodeks podatkowy",
+    "reform-name-placeholder": "KrÃ³lewski kodeks podatkowy",
     "custom-estate-name": "Nazwa stanu",
     "custom-estate-name-placeholder": "Klany pogranicza",
     "privilege-name": "Nazwa przywileju",
     "privilege-name-placeholder": "Karty kupieckie",
     "law-name": "Nazwa prawa",
-    "law-name-placeholder": "Akt autonomii cechów",
+    "law-name-placeholder": "Akt autonomii cechÃ³w",
     "building-name": "Nazwa budynku",
     "event-name": "Nazwa wydarzenia",
     "event-name-placeholder": "Miasto upada",
-    "building-name-placeholder": "Spichlerz państwowy",
+    "building-name-placeholder": "Spichlerz paÅ„stwowy",
+    "culture-name": "Nazwa kultury",
+    "culture-name-placeholder": "Walońska",
+    "culture-group-name": "Nazwa grupy kulturowej",
+    "culture-group-name-placeholder": "Niderlandzka",
+    "culture-groups-field": "Grupy kulturowe",
+    "culture-groups-title": "Grupy kulturowe",
+    "culture-groups-empty": "Nie ma jeszcze żadnych grup kulturowych.",
+    "culture-groups-helper": "Dodaj jedną lub więcej grup kulturowych. Dozwolone są zarówno własne grupy, jak i wbudowane.",
+    "cultures-title": "Kultury",
+    "cultures-empty": "Nie ma jeszcze żadnych kultur.",
+    "add-culture": "Dodaj kulturę",
+    "add-culture-group": "Dodaj grupę kulturową",
+    "add-culture-membership": "Dodaj grupę kulturową",
+    "culture-group-memberships": "grup",
+    "remove-culture-membership": "Usuń",
+    "culture-group-content-kicker": "Zawartość grupy kulturowej",
+    "culture-group-content-empty": "Ta grupa kulturowa nie ma jeszcze żadnej zawartości.",
+    "culture-group-select-empty": "Wybierz grupę kulturową, aby zarządzać jej wspólną zawartością.",
+    "cultures-detail-empty": "Kultury są współdzielonymi bytami referencyjnymi. Wybierz jedną, aby sprawdzić jej przynależność do grup.",
+    "back-to-country": "Powrót do państwa",
     "value-left-label": "Lewa strona",
     "value-left-placeholder": "Duchowy",
     "value-right-label": "Prawa strona",
@@ -230,104 +427,160 @@ const translations = {
     "value-right-effects": "Efekty prawej strony",
     "major-reform": "Wielka reforma",
     "major-reform-toggle": "To jest wielka reforma",
-    "advance-modifier-amount": "Wartość modyfikatora",
-    "advance-modifier-unit": "Typ wartości",
-    "unit-flat": "Wartość stała",
+    "advance-modifier-amount": "WartoÅ›Ä‡ modyfikatora",
+    "advance-modifier-unit": "Typ wartoÅ›ci",
+    "unit-flat": "WartoÅ›Ä‡ staÅ‚a",
     "unit-percent": "Procent",
-    "save-content": "Zapisz zawartość",
+    "save-content": "Zapisz zawartoÅ›Ä‡",
     "save-content-edit": "Zapisz zmiany",
     "effects-title": "Efekty",
     "add-effect": "Dodaj efekt",
-    "remove-effect": "Usuń",
+    "remove-effect": "UsuÅ„",
     "effect-label": "Opis efektu",
-    "effect-label-placeholder": "Wydajność hodowli koni",
+    "effect-label-placeholder": "WydajnoÅ›Ä‡ hodowli koni",
     "effect-value-type": "Rodzaj efektu",
     "effect-kind-numeric": "Liczbowy",
     "effect-kind-boolean": "Logiczny",
-    "effect-kind-text": "Tekst własny",
-    "bool-value": "Wartość logiczna",
+    "effect-kind-text": "Tekst wÅ‚asny",
+    "effect-kind-buff": "Dodaj czasowy buff",
+    "effect-buff": "Buff",
+    "select-buff": "Wybierz buff",
+    "no-buff-selected": "Nie wybrano buffa.",
+    "effect-buff-duration": "Czas trwania",
+    "effect-buff-duration-unit": "Jednostka czasu",
+    "duration-days": "Dni",
+    "duration-months": "Miesiące",
+    "duration-years": "Lata",
+    "duration-end-of-game": "Do końca gry",
+    "buff-library-title": "Biblioteka buffów",
+    "available-buffs": "Dostępne buffy",
+    "buff-library-empty": "Nie ma jeszcze żadnych buffów. Utwórz pierwszy tutaj.",
+    "new-buff": "Nowy buff",
+    "buff-name": "Nazwa buffa",
+    "buff-name-placeholder": "Comiesięczny impuls badawczy",
+    "save-buff": "Zapisz buff",
+    "save-buff-edit": "Zapisz zmiany",
+    "delete-buff": "Usuń buff",
+    "use-buff": "Użyj buffa",
+    "edit-buff": "Edytuj buff",
+    "bool-value": "WartoÅ›Ä‡ logiczna",
     "bool-true": "Prawda",
-    "bool-false": "Fałsz",
+    "bool-false": "FaÅ‚sz",
     "estate-nobility": "Szlachta",
     "estate-burghers": "Mieszczanie",
-    "estate-clergy": "Duchowieństwo",
-    "estate-peasants": "Chłopi",
+    "estate-clergy": "DuchowieÅ„stwo",
+    "estate-peasants": "ChÅ‚opi",
     "estate-nobility-placeholder": "Mieczowi panowie",
-    "estate-burghers-placeholder": "Mistrzowie cechów",
-    "estate-clergy-placeholder": "Strażnicy świątyń",
+    "estate-burghers-placeholder": "Mistrzowie cechÃ³w",
+    "estate-clergy-placeholder": "StraÅ¼nicy Å›wiÄ…tyÅ„",
     "estate-peasants-placeholder": "Wolni gospodarze",
-    "food-consumption": "Zużycie żywności (na 1000 populacji)",
-    "assimilation-conversion-speed": "Szybkość asymilacji i konwersji (0-100%)",
+    "food-consumption": "ZuÅ¼ycie Å¼ywnoÅ›ci (na 1000 populacji)",
+    "assimilation-conversion-speed": "SzybkoÅ›Ä‡ asymilacji i konwersji (0-100%)",
     "estate-class": "Klasa stanu",
-    "estate-class-upper": "Wyższa klasa",
-    "estate-class-lower": "Niższa klasa",
-    "can-promote": "Może awansować?",
-    "promotion-speed": "Szybkość awansu (%)",
-    "migration-speed": "Szybkość migracji (%)",
+    "estate-class-upper": "WyÅ¼sza klasa",
+    "estate-class-lower": "NiÅ¼sza klasa",
+    "can-promote": "MoÅ¼e awansowaÄ‡?",
+    "promotion-speed": "SzybkoÅ›Ä‡ awansu (%)",
+    "migration-speed": "SzybkoÅ›Ä‡ migracji (%)",
     "privilege-estate": "Stan",
     "privilege-estate-nobles": "Szlachta",
     "privilege-estate-burghers": "Mieszczanie",
-    "privilege-estate-peasants": "Chłopi",
-    "privilege-estate-clergy": "Duchowieństwo",
+    "privilege-estate-peasants": "ChÅ‚opi",
+    "privilege-estate-clergy": "DuchowieÅ„stwo",
     "privilege-estate-tribes": "Plemiona",
-    "privilege-estate-custom": "Własny stan",
-    "privilege-custom-estate": "Własny stan",
-    "privilege-custom-estate-placeholder": "Wybierz własny stan",
+    "privilege-estate-custom": "WÅ‚asny stan",
+    "privilege-custom-estate": "WÅ‚asny stan",
+    "privilege-custom-estate-placeholder": "Wybierz wÅ‚asny stan",
     "privilege-satisfaction-bonus": "Premia do zadowolenia (%)",
-    "privilege-estate-power": "Siła stanu (%)",
+    "privilege-estate-power": "SiÅ‚a stanu (%)",
     "law-category": "Kategoria",
-    "law-category-custom": "Własna kategoria",
-    "law-custom-category": "Własna kategoria",
+    "law-category-custom": "WÅ‚asna kategoria",
+    "law-custom-category": "WÅ‚asna kategoria",
     "law-custom-category-placeholder": "Tradycje handlowe",
     "law-subcategory": "Podkategoria",
-    "law-subcategory-custom": "Własna podkategoria",
-    "law-custom-subcategory": "Własna podkategoria",
+    "law-subcategory-custom": "WÅ‚asna podkategoria",
+    "law-custom-subcategory": "WÅ‚asna podkategoria",
     "law-custom-subcategory-placeholder": "Ordynacje portowe",
     "law-estate-preference": "Preferowany stan",
-    "law-custom-estate": "Własny stan",
-    "law-custom-estate-placeholder": "Wybierz własny stan",
-    "building-scope": "Wymóg budowy",
+    "law-custom-estate": "WÅ‚asny stan",
+    "law-custom-estate-placeholder": "Wybierz wÅ‚asny stan",
+    "building-scope": "WymÃ³g budowy",
     "building-scope-all": "Wszystkie lokacje",
-    "building-scope-rural": "Tylko wieś",
+    "building-scope-rural": "Tylko wieÅ›",
     "building-scope-town": "Tylko miasto",
     "building-scope-capital": "Tylko stolica",
     "building-ducat-cost": "Koszt budowy (dukaty)",
-    "building-time-months": "Czas budowy (miesiące)",
+    "building-time-months": "Czas budowy (miesiÄ…ce)",
     "building-construction-costs": "Surowce do budowy",
     "building-production-methods": "Metody produkcji",
     "add-resource-cost": "Dodaj surowiec",
     "resource-name": "Surowiec",
     "resource-name-placeholder": "Drewno",
-    "resource-amount": "Ilość",
-    "remove-resource": "Usuń",
-    "add-production-method": "Dodaj metodę",
-    "remove-production-method": "Usuń metodę",
+    "resource-amount": "IloÅ›Ä‡",
+    "remove-resource": "UsuÅ„",
+    "add-production-method": "Dodaj metodÄ™",
+    "remove-production-method": "UsuÅ„ metodÄ™",
     "production-method-name": "Metoda produkcji",
-    "production-method-name-placeholder": "Młyn wodny",
-    "production-inputs": "Miesięczne wejścia",
-    "production-outputs": "Miesięczne wyjścia"
+    "production-method-name-placeholder": "MÅ‚yn wodny",
+    "production-inputs": "MiesiÄ™czne wejÅ›cia",
+    "production-outputs": "MiesiÄ™czne wyjÅ›cia",
+    "situation-name": "Nazwa sytuacji",
+    "situation-name-placeholder": "Niepokoje religijne",
+    "situation-description": "Opis / narracja",
+    "situation-description-placeholder": "DÅ‚ugotrwaÅ‚e napiÄ™cia zaczynajÄ… przenikaÄ‡ do codziennej polityki.",
+    "situation-monthly-spawn-chance": "MiesiÄ™czna szansa pojawienia siÄ™ (%)",
+    "situation-can-start": "MoÅ¼e siÄ™ rozpoczÄ…Ä‡",
+    "situation-can-start-placeholder": "stability < 0",
+    "situation-visible": "Widoczna, gdy",
+    "situation-visible-placeholder": "has_country_flag = fractured_realm",
+    "situation-can-end": "MoÅ¼e siÄ™ zakoÅ„czyÄ‡",
+    "situation-can-end-placeholder": "stability >= 1",
+    "situation-on-start-effects": "Efekty na poczÄ…tku",
+    "situation-on-monthly-effects": "Efekty miesiÄ™czne",
+    "situation-on-ending-effects": "Efekty przy wygaszaniu",
+    "situation-on-ended-effects": "Efekty po zakoÅ„czeniu",
+    "situation-actions": "Akcje sytuacji",
+    "add-situation-action": "Dodaj akcjÄ™",
+    "remove-action": "UsuÅ„ akcjÄ™",
+    "situation-action-title": "Akcja",
+    "situation-action-name": "Nazwa akcji",
+    "situation-action-name-placeholder": "ZmieÅ„ stronÄ™",
+    "situation-action-requirements": "Wymagania",
+    "situation-action-requirements-placeholder": "kraj jest w pokoju",
+    "situation-action-cost": "Koszt",
+    "situation-action-cost-placeholder": "10 StabilnoÅ›ci i Honoru",
+    "situation-action-cooldown": "Czas odnowienia",
+    "situation-action-cooldown-placeholder": "5 lat",
+    "situation-action-effects": "Efekty akcji"
   }
 };
 
 const lawCatalog = {
-  Religious: ["Iqṭā'","Inquisition Law","Society of Jesus","Role of the Patriarchate","Censorship","Slave Conversion","Holy Mission","Nature of our Faith","Divine Cause","Tribal Religious Values","Marriage Law","Heir Religion","Reformation Edicts","Status of Jansenism","Authority over the Clergy","The Witchcraft Act","The Holy Office","Monastic Reformation Movement"],
-  Military: ["Levy Law","Recruitment Law","Battle Leadership Law","Army Doctrine","Mamlūk Rank System","Mamlūk Army Law","Mamlūk Promotion Law","Maritime Law","Piracy Law","Naval Doctrine","Sumptuary Law","Order of Chivalry","The Frontier Fortresses","Military Frontier"],
-  Administrative: ["Feudal 'De Jure' Laws","Royal Court Customs","Legitimization of Power","Harem Laws","Foundation of Republic","Election","Republican Power","Administrative Principles","Republican Electorate Law","Theocratic Leadership","Legal Basis","Tribal Organization","Administrative System","Intelligence Agency","Bureaucracy","Cabinet Laws","Legal Code","Sharī'ah Jurisprudence","Order of the Garter","Machault's Five Percent Tax","Navarrese Adaptability","Six Ministries Supervision","Ashta Pradhan Council","Mesta Council","Examination System","Status of the Han","Distribution of Scottish Clan Holdings","Taxation","Dahsala Taxation"],
-  Socioeconomic: ["Tribal Migration","Tribal Cultural Identity","Tribal Modernization","Education of the Elites","Education of the Masses","Slavery Laws","Colonial Policy","Native Policy","Economic Policy","Cultural Traditions","Foreign Cultural Law","Coinage Law","Precious Metal Distribution","Press Laws","Mining Law","Amazigh Familial Connections","Border Controls","Language of Pleading","Colonial Aspirations","Primacy of Florentine Guilds","Estudo Geral","Amber Monopoly","Dominant Currency","Scottish Colonial Affairs","Enclosure Movement","Factory Working Conditions","Trade Unions","Vestiarium","Tìfāyìfú","Intellectual Movements","Alcohol Restrictions"],
+  Religious: ["Iqá¹­Ä'","Inquisition Law","Society of Jesus","Role of the Patriarchate","Censorship","Slave Conversion","Holy Mission","Nature of our Faith","Divine Cause","Tribal Religious Values","Marriage Law","Heir Religion","Reformation Edicts","Status of Jansenism","Authority over the Clergy","The Witchcraft Act","The Holy Office","Monastic Reformation Movement"],
+  Military: ["Levy Law","Recruitment Law","Battle Leadership Law","Army Doctrine","MamlÅ«k Rank System","MamlÅ«k Army Law","MamlÅ«k Promotion Law","Maritime Law","Piracy Law","Naval Doctrine","Sumptuary Law","Order of Chivalry","The Frontier Fortresses","Military Frontier"],
+  Administrative: ["Feudal 'De Jure' Laws","Royal Court Customs","Legitimization of Power","Harem Laws","Foundation of Republic","Election","Republican Power","Administrative Principles","Republican Electorate Law","Theocratic Leadership","Legal Basis","Tribal Organization","Administrative System","Intelligence Agency","Bureaucracy","Cabinet Laws","Legal Code","SharÄ«'ah Jurisprudence","Order of the Garter","Machault's Five Percent Tax","Navarrese Adaptability","Six Ministries Supervision","Ashta Pradhan Council","Mesta Council","Examination System","Status of the Han","Distribution of Scottish Clan Holdings","Taxation","Dahsala Taxation"],
+  Socioeconomic: ["Tribal Migration","Tribal Cultural Identity","Tribal Modernization","Education of the Elites","Education of the Masses","Slavery Laws","Colonial Policy","Native Policy","Economic Policy","Cultural Traditions","Foreign Cultural Law","Coinage Law","Precious Metal Distribution","Press Laws","Mining Law","Amazigh Familial Connections","Border Controls","Language of Pleading","Colonial Aspirations","Primacy of Florentine Guilds","Estudo Geral","Amber Monopoly","Dominant Currency","Scottish Colonial Affairs","Enclosure Movement","Factory Working Conditions","Trade Unions","Vestiarium","TÃ¬fÄyÃ¬fÃº","Intellectual Movements","Alcohol Restrictions"],
   Estate: ["Fouage Tax Levy","Taille","Distribution of Power","Rights of the Nobility","Rights of the Burghers","Rights of the Clergy","Rights of the Crown","Rights of the Commoners","Colonial Representation"]
 };
 
 const body = document.body;
+const EMPTY_GUID = "00000000-0000-0000-0000-000000000000";
 const themeToggle = document.querySelector("[data-theme-toggle]");
 const languageButtons = document.querySelectorAll("[data-language]");
 const addContentButton = document.querySelector("[data-add-content-button]");
+const createTypeButtons = Array.from(document.querySelectorAll("[data-create-type]"));
 const editContentButton = document.querySelector("[data-edit-content-button]");
+const addContentModalElement = document.querySelector("#addContentModal");
 const contentForm = document.querySelector("#contentForm");
 const typeSelect = document.querySelector("[data-content-type-select]");
+const contentTypeRow = document.querySelector("[data-content-type-row]");
 const contentIdInput = document.querySelector("[data-content-id-input]");
 const contentModalTitle = document.querySelector("[data-content-modal-title]");
 const submitContentButton = document.querySelector("[data-submit-content-button]");
 const selectedContentPayloadElement = document.querySelector("#selected-content-payload");
+const availableBuffsPayloadElement = document.querySelector("#available-buffs-payload");
+const buffLibraryModalElement = document.querySelector("#buffLibraryModal");
+const buffEditorModalElement = document.querySelector("#buffEditorModal");
 const effectsPanel = document.querySelector("[data-effects-panel]");
 const estateRenamePanel = document.querySelector("[data-estate-rename-panel]");
 const customEstatePanel = document.querySelector("[data-custom-estate-panel]");
@@ -336,18 +589,34 @@ const lawPanel = document.querySelector("[data-law-panel]");
 const valuePanel = document.querySelector("[data-value-panel]");
 const buildingPanel = document.querySelector("[data-building-panel]");
 const eventPanel = document.querySelector("[data-event-panel]");
+const situationPanel = document.querySelector("[data-situation-panel]");
+const culturePanel = document.querySelector("[data-culture-panel]");
+const cultureMembershipContainer = document.querySelector("[data-culture-membership-container]");
+const addCultureMembershipButton = document.querySelector("[data-add-culture-membership]");
+const cultureMembershipTemplate = document.querySelector("#culture-membership-row-template");
 const reformOptions = document.querySelector("[data-reform-options]");
+const cultureGroupScopeInput = document.querySelector('[name="AdvanceForm.CultureGroupId"]');
 const effectsContainer = document.querySelector("[data-effects-container]");
 const leftEffectsContainer = document.querySelector("[data-left-effects-container]");
 const rightEffectsContainer = document.querySelector("[data-right-effects-container]");
+const situationStartEffectsContainer = document.querySelector("[data-situation-start-effects-container]");
+const situationMonthlyEffectsContainer = document.querySelector("[data-situation-monthly-effects-container]");
+const situationEndingEffectsContainer = document.querySelector("[data-situation-ending-effects-container]");
+const situationEndedEffectsContainer = document.querySelector("[data-situation-ended-effects-container]");
 const constructionCostsContainer = document.querySelector("[data-construction-costs-container]");
 const productionMethodsContainer = document.querySelector("[data-production-methods-container]");
 const eventRequirementTreeInput = document.querySelector("[data-event-requirement-tree-input]");
 const eventRequirementBuilder = document.querySelector("[data-event-requirement-builder]");
 const eventOptionsContainer = document.querySelector("[data-event-options-container]");
+const situationActionsContainer = document.querySelector("[data-situation-actions-container]");
 const addEffectButton = document.querySelector("[data-add-effect]");
 const addLeftEffectButton = document.querySelector("[data-add-left-effect]");
 const addRightEffectButton = document.querySelector("[data-add-right-effect]");
+const addSituationStartEffectButton = document.querySelector("[data-add-situation-start-effect]");
+const addSituationMonthlyEffectButton = document.querySelector("[data-add-situation-monthly-effect]");
+const addSituationEndingEffectButton = document.querySelector("[data-add-situation-ending-effect]");
+const addSituationEndedEffectButton = document.querySelector("[data-add-situation-ended-effect]");
+const addSituationActionButton = document.querySelector("[data-add-situation-action]");
 const addConstructionCostButton = document.querySelector("[data-add-construction-cost]");
 const addProductionMethodButton = document.querySelector("[data-add-production-method]");
 const addEventOptionButton = document.querySelector("[data-add-event-option]");
@@ -359,6 +628,10 @@ const productionMethodTemplate = document.querySelector("#production-method-temp
 const productionResourceTemplate = document.querySelector("#production-resource-row-template");
 const eventOptionTemplate = document.querySelector("#event-option-template");
 const eventOptionEffectTemplate = document.querySelector("#event-option-effect-row-template");
+const situationEffectTemplate = document.querySelector("#situation-effect-row-template");
+const situationActionTemplate = document.querySelector("#situation-action-template");
+const situationActionEffectTemplate = document.querySelector("#situation-action-effect-row-template");
+const buffEffectTemplate = document.querySelector("#buff-effect-row-template");
 const contentNameRow = document.querySelector("[data-content-name-row]");
 const contentNameLabel = document.querySelector("[data-content-name-label]");
 const contentNameInput = document.querySelector("[data-content-name-input]");
@@ -375,9 +648,29 @@ const lawEstateSelect = document.querySelector("[data-law-estate-select]");
 const lawCustomEstateRow = document.querySelector("[data-law-custom-estate-row]");
 const eventTriggerModeSelect = document.querySelector("[data-event-trigger-mode-select]");
 const eventMonthlyChanceRow = document.querySelector("[data-event-monthly-chance-row]");
+const buffList = document.querySelector("[data-buff-list]");
+const buffEmptyState = document.querySelector("[data-buff-empty-state]");
+const buffLibraryStatus = document.querySelector("[data-buff-library-status]");
+const buffForm = document.querySelector("#buffForm");
+const buffFormIdInput = document.querySelector("[data-buff-form-id]");
+const buffNameInput = document.querySelector("[data-buff-name-input]");
+const buffEffectsContainer = document.querySelector("[data-buff-effects-container]");
+const addBuffEffectButton = document.querySelector("[data-add-buff-effect]");
+const buffSaveButton = document.querySelector("[data-buff-save-button]");
+const buffSaveLabel = document.querySelector("[data-buff-save-label]");
+const buffDeleteButton = document.querySelector("[data-buff-delete-button]");
+const buffNewButton = document.querySelector("[data-buff-new-button]");
+const buffFormTitle = document.querySelector("[data-buff-form-title]");
+const buffStatus = document.querySelector("[data-buff-status]");
 const selectedContentData = selectedContentPayloadElement ? JSON.parse(selectedContentPayloadElement.textContent) : null;
+const initialAvailableBuffs = availableBuffsPayloadElement ? JSON.parse(availableBuffsPayloadElement.textContent) : [];
+const buffLibraryModal = buffLibraryModalElement && window.bootstrap ? bootstrap.Modal.getOrCreateInstance(buffLibraryModalElement) : null;
+const buffEditorModal = buffEditorModalElement && window.bootstrap ? bootstrap.Modal.getOrCreateInstance(buffEditorModalElement) : null;
 let eventRequirementTreeState = null;
 let draggedRequirementNodeId = null;
+let availableBuffs = Array.isArray(initialAvailableBuffs) ? initialAvailableBuffs : [];
+let activeBuffEffectRow = null;
+let selectedBuffId = null;
 
 const contentNameKeys = {
   Advance: { label: "advance-name", placeholder: "advance-name-placeholder" },
@@ -386,8 +679,45 @@ const contentNameKeys = {
   Privilege: { label: "privilege-name", placeholder: "privilege-name-placeholder" },
   Law: { label: "law-name", placeholder: "law-name-placeholder" },
   Building: { label: "building-name", placeholder: "building-name-placeholder" },
-  Event: { label: "event-name", placeholder: "event-name-placeholder" }
+  Event: { label: "event-name", placeholder: "event-name-placeholder" },
+  Situation: { label: "situation-name", placeholder: "situation-name-placeholder" },
+  Culture: { label: "culture-name", placeholder: "culture-name-placeholder" },
+  CultureGroup: { label: "culture-group-name", placeholder: "culture-group-name-placeholder" }
 };
+
+const cultureGroupAllowedTypes = new Set(["Advance", "Reform", "Privilege", "Law", "Value", "Building"]);
+
+function syncTypeOptions() {
+  if (!typeSelect) return;
+  const lockedType = contentForm?.dataset.lockedType || "";
+  const activeLibrary = contentForm?.dataset.activeLibrary || "Countries";
+  const isCultureGroupScope = !!(cultureGroupScopeInput && cultureGroupScopeInput.value);
+  const editingScopeCultureGroup = !!(
+    isCultureGroupScope
+    && contentForm
+    && contentForm.dataset.mode === "edit"
+    && contentIdInput
+    && cultureGroupScopeInput
+    && contentIdInput.value
+    && contentIdInput.value === cultureGroupScopeInput.value
+  );
+  Array.from(typeSelect.options).forEach((option) => {
+    const disallowedInLibrary = activeLibrary === "Countries" && (option.value === "Culture" || option.value === "CultureGroup");
+    const allowed = !disallowedInLibrary && (!isCultureGroupScope
+      || cultureGroupAllowedTypes.has(option.value)
+      || (editingScopeCultureGroup && option.value === "CultureGroup"));
+    option.hidden = !allowed;
+    option.disabled = !allowed;
+  });
+
+  if (isCultureGroupScope && !editingScopeCultureGroup && !cultureGroupAllowedTypes.has(typeSelect.value)) {
+    typeSelect.value = "Advance";
+  }
+
+  if (lockedType) {
+    typeSelect.value = lockedType;
+  }
+}
 
 function applyLanguage(language) {
   const dictionary = translations[language] || translations.en;
@@ -406,6 +736,7 @@ function applyLanguage(language) {
   });
   languageButtons.forEach((button) => button.classList.toggle("is-active", button.dataset.language === language));
   updateModalModeText();
+  updateBuffFormMode();
   renderRequirementTree();
   localStorage.setItem("planner-language", language);
 }
@@ -470,7 +801,9 @@ function syncLawFields() {
 }
 
 function syncContentTypePanel() {
+  syncTypeOptions();
   const currentType = typeSelect ? typeSelect.value : "Advance";
+  if (contentTypeRow) contentTypeRow.hidden = !!(contentForm?.dataset.lockedType);
   if (effectsPanel) effectsPanel.hidden = !["Advance", "Reform", "Privilege", "Law", "Building"].includes(currentType);
   if (estateRenamePanel) estateRenamePanel.hidden = currentType !== "DefaultEstateRename";
   if (customEstatePanel) customEstatePanel.hidden = currentType !== "CustomEstate";
@@ -479,6 +812,8 @@ function syncContentTypePanel() {
   if (valuePanel) valuePanel.hidden = currentType !== "Value";
   if (buildingPanel) buildingPanel.hidden = currentType !== "Building";
   if (eventPanel) eventPanel.hidden = currentType !== "Event";
+  if (situationPanel) situationPanel.hidden = currentType !== "Situation";
+  if (culturePanel) culturePanel.hidden = currentType !== "Culture";
   if (reformOptions) reformOptions.hidden = currentType !== "Reform";
   if (contentNameRow) contentNameRow.hidden = currentType === "DefaultEstateRename" || currentType === "Value";
 
@@ -504,50 +839,116 @@ function syncEffectRow(row) {
   const valueType = typeSelectInRow ? typeSelectInRow.value : "Numeric";
   const isBoolean = valueType === "Boolean";
   const isText = valueType === "Text";
-  row.querySelectorAll("[data-effect-numeric]").forEach((element) => { element.hidden = isBoolean || isText; });
+  const isBuff = valueType === "Buff";
+  row.querySelectorAll("[data-effect-numeric]").forEach((element) => { element.hidden = isBoolean || isText || isBuff; });
   row.querySelectorAll("[data-effect-boolean]").forEach((element) => { element.hidden = !isBoolean; });
+  row.querySelectorAll("[data-effect-buff]").forEach((element) => { element.hidden = !isBuff; });
 }
 
-function bindEffectRow(row, container, groupName) {
+function bindEffectRow(row, container, namePrefix) {
   const typeSelectInRow = row.querySelector("[data-effect-value-type]");
   if (typeSelectInRow) typeSelectInRow.addEventListener("change", () => syncEffectRow(row));
+  const selectBuffButton = row.querySelector("[data-select-buff-button]");
+  if (selectBuffButton) {
+    selectBuffButton.addEventListener("click", () => {
+      activeBuffEffectRow = row;
+      openBuffLibrary();
+    });
+  }
   const removeButton = row.querySelector("[data-remove-effect]");
   if (removeButton) {
     removeButton.addEventListener("click", () => {
       if (container.querySelectorAll("[data-effect-row]").length > 1) {
         row.remove();
-        reindexEffectRows(container, groupName);
+        reindexEffectRows(container, namePrefix);
       }
     });
   }
   syncEffectRow(row);
 }
 
-function reindexEffectRows(container, groupName) {
-  if (!container) return;
-  container.querySelectorAll("[data-effect-row]").forEach((row, index) => {
-    row.querySelectorAll("[name]").forEach((field) => {
-      field.name = field.name.replace(new RegExp(`AdvanceForm\\.${groupName}\\[\\d+\\]`), `AdvanceForm.${groupName}[${index}]`);
+function reindexCultureMembershipRows() {
+  if (!cultureMembershipContainer) return;
+  Array.from(cultureMembershipContainer.querySelectorAll("[data-culture-membership-row]")).forEach((row, index) => {
+    row.querySelectorAll("input").forEach((input) => {
+      if (input.name) {
+        input.name = input.name.replace(/AdvanceForm\.CultureGroupMembershipNames\[\d+\]/, `AdvanceForm.CultureGroupMembershipNames[${index}]`);
+      }
     });
   });
 }
 
-function addEffectRow(container, template, groupName) {
+function bindCultureMembershipRow(row) {
+  const removeButton = row.querySelector("[data-remove-culture-membership]");
+  if (removeButton) {
+    removeButton.addEventListener("click", () => {
+      if (!cultureMembershipContainer) return;
+      if (cultureMembershipContainer.querySelectorAll("[data-culture-membership-row]").length > 1) {
+        row.remove();
+        reindexCultureMembershipRows();
+      }
+    });
+  }
+}
+
+function addCultureMembershipRow(value = "") {
+  if (!cultureMembershipContainer || !cultureMembershipTemplate) return;
+  const index = cultureMembershipContainer.querySelectorAll("[data-culture-membership-row]").length;
+  const markup = cultureMembershipTemplate.innerHTML.replace(/__INDEX__/g, String(index));
+  cultureMembershipContainer.insertAdjacentHTML("beforeend", markup);
+  const row = cultureMembershipContainer.lastElementChild;
+  if (!(row instanceof HTMLElement)) return;
+  const input = row.querySelector("input");
+  if (input) input.value = value;
+  bindCultureMembershipRow(row);
+  reindexCultureMembershipRows();
+}
+
+function buildCultureMembershipRows(values) {
+  if (!cultureMembershipContainer) return;
+  cultureMembershipContainer.innerHTML = "";
+  const normalized = (values && values.length ? values : [""]).map((value) => value ?? "");
+  normalized.forEach((value) => addCultureMembershipRow(value));
+}
+
+function reindexEffectRows(container, namePrefix) {
+  if (!container) return;
+  container.querySelectorAll("[data-effect-row]").forEach((row, index) => {
+    row.querySelectorAll("[name]").forEach((field) => {
+      field.name = field.name.replace(new RegExp(`${namePrefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\[\\d+\\]`), `${namePrefix}[${index}]`);
+    });
+  });
+}
+
+function addEffectRow(container, template, namePrefix) {
   if (!template || !container) return null;
   const currentIndex = container.querySelectorAll("[data-effect-row]").length;
-  container.insertAdjacentHTML("beforeend", template.innerHTML.replaceAll("__INDEX__", String(currentIndex)));
+  const html = template.innerHTML
+    .replaceAll("__GROUP_NAME__", namePrefix)
+    .replaceAll("__INDEX__", String(currentIndex));
+  container.insertAdjacentHTML("beforeend", html);
   const newRow = container.querySelectorAll("[data-effect-row]")[currentIndex];
-  bindEffectRow(newRow, container, groupName);
+  bindEffectRow(newRow, container, namePrefix);
   applyLanguage(body.dataset.lang || "en");
   return newRow;
 }
 
 function defaultEffect() {
-  return { label: "", valueType: "Numeric", numericAmount: 0, numericUnit: "Flat", boolValue: false };
+  return {
+    label: "",
+    valueType: "Numeric",
+    numericAmount: 0,
+    numericUnit: "Flat",
+    boolValue: false,
+    buffId: "",
+    buffName: "",
+    buffDurationValue: 1,
+    buffDurationUnit: "Days"
+  };
 }
 
 function setNamedFieldValue(name, value) {
-  const field = contentForm ? contentForm.querySelector(`[name="${cssEscape(name)}"]`) : null;
+  const field = document.querySelector(`[name="${cssEscape(name)}"]`);
   if (!field) return;
   if (field.type === "checkbox") {
     field.checked = Boolean(value);
@@ -556,25 +957,37 @@ function setNamedFieldValue(name, value) {
   field.value = value ?? "";
 }
 
-function setEffectRowValues(row, groupName, index, effect) {
-  const base = `AdvanceForm.${groupName}[${index}]`;
+function updateBuffSelectionDisplay(row, buffName) {
+  const selectedBuffName = row.querySelector("[data-selected-buff-name]");
+  if (!selectedBuffName) return;
+  const dictionary = translations[body.dataset.lang || "en"] || translations.en;
+  selectedBuffName.textContent = buffName || dictionary["no-buff-selected"] || "No buff selected.";
+}
+
+function setEffectRowValues(row, namePrefix, index, effect) {
+  const base = `${namePrefix}[${index}]`;
   setNamedFieldValue(`${base}.Label`, effect.label ?? "");
   setNamedFieldValue(`${base}.ValueType`, effect.valueType ?? "Numeric");
   setNamedFieldValue(`${base}.NumericAmount`, effect.numericAmount ?? 0);
   setNamedFieldValue(`${base}.NumericUnit`, effect.numericUnit ?? "Flat");
   setNamedFieldValue(`${base}.BoolValue`, String(effect.boolValue ?? false));
+  setNamedFieldValue(`${base}.BuffId`, effect.buffId ?? "");
+  setNamedFieldValue(`${base}.BuffName`, effect.buffName ?? "");
+  setNamedFieldValue(`${base}.BuffDurationValue`, effect.buffDurationValue ?? 1);
+  setNamedFieldValue(`${base}.BuffDurationUnit`, effect.buffDurationUnit ?? "Days");
+  updateBuffSelectionDisplay(row, effect.buffName ?? "");
   syncEffectRow(row);
 }
 
-function buildEffectRows(container, template, groupName, effects) {
+function buildEffectRows(container, template, namePrefix, effects) {
   if (!container || !template) return;
   container.innerHTML = "";
   const items = effects && effects.length > 0 ? effects : [defaultEffect()];
   items.forEach((effect, index) => {
-    const row = addEffectRow(container, template, groupName);
-    if (row) setEffectRowValues(row, groupName, index, effect);
+    const row = addEffectRow(container, template, namePrefix);
+    if (row) setEffectRowValues(row, namePrefix, index, effect);
   });
-  reindexEffectRows(container, groupName);
+  reindexEffectRows(container, namePrefix);
 }
 
 function bindResourceRow(row, container, reindexFn) {
@@ -940,6 +1353,10 @@ function defaultEventOption() {
   return { text: "", effects: [] };
 }
 
+function defaultSituationAction() {
+  return { name: "", requirements: "", cost: "", cooldown: "", effects: [] };
+}
+
 function bindEventOptionRow(row) {
   const removeButton = row.querySelector("[data-remove-event-option]");
   const addEffectButtonInRow = row.querySelector("[data-add-event-option-effect]");
@@ -975,16 +1392,11 @@ function bindEventOptionRow(row) {
 }
 
 function bindEventOptionEffectRow(row, container) {
-  const typeSelectInRow = row.querySelector("[data-effect-value-type]");
-  if (typeSelectInRow) typeSelectInRow.addEventListener("change", () => syncEffectRow(row));
+  bindEffectRow(row, container, "AdvanceForm.EventOptions[0].Effects");
   const removeButton = row.querySelector("[data-remove-effect]");
   if (removeButton) {
-    removeButton.addEventListener("click", () => {
-      row.remove();
-      reindexEventOptions();
-    });
+    removeButton.addEventListener("click", () => reindexEventOptions());
   }
-  syncEffectRow(row);
 }
 
 function reindexEventOptions() {
@@ -1031,7 +1443,7 @@ function addEventOptionRow(option = null) {
       effectsContainerInRow.insertAdjacentHTML("beforeend", html);
       const effectRow = effectsContainerInRow.querySelectorAll("[data-effect-row]")[effectIndex];
       bindEventOptionEffectRow(effectRow, effectsContainerInRow);
-      setEffectRowValues(effectRow, `EventOptions[${optionIndex}].Effects`, effectIndex, effect);
+      setEffectRowValues(effectRow, `AdvanceForm.EventOptions[${optionIndex}].Effects`, effectIndex, effect);
     });
   }
 
@@ -1049,6 +1461,326 @@ function buildEventOptionRows(options) {
   const items = options && options.length > 0 ? options : [defaultEventOption()];
   items.forEach((option) => addEventOptionRow(option));
   reindexEventOptions();
+}
+
+function bindSituationActionEffectRow(row, container) {
+  bindEffectRow(row, container, "AdvanceForm.SituationActions[0].Effects");
+  const removeButton = row.querySelector("[data-remove-effect]");
+  if (removeButton) {
+    removeButton.addEventListener("click", () => reindexSituationActions());
+  }
+}
+
+function bindSituationActionRow(row) {
+  const removeButton = row.querySelector("[data-remove-situation-action]");
+  const addEffectButtonInRow = row.querySelector("[data-add-situation-action-effect]");
+  const effectsContainerInRow = row.querySelector("[data-situation-action-effects-container]");
+
+  if (removeButton) {
+    removeButton.addEventListener("click", () => {
+      if (situationActionsContainer && situationActionsContainer.querySelectorAll("[data-situation-action-row]").length > 1) {
+        row.remove();
+        reindexSituationActions();
+      }
+    });
+  }
+
+  if (addEffectButtonInRow) {
+    addEffectButtonInRow.addEventListener("click", () => {
+      const actionIndex = Array.from(situationActionsContainer.querySelectorAll("[data-situation-action-row]")).indexOf(row);
+      const effectIndex = effectsContainerInRow.querySelectorAll("[data-effect-row]").length;
+      const html = situationActionEffectTemplate.innerHTML
+        .replaceAll("__ACTION_INDEX__", String(actionIndex))
+        .replaceAll("__INDEX__", String(effectIndex));
+      effectsContainerInRow.insertAdjacentHTML("beforeend", html);
+      const effectRow = effectsContainerInRow.querySelectorAll("[data-effect-row]")[effectIndex];
+      bindSituationActionEffectRow(effectRow, effectsContainerInRow);
+      reindexSituationActions();
+      applyLanguage(body.dataset.lang || "en");
+    });
+  }
+
+  if (effectsContainerInRow) {
+    effectsContainerInRow.querySelectorAll("[data-effect-row]").forEach((effectRow) => bindSituationActionEffectRow(effectRow, effectsContainerInRow));
+  }
+}
+
+function reindexSituationActions() {
+  if (!situationActionsContainer) return;
+  situationActionsContainer.querySelectorAll("[data-situation-action-row]").forEach((row, actionIndex) => {
+    row.querySelectorAll("[name]").forEach((field) => {
+      field.name = field.name
+        .replace(/AdvanceForm\.SituationActions\[\d+\]/, `AdvanceForm.SituationActions[${actionIndex}]`)
+        .replace(/\.Effects\[\d+\]/, (() => {
+          const effectRow = field.closest("[data-effect-row]");
+          const container = effectRow ? effectRow.parentElement : null;
+          const effectIndex = container ? Array.from(container.querySelectorAll("[data-effect-row]")).indexOf(effectRow) : 0;
+          return `.Effects[${effectIndex}]`;
+        })());
+    });
+    const effectsContainerInRow = row.querySelector("[data-situation-action-effects-container]");
+    if (effectsContainerInRow) {
+      effectsContainerInRow.querySelectorAll("[data-effect-row]").forEach((effectRow) => {
+        bindSituationActionEffectRow(effectRow, effectsContainerInRow);
+      });
+    }
+  });
+}
+
+function addSituationActionRow(action = null) {
+  if (!situationActionTemplate || !situationActionsContainer) return;
+  const actionIndex = situationActionsContainer.querySelectorAll("[data-situation-action-row]").length;
+  situationActionsContainer.insertAdjacentHTML("beforeend", situationActionTemplate.innerHTML.replaceAll("__ACTION_INDEX__", String(actionIndex)));
+  const row = situationActionsContainer.querySelectorAll("[data-situation-action-row]")[actionIndex];
+  bindSituationActionRow(row);
+
+  setNamedFieldValue(`AdvanceForm.SituationActions[${actionIndex}].Name`, action?.name ?? "");
+  setNamedFieldValue(`AdvanceForm.SituationActions[${actionIndex}].Requirements`, action?.requirements ?? "");
+  setNamedFieldValue(`AdvanceForm.SituationActions[${actionIndex}].Cost`, action?.cost ?? "");
+  setNamedFieldValue(`AdvanceForm.SituationActions[${actionIndex}].Cooldown`, action?.cooldown ?? "");
+
+  const effectsContainerInRow = row.querySelector("[data-situation-action-effects-container]");
+  if (effectsContainerInRow) {
+    effectsContainerInRow.innerHTML = "";
+    const effects = action ? (Array.isArray(action.effects) ? action.effects : []) : [defaultEffect()];
+    effects.forEach((effect, effectIndex) => {
+      const html = situationActionEffectTemplate.innerHTML
+        .replaceAll("__ACTION_INDEX__", String(actionIndex))
+        .replaceAll("__INDEX__", String(effectIndex));
+      effectsContainerInRow.insertAdjacentHTML("beforeend", html);
+      const effectRow = effectsContainerInRow.querySelectorAll("[data-effect-row]")[effectIndex];
+      bindSituationActionEffectRow(effectRow, effectsContainerInRow);
+      setEffectRowValues(effectRow, `AdvanceForm.SituationActions[${actionIndex}].Effects`, effectIndex, effect);
+    });
+  }
+
+  applyLanguage(body.dataset.lang || "en");
+  reindexSituationActions();
+}
+
+function buildSituationActionRows(actions) {
+  if (!situationActionsContainer) return;
+  situationActionsContainer.innerHTML = "";
+  const items = actions && actions.length > 0 ? actions : [defaultSituationAction()];
+  items.forEach((action) => addSituationActionRow(action));
+  reindexSituationActions();
+}
+
+function defaultBuff() {
+  return { id: "", name: "", effects: [defaultEffect()] };
+}
+
+function setBuffStatus(message, isError = false) {
+  if (!buffStatus) return;
+  buffStatus.textContent = message || "";
+  buffStatus.classList.toggle("is-error", isError);
+}
+
+function setBuffLibraryStatus(message, isError = false) {
+  if (!buffLibraryStatus) return;
+  buffLibraryStatus.textContent = message || "";
+  buffLibraryStatus.classList.toggle("is-error", isError);
+}
+
+function updateBuffFormMode() {
+  const dictionary = translations[body.dataset.lang || "en"] || translations.en;
+  const isEdit = Boolean(buffFormIdInput && buffFormIdInput.value);
+  if (buffFormTitle) {
+    buffFormTitle.dataset.i18n = isEdit ? "edit-buff" : "new-buff";
+    buffFormTitle.textContent = dictionary[isEdit ? "edit-buff" : "new-buff"] || (isEdit ? "Edit buff" : "New buff");
+  }
+  if (buffSaveLabel) {
+    buffSaveLabel.dataset.i18n = isEdit ? "save-buff-edit" : "save-buff";
+    buffSaveLabel.textContent = dictionary[isEdit ? "save-buff-edit" : "save-buff"] || (isEdit ? "Save changes" : "Save buff");
+  }
+  if (buffDeleteButton) {
+    buffDeleteButton.hidden = !isEdit;
+  }
+}
+
+function selectBuffForEditing(buffId) {
+  selectedBuffId = buffId || null;
+  document.querySelectorAll("[data-buff-list-item]").forEach((item) => {
+    item.classList.toggle("is-selected", item.dataset.buffId === selectedBuffId);
+  });
+}
+
+function fillBuffForm(buff) {
+  if (!buffFormIdInput || !buffNameInput) return;
+  const targetBuff = buff || defaultBuff();
+  buffFormIdInput.value = targetBuff.id || "";
+  buffNameInput.value = targetBuff.name || "";
+  buildEffectRows(buffEffectsContainer, buffEffectTemplate, "BuffForm.Effects", targetBuff.effects);
+  selectBuffForEditing(targetBuff.id || null);
+  updateBuffFormMode();
+  setBuffStatus("");
+}
+
+function openBuffEditor(buff = null) {
+  fillBuffForm(buff || defaultBuff());
+  if (buffEditorModal) buffEditorModal.show();
+}
+
+function renderBuffList() {
+  if (!buffList) return;
+  const dictionary = translations[body.dataset.lang || "en"] || translations.en;
+  buffList.innerHTML = "";
+  availableBuffs
+    .slice()
+    .sort((left, right) => (left.name || "").localeCompare(right.name || ""))
+    .forEach((buff) => {
+      const item = document.createElement("div");
+      item.className = "buff-list-item";
+      item.dataset.buffListItem = "";
+      item.dataset.buffId = buff.id;
+      item.innerHTML = `
+        <div class="buff-list-copy">
+          <strong>${escapeHtml(buff.name || "")}</strong>
+          <span>${escapeHtml((buff.effects || []).map((effect) => effect.displayText || effect.label || effect.buffName || effect.valueType || "").filter(Boolean).join(" · "))}</span>
+        </div>
+        <div class="content-chip-row">
+          <button type="button" class="material-button ghost-button small-button" data-buff-use-button>${escapeHtml(dictionary["use-buff"] || "Use buff")}</button>
+          <button type="button" class="material-button ghost-button small-button" data-buff-edit-button>${escapeHtml(dictionary["edit-buff"] || "Edit buff")}</button>
+        </div>`;
+
+      item.querySelector("[data-buff-use-button]")?.addEventListener("click", () => {
+        applyBuffToActiveRow(buff);
+        if (buffLibraryModal) buffLibraryModal.hide();
+      });
+      item.querySelector("[data-buff-edit-button]")?.addEventListener("click", () => openBuffEditor(buff));
+      buffList.appendChild(item);
+    });
+
+  if (buffEmptyState) {
+    buffEmptyState.hidden = availableBuffs.length > 0;
+  }
+
+  selectBuffForEditing(selectedBuffId);
+}
+
+function openBuffLibrary() {
+  renderBuffList();
+  setBuffLibraryStatus("");
+  if (buffLibraryModal) buffLibraryModal.show();
+}
+
+function applyBuffToActiveRow(buff) {
+  if (!activeBuffEffectRow) return;
+  const buffIdInput = activeBuffEffectRow.querySelector("[data-buff-id-input]");
+  const buffNameHiddenInput = activeBuffEffectRow.querySelector("[data-buff-name-input]");
+  if (buffIdInput) buffIdInput.value = buff.id || "";
+  if (buffNameHiddenInput) buffNameHiddenInput.value = buff.name || "";
+  updateBuffSelectionDisplay(activeBuffEffectRow, buff.name || "");
+}
+
+function buildBuffFormData() {
+  const rawData = new FormData(buffForm);
+  const normalizedData = new FormData();
+  rawData.forEach((value, key) => {
+    if (key === "__RequestVerificationToken") {
+      normalizedData.append(key, value);
+      return;
+    }
+
+    if (key === "__Invariant") {
+      const normalizedInvariant = typeof value === "string" && value.startsWith("BuffForm.")
+        ? value.slice("BuffForm.".length)
+        : value;
+      normalizedData.append(key, normalizedInvariant);
+      return;
+    }
+
+    if (key.startsWith("BuffForm.")) {
+      normalizedData.append(key.slice("BuffForm.".length), value);
+      return;
+    }
+
+    normalizedData.append(key, value);
+  });
+  return normalizedData;
+}
+
+async function saveBuffFromModal() {
+  if (!buffForm || !buffNameInput) return;
+  const isEdit = Boolean(buffFormIdInput && buffFormIdInput.value);
+  const formData = buildBuffFormData();
+  formData.append("isEdit", String(isEdit));
+  const token = buffForm.querySelector('input[name="__RequestVerificationToken"]')?.value
+    || contentForm?.querySelector('input[name="__RequestVerificationToken"]')?.value
+    || "";
+  const response = await fetch("/Planner/SaveBuffApi", {
+    method: "POST",
+    headers: {
+      "Accept": "application/json",
+      "RequestVerificationToken": token,
+      "X-Requested-With": "XMLHttpRequest"
+    },
+    body: formData
+  });
+  const responseText = await response.text();
+  let payload = null;
+  try {
+    payload = responseText ? JSON.parse(responseText) : null;
+  } catch {
+    payload = null;
+  }
+  if (!response.ok || !payload.ok) {
+    setBuffStatus((payload && payload.message) || "Buff could not be saved.", true);
+    return;
+  }
+
+  const existingIndex = availableBuffs.findIndex((buff) => buff.id === payload.buff.id);
+  if (existingIndex >= 0) {
+    availableBuffs[existingIndex] = payload.buff;
+  } else {
+    availableBuffs.push(payload.buff);
+  }
+
+  renderBuffList();
+  setBuffLibraryStatus(payload.message || "", false);
+  setBuffStatus("", false);
+  if (buffEditorModal) buffEditorModal.hide();
+}
+
+async function deleteBuffFromModal() {
+  if (!buffFormIdInput || !buffFormIdInput.value) return;
+  const formData = new FormData();
+  formData.append("buffId", buffFormIdInput.value);
+  const token = buffForm?.querySelector('input[name="__RequestVerificationToken"]')?.value
+    || contentForm?.querySelector('input[name="__RequestVerificationToken"]')?.value
+    || "";
+  const response = await fetch("/Planner/DeleteBuffApi", {
+    method: "POST",
+    headers: {
+      "Accept": "application/json",
+      "RequestVerificationToken": token,
+      "X-Requested-With": "XMLHttpRequest"
+    },
+    body: formData
+  });
+  const responseText = await response.text();
+  let payload = null;
+  try {
+    payload = responseText ? JSON.parse(responseText) : null;
+  } catch {
+    payload = null;
+  }
+  if (!response.ok || !payload.ok) {
+    setBuffStatus((payload && payload.message) || "Buff could not be deleted.", true);
+    return;
+  }
+
+  availableBuffs = availableBuffs.filter((buff) => buff.id !== payload.buffId);
+  if (activeBuffEffectRow) {
+    const selectedId = activeBuffEffectRow.querySelector("[data-buff-id-input]")?.value;
+    if (selectedId === payload.buffId) {
+      applyBuffToActiveRow({ id: "", name: "" });
+    }
+  }
+  renderBuffList();
+  setBuffLibraryStatus(payload.message || "", false);
+  fillBuffForm(defaultBuff());
+  if (buffEditorModal) buffEditorModal.hide();
 }
 
 function syncEventPrerequisites(selectedIds, currentContentId) {
@@ -1084,22 +1816,45 @@ function updateModalModeText() {
 function resetFormForAddMode() {
   if (!contentForm) return;
   const countryIdField = contentForm.querySelector('[name="AdvanceForm.CountryId"]');
-  const countryId = countryIdField ? countryIdField.value : "";
+  const countryId = countryIdField ? (countryIdField.value || EMPTY_GUID) : EMPTY_GUID;
+  const cultureGroupId = cultureGroupScopeInput ? cultureGroupScopeInput.value : "";
   contentForm.reset();
   contentForm.action = contentForm.dataset.addAction;
   contentForm.dataset.mode = "add";
+  delete contentForm.dataset.lockedType;
   if (contentIdInput) contentIdInput.value = "";
   if (countryIdField) countryIdField.value = countryId;
+  if (cultureGroupScopeInput) cultureGroupScopeInput.value = cultureGroupId;
   if (typeSelect) typeSelect.value = "Advance";
-  buildEffectRows(effectsContainer, effectTemplate, "Effects", [defaultEffect()]);
-  buildEffectRows(leftEffectsContainer, leftEffectTemplate, "LeftEffects", [defaultEffect()]);
-  buildEffectRows(rightEffectsContainer, rightEffectTemplate, "RightEffects", [defaultEffect()]);
+  buildCultureMembershipRows([""]);
+  buildEffectRows(effectsContainer, effectTemplate, "AdvanceForm.Effects", [defaultEffect()]);
+  buildEffectRows(leftEffectsContainer, leftEffectTemplate, "AdvanceForm.LeftEffects", [defaultEffect()]);
+  buildEffectRows(rightEffectsContainer, rightEffectTemplate, "AdvanceForm.RightEffects", [defaultEffect()]);
+  buildEffectRows(situationStartEffectsContainer, situationEffectTemplate, "AdvanceForm.SituationStartEffects", [defaultEffect()]);
+  buildEffectRows(situationMonthlyEffectsContainer, situationEffectTemplate, "AdvanceForm.SituationMonthlyEffects", [defaultEffect()]);
+  buildEffectRows(situationEndingEffectsContainer, situationEffectTemplate, "AdvanceForm.SituationEndingEffects", [defaultEffect()]);
+  buildEffectRows(situationEndedEffectsContainer, situationEffectTemplate, "AdvanceForm.SituationEndedEffects", [defaultEffect()]);
   buildConstructionCostRows([{ resourceName: "", amount: 0 }]);
   buildProductionMethodRows([{ name: "", inputs: [{ resourceName: "", amount: 0 }], outputs: [{ resourceName: "", amount: 0 }] }]);
   buildEventRequirementRows(null);
   buildEventOptionRows([defaultEventOption()]);
+  buildSituationActionRows([defaultSituationAction()]);
   syncEventPrerequisites([], null);
   updateModalModeText();
+  syncContentTypePanel();
+}
+
+function openCreateType(typeName) {
+  resetFormForAddMode();
+  if (contentForm) contentForm.dataset.lockedType = typeName;
+  if (typeName === "Culture" || typeName === "CultureGroup") {
+    if (cultureGroupScopeInput) cultureGroupScopeInput.value = "";
+    const countryIdField = contentForm?.querySelector('[name="AdvanceForm.CountryId"]');
+    if (countryIdField) countryIdField.value = EMPTY_GUID;
+  }
+  if (typeSelect) {
+    typeSelect.value = typeName;
+  }
   syncContentTypePanel();
 }
 
@@ -1124,17 +1879,24 @@ function applyLawSelection(content) {
   }
 }
 
-function applySelectedContentToForm(content) {
+  function applySelectedContentToForm(content) {
   if (!contentForm || !content) return;
   const countryIdField = contentForm.querySelector('[name="AdvanceForm.CountryId"]');
-  const countryId = countryIdField ? countryIdField.value : "";
+  const countryId = countryIdField ? (countryIdField.value || EMPTY_GUID) : EMPTY_GUID;
+  const cultureGroupId = cultureGroupScopeInput ? cultureGroupScopeInput.value : "";
   contentForm.reset();
   contentForm.action = contentForm.dataset.editAction;
   contentForm.dataset.mode = "edit";
+  delete contentForm.dataset.lockedType;
+  if (content.type === "Culture" || content.type === "CultureGroup") {
+    contentForm.dataset.lockedType = content.type;
+  }
   if (contentIdInput) contentIdInput.value = content.id ?? "";
-  if (countryIdField) countryIdField.value = countryId;
+  if (countryIdField) countryIdField.value = content.type === "Culture" || content.type === "CultureGroup" ? EMPTY_GUID : countryId;
+  if (cultureGroupScopeInput) cultureGroupScopeInput.value = cultureGroupId;
   if (typeSelect) typeSelect.value = content.type ?? "Advance";
   setNamedFieldValue("AdvanceForm.Name", content.name ?? "");
+  buildCultureMembershipRows(content.cultureGroupMembershipNames ?? [""]);
   setNamedFieldValue("AdvanceForm.IsMajorReform", content.isMajorReform ?? false);
   setNamedFieldValue("AdvanceForm.NobilityEstateName", content.nobilityEstateName ?? "");
   setNamedFieldValue("AdvanceForm.BurghersEstateName", content.burghersEstateName ?? "");
@@ -1162,14 +1924,24 @@ function applySelectedContentToForm(content) {
   setNamedFieldValue("AdvanceForm.EventYearEnd", content.eventYearEnd ?? "");
   setNamedFieldValue("AdvanceForm.EventTriggerMode", content.eventTriggerMode ?? "MonthlyChance");
   setNamedFieldValue("AdvanceForm.EventMonthlyChance", content.eventMonthlyChance ?? 0);
+  setNamedFieldValue("AdvanceForm.SituationDescription", content.situationDescription ?? "");
+  setNamedFieldValue("AdvanceForm.SituationCanStart", content.situationCanStart ?? "");
+  setNamedFieldValue("AdvanceForm.SituationVisible", content.situationVisible ?? "");
+  setNamedFieldValue("AdvanceForm.SituationCanEnd", content.situationCanEnd ?? "");
+  setNamedFieldValue("AdvanceForm.SituationMonthlySpawnChance", content.situationMonthlySpawnChance ?? "");
   applyLawSelection(content);
-  buildEffectRows(effectsContainer, effectTemplate, "Effects", content.effects);
-  buildEffectRows(leftEffectsContainer, leftEffectTemplate, "LeftEffects", content.leftEffects);
-  buildEffectRows(rightEffectsContainer, rightEffectTemplate, "RightEffects", content.rightEffects);
+  buildEffectRows(effectsContainer, effectTemplate, "AdvanceForm.Effects", content.effects);
+  buildEffectRows(leftEffectsContainer, leftEffectTemplate, "AdvanceForm.LeftEffects", content.leftEffects);
+  buildEffectRows(rightEffectsContainer, rightEffectTemplate, "AdvanceForm.RightEffects", content.rightEffects);
+  buildEffectRows(situationStartEffectsContainer, situationEffectTemplate, "AdvanceForm.SituationStartEffects", content.situationStartEffects);
+  buildEffectRows(situationMonthlyEffectsContainer, situationEffectTemplate, "AdvanceForm.SituationMonthlyEffects", content.situationMonthlyEffects);
+  buildEffectRows(situationEndingEffectsContainer, situationEffectTemplate, "AdvanceForm.SituationEndingEffects", content.situationEndingEffects);
+  buildEffectRows(situationEndedEffectsContainer, situationEffectTemplate, "AdvanceForm.SituationEndedEffects", content.situationEndedEffects);
   buildConstructionCostRows(content.constructionCosts);
   buildProductionMethodRows(content.productionMethods);
   buildEventRequirementRows(content.eventRequirementTree ?? content.eventRequirements);
   buildEventOptionRows(content.eventOptions);
+  buildSituationActionRows(content.situationActions);
   syncEventPrerequisites(content.eventPrerequisiteIds ?? [], content.id ?? null);
   updateModalModeText();
   syncContentTypePanel();
@@ -1183,15 +1955,18 @@ function cssEscape(value) {
 const savedLanguage = localStorage.getItem("planner-language") || "en";
 const savedTheme = localStorage.getItem("planner-theme") || "dark";
 if (contentForm) contentForm.dataset.mode = "add";
+if (buffForm) fillBuffForm(defaultBuff());
 
 applyLanguage(savedLanguage);
 applyTheme(savedTheme);
 syncContentTypePanel();
 buildEventRequirementRows(null);
+renderBuffList();
 
 languageButtons.forEach((button) => button.addEventListener("click", () => applyLanguage(button.dataset.language)));
 if (themeToggle) themeToggle.addEventListener("click", () => applyTheme(body.classList.contains("theme-dark") ? "light" : "dark"));
 if (addContentButton) addContentButton.addEventListener("click", resetFormForAddMode);
+createTypeButtons.forEach((button) => button.addEventListener("click", () => openCreateType(button.dataset.createType || "Advance")));
 if (editContentButton) editContentButton.addEventListener("click", () => applySelectedContentToForm(selectedContentData));
 if (typeSelect) typeSelect.addEventListener("change", syncContentTypePanel);
 if (canPromoteToggle) canPromoteToggle.addEventListener("change", syncPromotionSpeed);
@@ -1201,19 +1976,66 @@ if (lawCategorySelect) lawCategorySelect.addEventListener("change", () => { rebu
 if (lawSubcategorySelect) lawSubcategorySelect.addEventListener("change", syncLawFields);
 if (lawEstateSelect) lawEstateSelect.addEventListener("change", syncLawFields);
 
-if (effectsContainer) effectsContainer.querySelectorAll("[data-effect-row]").forEach((row) => bindEffectRow(row, effectsContainer, "Effects"));
-if (leftEffectsContainer) leftEffectsContainer.querySelectorAll("[data-effect-row]").forEach((row) => bindEffectRow(row, leftEffectsContainer, "LeftEffects"));
-if (rightEffectsContainer) rightEffectsContainer.querySelectorAll("[data-effect-row]").forEach((row) => bindEffectRow(row, rightEffectsContainer, "RightEffects"));
+if (effectsContainer) effectsContainer.querySelectorAll("[data-effect-row]").forEach((row) => bindEffectRow(row, effectsContainer, "AdvanceForm.Effects"));
+if (leftEffectsContainer) leftEffectsContainer.querySelectorAll("[data-effect-row]").forEach((row) => bindEffectRow(row, leftEffectsContainer, "AdvanceForm.LeftEffects"));
+if (rightEffectsContainer) rightEffectsContainer.querySelectorAll("[data-effect-row]").forEach((row) => bindEffectRow(row, rightEffectsContainer, "AdvanceForm.RightEffects"));
+if (situationStartEffectsContainer) situationStartEffectsContainer.querySelectorAll("[data-effect-row]").forEach((row) => bindEffectRow(row, situationStartEffectsContainer, "AdvanceForm.SituationStartEffects"));
+if (situationMonthlyEffectsContainer) situationMonthlyEffectsContainer.querySelectorAll("[data-effect-row]").forEach((row) => bindEffectRow(row, situationMonthlyEffectsContainer, "AdvanceForm.SituationMonthlyEffects"));
+if (situationEndingEffectsContainer) situationEndingEffectsContainer.querySelectorAll("[data-effect-row]").forEach((row) => bindEffectRow(row, situationEndingEffectsContainer, "AdvanceForm.SituationEndingEffects"));
+if (situationEndedEffectsContainer) situationEndedEffectsContainer.querySelectorAll("[data-effect-row]").forEach((row) => bindEffectRow(row, situationEndedEffectsContainer, "AdvanceForm.SituationEndedEffects"));
+if (buffEffectsContainer) buffEffectsContainer.querySelectorAll("[data-effect-row]").forEach((row) => bindEffectRow(row, buffEffectsContainer, "BuffForm.Effects"));
+if (cultureMembershipContainer) cultureMembershipContainer.querySelectorAll("[data-culture-membership-row]").forEach((row) => bindCultureMembershipRow(row));
 if (constructionCostsContainer) constructionCostsContainer.querySelectorAll("[data-resource-row]").forEach((row) => bindResourceRow(row, constructionCostsContainer, reindexConstructionCosts));
 if (productionMethodsContainer) productionMethodsContainer.querySelectorAll("[data-production-method-row]").forEach((row) => bindProductionMethodRow(row));
 if (eventOptionsContainer) eventOptionsContainer.querySelectorAll("[data-event-option-row]").forEach((row) => bindEventOptionRow(row));
+if (situationActionsContainer) situationActionsContainer.querySelectorAll("[data-situation-action-row]").forEach((row) => bindSituationActionRow(row));
 
-if (addEffectButton) addEffectButton.addEventListener("click", () => { addEffectRow(effectsContainer, effectTemplate, "Effects"); reindexEffectRows(effectsContainer, "Effects"); });
-if (addLeftEffectButton) addLeftEffectButton.addEventListener("click", () => { addEffectRow(leftEffectsContainer, leftEffectTemplate, "LeftEffects"); reindexEffectRows(leftEffectsContainer, "LeftEffects"); });
-if (addRightEffectButton) addRightEffectButton.addEventListener("click", () => { addEffectRow(rightEffectsContainer, rightEffectTemplate, "RightEffects"); reindexEffectRows(rightEffectsContainer, "RightEffects"); });
+if (addEffectButton) addEffectButton.addEventListener("click", () => { addEffectRow(effectsContainer, effectTemplate, "AdvanceForm.Effects"); reindexEffectRows(effectsContainer, "AdvanceForm.Effects"); });
+if (addLeftEffectButton) addLeftEffectButton.addEventListener("click", () => { addEffectRow(leftEffectsContainer, leftEffectTemplate, "AdvanceForm.LeftEffects"); reindexEffectRows(leftEffectsContainer, "AdvanceForm.LeftEffects"); });
+if (addRightEffectButton) addRightEffectButton.addEventListener("click", () => { addEffectRow(rightEffectsContainer, rightEffectTemplate, "AdvanceForm.RightEffects"); reindexEffectRows(rightEffectsContainer, "AdvanceForm.RightEffects"); });
+if (addSituationStartEffectButton) addSituationStartEffectButton.addEventListener("click", () => { addEffectRow(situationStartEffectsContainer, situationEffectTemplate, "AdvanceForm.SituationStartEffects"); reindexEffectRows(situationStartEffectsContainer, "AdvanceForm.SituationStartEffects"); });
+if (addSituationMonthlyEffectButton) addSituationMonthlyEffectButton.addEventListener("click", () => { addEffectRow(situationMonthlyEffectsContainer, situationEffectTemplate, "AdvanceForm.SituationMonthlyEffects"); reindexEffectRows(situationMonthlyEffectsContainer, "AdvanceForm.SituationMonthlyEffects"); });
+if (addSituationEndingEffectButton) addSituationEndingEffectButton.addEventListener("click", () => { addEffectRow(situationEndingEffectsContainer, situationEffectTemplate, "AdvanceForm.SituationEndingEffects"); reindexEffectRows(situationEndingEffectsContainer, "AdvanceForm.SituationEndingEffects"); });
+if (addSituationEndedEffectButton) addSituationEndedEffectButton.addEventListener("click", () => { addEffectRow(situationEndedEffectsContainer, situationEffectTemplate, "AdvanceForm.SituationEndedEffects"); reindexEffectRows(situationEndedEffectsContainer, "AdvanceForm.SituationEndedEffects"); });
+if (addBuffEffectButton) addBuffEffectButton.addEventListener("click", () => { addEffectRow(buffEffectsContainer, buffEffectTemplate, "BuffForm.Effects"); reindexEffectRows(buffEffectsContainer, "BuffForm.Effects"); });
+if (addCultureMembershipButton) addCultureMembershipButton.addEventListener("click", () => addCultureMembershipRow(""));
+if (addSituationActionButton) addSituationActionButton.addEventListener("click", () => addSituationActionRow(defaultSituationAction()));
 if (addConstructionCostButton) addConstructionCostButton.addEventListener("click", () => { addConstructionCostRow(); reindexConstructionCosts(); });
 if (addProductionMethodButton) addProductionMethodButton.addEventListener("click", () => addProductionMethodRow());
 if (addEventOptionButton) addEventOptionButton.addEventListener("click", () => addEventOptionRow(defaultEventOption()));
+if (buffNewButton) buffNewButton.addEventListener("click", () => openBuffEditor(defaultBuff()));
+if (buffSaveButton) buffSaveButton.addEventListener("click", () => { saveBuffFromModal().catch(() => setBuffStatus("Buff could not be saved.", true)); });
+if (buffDeleteButton) buffDeleteButton.addEventListener("click", () => { deleteBuffFromModal().catch(() => setBuffStatus("Buff could not be deleted.", true)); });
+
+if (buffLibraryModalElement) {
+  buffLibraryModalElement.addEventListener("show.bs.modal", () => {
+    addContentModalElement?.classList.add("modal-parent-dimmed");
+    window.setTimeout(() => {
+      const backdrops = document.querySelectorAll(".modal-backdrop");
+      const latestBackdrop = backdrops[backdrops.length - 1];
+      latestBackdrop?.classList.add("buff-modal-backdrop");
+    }, 0);
+  });
+
+  buffLibraryModalElement.addEventListener("hidden.bs.modal", () => {
+    addContentModalElement?.classList.remove("modal-parent-dimmed");
+  });
+}
+
+if (buffEditorModalElement) {
+  buffEditorModalElement.addEventListener("show.bs.modal", () => {
+    buffLibraryModalElement?.classList.add("modal-parent-dimmed");
+    window.setTimeout(() => {
+      const backdrops = document.querySelectorAll(".modal-backdrop");
+      const latestBackdrop = backdrops[backdrops.length - 1];
+      latestBackdrop?.classList.add("buff-modal-backdrop");
+    }, 0);
+  });
+
+  buffEditorModalElement.addEventListener("hidden.bs.modal", () => {
+    buffLibraryModalElement?.classList.remove("modal-parent-dimmed");
+  });
+}
 
 if (eventRequirementBuilder) {
   eventRequirementBuilder.addEventListener("click", (event) => {
@@ -1302,3 +2124,66 @@ if (eventRequirementBuilder) {
     renderRequirementTree();
   });
 }
+
+const userForm = document.querySelector("[data-user-form]");
+const userFormIdInput = document.querySelector("[data-user-form-id]");
+const userFormUsernameInput = document.querySelector("[data-user-form-username]");
+const userFormDisplayNameInput = document.querySelector("[data-user-form-display-name]");
+const userFormRoleInput = document.querySelector("[data-user-form-role]");
+const userFormPasswordInput = document.querySelector("[data-user-form-password]");
+const userFormConfirmPasswordInput = document.querySelector("[data-user-form-confirm-password]");
+const userFormTitle = document.querySelector("[data-user-form-title]");
+const userFormSubmitButton = document.querySelector("[data-user-form-submit]");
+const userEditButtons = document.querySelectorAll("[data-user-edit-button]");
+const userNewButton = document.querySelector("[data-user-new-button]");
+
+function resetUserForm() {
+  const dictionary = translations[body.dataset.lang || "en"] || translations.en;
+  if (userFormIdInput) userFormIdInput.value = "";
+  if (userFormUsernameInput) userFormUsernameInput.value = "";
+  if (userFormDisplayNameInput) userFormDisplayNameInput.value = "";
+  if (userFormRoleInput) userFormRoleInput.value = "Viewer";
+  if (userFormPasswordInput) userFormPasswordInput.value = "";
+  if (userFormConfirmPasswordInput) userFormConfirmPasswordInput.value = "";
+  if (userFormTitle) {
+    userFormTitle.dataset.i18n = "new-user";
+    userFormTitle.textContent = dictionary["new-user"] || "New user";
+  }
+  if (userFormSubmitButton) {
+    userFormSubmitButton.dataset.i18n = "create-user";
+    userFormSubmitButton.textContent = dictionary["create-user"] || "Create user";
+  }
+}
+
+function populateUserForm(button) {
+  const dictionary = translations[body.dataset.lang || "en"] || translations.en;
+  if (userFormIdInput) userFormIdInput.value = button.dataset.userId || "";
+  if (userFormUsernameInput) userFormUsernameInput.value = button.dataset.userUsername || "";
+  if (userFormDisplayNameInput) userFormDisplayNameInput.value = button.dataset.userDisplayName || "";
+  if (userFormRoleInput) userFormRoleInput.value = button.dataset.userRole || "Viewer";
+  if (userFormPasswordInput) userFormPasswordInput.value = "";
+  if (userFormConfirmPasswordInput) userFormConfirmPasswordInput.value = "";
+  if (userFormTitle) {
+    userFormTitle.dataset.i18n = "edit-user";
+    userFormTitle.textContent = dictionary["edit-user"] || "Edit user";
+  }
+  if (userFormSubmitButton) {
+    userFormSubmitButton.dataset.i18n = "update-user";
+    userFormSubmitButton.textContent = dictionary["update-user"] || "Update user";
+  }
+}
+
+if (userNewButton) {
+  userNewButton.addEventListener("click", resetUserForm);
+}
+
+if (userEditButtons.length > 0) {
+  userEditButtons.forEach((button) => {
+    button.addEventListener("click", () => populateUserForm(button));
+  });
+}
+
+if (userForm) {
+  resetUserForm();
+}
+

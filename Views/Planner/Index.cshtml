@@ -11,81 +11,521 @@
         .Where(entry => entry.Type == Eu5ModPlanner.Models.ContentType.Event)
         .OrderBy(entry => entry.Name)
         .ToList();
+    var availableCultureGroups = Model.AvailableCultureGroups
+        .OrderBy(entry => entry.Name)
+        .ToList();
 }
 
-<section class="planner-shell">
-    <aside class="planner-pane pane-countries">
-        <div class="pane-header">
-            <div>
-                <p class="pane-kicker" data-i18n="countries-kicker">Countries</p>
-                <h1 data-i18n="countries-title">Available tags</h1>
-            </div>
-            <button type="button" class="icon-button" data-bs-toggle="modal" data-bs-target="#addCountryModal" aria-label="Add country">
-                +
-            </button>
-        </div>
-
-        @if (Model.Countries.Count == 0)
+<div class="auth-banner">
+    <div class="auth-banner-copy">
+        @if (Model.HasWriteAccess)
         {
-            <div class="empty-panel">
-                <p data-i18n="countries-empty">No countries yet. Add your first tag to begin.</p>
-            </div>
+            <strong data-i18n="auth-write-title">Write access enabled</strong>
+            @if (Model.IsAuthenticatedUser)
+            {
+                <span>@Model.CurrentUserDisplayName (@Model.CurrentUserRoleName) - <span data-i18n="auth-write-copy">You can add, edit, and delete content.</span></span>
+            }
+            else
+            {
+                <span data-i18n="auth-write-copy">You can add, edit, and delete content.</span>
+            }
+        }
+        else if (Model.HasAnyAccounts)
+        {
+            <strong data-i18n="auth-readonly-title">Read-only mode</strong>
+            <span data-i18n="auth-readonly-copy">Browsing is public. Sign in to edit the database.</span>
         }
         else
         {
-            <div class="country-stack">
-                @foreach (var country in Model.Countries)
-                {
-                    var isSelected = Model.SelectedCountry?.Id == country.Id;
-                    <a class="country-tile @(isSelected ? "is-selected" : null)"
-                       asp-action="Index"
-                       asp-route-countryId="@country.Id">
-                        <div class="country-tag">@country.Tag</div>
-                        <div class="country-copy">
-                            <strong>@country.Name</strong>
-                            <span>@country.ContentEntryIds.Count <span data-i18n="content-label-inline">entries</span></span>
+            <strong data-i18n="auth-unconfigured-title">Read-only mode</strong>
+            <span data-i18n="auth-unconfigured-copy">No active user accounts are configured yet, so editing is disabled.</span>
+        }
+    </div>
+    <div class="content-chip-row">
+        @if (Model.CanManageWriteAccess && Model.HasWriteAccess)
+        {
+            <form asp-action="Logout" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="library" value="@Model.ActiveLibrary" />
+                <input type="hidden" name="countryId" value="@Model.SelectedCountry?.Id" />
+                <input type="hidden" name="cultureId" value="@Model.SelectedCulture?.Id" />
+                <input type="hidden" name="cultureGroupId" value="@Model.SelectedCultureGroup?.Id" />
+                <input type="hidden" name="contentId" value="@Model.SelectedContent?.Id" />
+                <button type="submit" class="material-button ghost-button">
+                    <span data-i18n="auth-logout">Sign out</span>
+                </button>
+            </form>
+        }
+        else if (Model.CanManageWriteAccess)
+        {
+            <button type="button" class="material-button primary-button" data-bs-toggle="modal" data-bs-target="#loginModal">
+                <span data-i18n="auth-login">Sign in</span>
+            </button>
+        }
+        @if (Model.CanManageUsers)
+        {
+            <button type="button" class="material-button ghost-button" data-bs-toggle="modal" data-bs-target="#usersModal">
+                <span data-i18n="auth-manage-users">Manage users</span>
+            </button>
+        }
+    </div>
+</div>
+
+<div class="modal fade" id="buffLibraryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content planner-modal">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" data-i18n="buff-library-title">Buff library</h2>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="buff-library-panel">
+                    <div class="effects-editor-header">
+                        <h3 data-i18n="available-buffs">Available buffs</h3>
+                        <button type="button" class="material-button primary-button small-button" data-buff-new-button>
+                            <span data-i18n="new-buff">New buff</span>
+                        </button>
+                    </div>
+                    <div class="buff-library-list" data-buff-list></div>
+                    <p class="helper-copy" data-buff-empty-state data-i18n="buff-library-empty">No buffs yet. Create the first one here.</p>
+                </div>
+            </div>
+            <div class="modal-footer buff-library-footer">
+                <span class="helper-copy" data-buff-library-status></span>
+                <button type="button" class="material-button ghost-button" data-bs-dismiss="modal" data-i18n="cancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="buffEditorModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content planner-modal">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" data-buff-form-title data-i18n="new-buff">New buff</h2>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="buffForm" class="effects-editor">
+                @Html.AntiForgeryToken()
+                <input asp-for="BuffForm.Id" type="hidden" data-buff-form-id />
+                <div class="modal-body modal-form">
+                    <label>
+                        <span data-i18n="buff-name">Buff name</span>
+                        <input asp-for="BuffForm.Name" class="form-control" data-buff-name-input data-i18n-placeholder="buff-name-placeholder" />
+                    </label>
+                    <div class="effects-editor">
+                        <div class="effects-editor-header">
+                            <h3 data-i18n="effects-title">Effects</h3>
+                            <button type="button" class="material-button ghost-button" data-add-buff-effect>
+                                <span data-i18n="add-effect">Add effect</span>
+                            </button>
                         </div>
-                    </a>
+                        <div data-buff-effects-container></div>
+                    </div>
+                </div>
+                <div class="modal-footer buff-editor-footer">
+                    <span class="helper-copy" data-buff-status></span>
+                    <div class="content-chip-row">
+                        <button type="button" class="material-button danger-button" data-buff-delete-button hidden>
+                            <span data-i18n="delete-buff">Delete buff</span>
+                        </button>
+                        <button type="button" class="material-button ghost-button" data-bs-dismiss="modal" data-i18n="cancel">Cancel</button>
+                        <button type="button" class="material-button primary-button" data-buff-save-button>
+                            <span data-buff-save-label data-i18n="save-buff">Save buff</span>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<section class="planner-shell">
+    <aside class="planner-pane pane-countries">
+        <div class="pane-header pane-header-stacked">
+            <div>
+                <p class="pane-kicker" data-i18n="library-kicker">Library</p>
+                <h1>
+                    @if (Model.ActiveLibrary == "CultureGroups")
+                    {
+                        <span data-i18n="culture-groups-title">Culture Groups</span>
+                    }
+                    else if (Model.ActiveLibrary == "Cultures")
+                    {
+                        <span data-i18n="cultures-title">Cultures</span>
+                    }
+                    else
+                    {
+                        <span data-i18n="countries-title">Tags</span>
+                    }
+                </h1>
+            </div>
+            <div class="segmented-control library-switcher">
+                <a class="segment @(Model.ActiveLibrary == "Countries" ? "is-active" : null)" asp-action="Index" asp-route-library="Countries" data-i18n="countries-title">Tags</a>
+                <a class="segment @(Model.ActiveLibrary == "CultureGroups" ? "is-active" : null)" asp-action="Index" asp-route-library="CultureGroups" data-i18n="culture-groups-title">Culture Groups</a>
+                <a class="segment @(Model.ActiveLibrary == "Cultures" ? "is-active" : null)" asp-action="Index" asp-route-library="Cultures" data-i18n="cultures-title">Cultures</a>
+            </div>
+        </div>
+
+        @if (Model.ActiveLibrary == "Countries")
+        {
+            <div class="pane-header-actions">
+                @if (Model.HasWriteAccess)
+                {
+                    <button type="button" class="material-button primary-button" data-bs-toggle="modal" data-bs-target="#addCountryModal">
+                        <span data-i18n="add-tag">Add tag</span>
+                    </button>
+                }
+                @if (Model.ArchivedCountries.Count > 0)
+                {
+                    <button type="button" class="material-button ghost-button small-button" data-bs-toggle="modal" data-bs-target="#archivedCountriesModal">
+                        <span data-i18n="archived-tags-button">Archived tags</span>
+                    </button>
                 }
             </div>
+
+            @if (Model.Countries.Count == 0)
+            {
+                <div class="empty-panel">
+                    <p data-i18n="countries-empty">No countries yet. Add your first tag to begin.</p>
+                </div>
+            }
+            else if (Model.ActiveCountries.Count > 0)
+            {
+                <div class="country-section">
+                    <div class="country-stack">
+                        @foreach (var country in Model.ActiveCountries)
+                        {
+                            var isSelected = Model.SelectedCountry?.Id == country.Id;
+                            <a class="country-tile @(isSelected ? "is-selected" : null)"
+                               asp-action="Index"
+                               asp-route-library="Countries"
+                               asp-route-countryId="@country.Id">
+                                <div class="country-tag">@country.Tag</div>
+                                <div class="country-copy">
+                                    <strong>@country.Name</strong>
+                                    <span>@country.ContentEntryIds.Count <span data-i18n="content-label-inline">entries</span></span>
+                                </div>
+                            </a>
+                        }
+                    </div>
+                </div>
+            }
+
+            @if (Model.SelectedCountry is not null)
+            {
+                <div class="selected-country-card">
+                    <div class="detail-topline">
+                        <div class="country-copy">
+                            <span class="pane-kicker" data-i18n="selected-country-kicker">Selected tag</span>
+                            <strong>@Model.SelectedCountry.Name</strong>
+                            <span>@Model.SelectedCountry.Tag</span>
+                        </div>
+                        <div class="content-chip-row">
+                            <span class="type-chip @(Model.SelectedCountry.IsArchived ? "archived-chip" : null)"
+                                  data-i18n="@(Model.SelectedCountry.IsArchived ? "country-status-archived" : "country-status-active")">
+                                @(Model.SelectedCountry.IsArchived ? "Archived" : "Active")
+                            </span>
+                        </div>
+                    </div>
+                    @if (Model.HasWriteAccess)
+                    {
+                        <div class="content-chip-row">
+                            <button type="button" class="material-button ghost-button" data-bs-toggle="modal" data-bs-target="#editCountryModal">
+                                <span data-i18n="edit-country">Edit tag</span>
+                            </button>
+                            @if (Model.SelectedCountry.IsArchived)
+                            {
+                                <form asp-action="RestoreCountry" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="countryId" value="@Model.SelectedCountry.Id" />
+                                    <button type="submit" class="material-button primary-button">
+                                        <span data-i18n="restore-country">Restore tag</span>
+                                    </button>
+                                </form>
+                            }
+                            else
+                            {
+                                <form asp-action="ArchiveCountry" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="countryId" value="@Model.SelectedCountry.Id" />
+                                    <button type="submit" class="material-button danger-button">
+                                        <span data-i18n="archive-country">Archive tag</span>
+                                    </button>
+                                </form>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        }
+        else if (Model.ActiveLibrary == "CultureGroups")
+        {
+            <div class="pane-header-actions">
+                @if (Model.HasWriteAccess)
+                {
+                    <button type="button" class="material-button primary-button" data-bs-toggle="modal" data-bs-target="#addContentModal" data-create-type="CultureGroup">
+                        <span data-i18n="add-culture-group">Add culture group</span>
+                    </button>
+                }
+                @if (Model.ArchivedCultureGroups.Count > 0)
+                {
+                    <button type="button" class="material-button ghost-button small-button" data-bs-toggle="modal" data-bs-target="#archivedCultureGroupsModal">
+                        <span data-i18n="archived-culture-groups-button">Archived culture groups</span>
+                    </button>
+                }
+            </div>
+
+            @if (Model.AvailableCultureGroups.Count == 0)
+            {
+                <div class="empty-panel">
+                    <p data-i18n="culture-groups-empty">No culture groups exist yet.</p>
+                </div>
+            }
+            else
+            {
+                <div class="country-stack">
+                    @foreach (var group in Model.AvailableCultureGroups)
+                    {
+                        var isSelectedGroup = Model.SelectedCultureGroup?.Id == group.Id;
+                        <a class="country-tile @(isSelectedGroup ? "is-selected" : null)"
+                           asp-action="Index"
+                           asp-route-library="CultureGroups"
+                           asp-route-cultureGroupId="@group.Id">
+                            <div class="country-tag">CG</div>
+                            <div class="country-copy">
+                                <strong>@group.Name</strong>
+                                <span>@group.CultureGroupContentEntryIds.Count <span data-i18n="content-label-inline">entries</span></span>
+                            </div>
+                        </a>
+                    }
+                </div>
+            }
+
+            @if (Model.SelectedCultureGroup is not null)
+            {
+                <div class="selected-country-card">
+                    <div class="detail-topline">
+                        <div class="country-copy">
+                            <span class="pane-kicker" data-i18n="selected-culture-group-kicker">Selected culture group</span>
+                            <strong>@Model.SelectedCultureGroup.Name</strong>
+                            <span>@Model.SelectedCultureGroup.CultureGroupContentEntryIds.Count <span data-i18n="content-label-inline">entries</span></span>
+                        </div>
+                        <div class="content-chip-row">
+                            <span class="type-chip @(Model.SelectedCultureGroup.IsArchived ? "archived-chip" : null)"
+                                  data-i18n="@(Model.SelectedCultureGroup.IsArchived ? "country-status-archived" : "country-status-active")">
+                                @(Model.SelectedCultureGroup.IsArchived ? "Archived" : "Active")
+                            </span>
+                        </div>
+                    </div>
+                    @if (Model.HasWriteAccess)
+                    {
+                        <div class="content-chip-row">
+                            <button type="button" class="material-button ghost-button" data-edit-content-button data-bs-toggle="modal" data-bs-target="#addContentModal">
+                                <span data-i18n="edit-culture-group">Edit culture group</span>
+                            </button>
+                            @if (Model.SelectedCultureGroup.IsArchived)
+                            {
+                                <form asp-action="RestoreLibraryEntry" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="library" value="@Model.ActiveLibrary" />
+                                    <input type="hidden" name="contentId" value="@Model.SelectedCultureGroup.Id" />
+                                    <button type="submit" class="material-button primary-button">
+                                        <span data-i18n="restore-culture-group">Restore culture group</span>
+                                    </button>
+                                </form>
+                            }
+                            else
+                            {
+                                <form asp-action="ArchiveLibraryEntry" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="library" value="@Model.ActiveLibrary" />
+                                    <input type="hidden" name="contentId" value="@Model.SelectedCultureGroup.Id" />
+                                    <button type="submit" class="material-button danger-button">
+                                        <span data-i18n="archive-culture-group">Archive culture group</span>
+                                    </button>
+                                </form>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        }
+        else
+        {
+            <div class="pane-header-actions">
+                @if (Model.HasWriteAccess)
+                {
+                    <button type="button" class="material-button primary-button" data-bs-toggle="modal" data-bs-target="#addContentModal" data-create-type="Culture">
+                        <span data-i18n="add-culture">Add culture</span>
+                    </button>
+                }
+                @if (Model.ArchivedCultures.Count > 0)
+                {
+                    <button type="button" class="material-button ghost-button small-button" data-bs-toggle="modal" data-bs-target="#archivedCulturesModal">
+                        <span data-i18n="archived-cultures-button">Archived cultures</span>
+                    </button>
+                }
+            </div>
+
+            @if (Model.AvailableCultures.Count == 0)
+            {
+                <div class="empty-panel">
+                    <p data-i18n="cultures-empty">No cultures exist yet.</p>
+                </div>
+            }
+            else
+            {
+                <div class="country-stack">
+                    @foreach (var culture in Model.AvailableCultures)
+                    {
+                        var isSelectedCulture = Model.SelectedCulture?.Id == culture.Id;
+                        <a class="country-tile @(isSelectedCulture ? "is-selected" : null)"
+                           asp-action="Index"
+                           asp-route-library="Cultures"
+                           asp-route-cultureId="@culture.Id">
+                            <div class="country-tag">CU</div>
+                            <div class="country-copy">
+                                <strong>@culture.Name</strong>
+                                <span>@culture.CultureGroupNames.Count <span data-i18n="culture-group-memberships">groups</span></span>
+                            </div>
+                        </a>
+                    }
+                </div>
+            }
+
+            @if (Model.SelectedCulture is not null)
+            {
+                <div class="selected-country-card">
+                    <div class="detail-topline">
+                        <div class="country-copy">
+                            <span class="pane-kicker" data-i18n="selected-culture-kicker">Selected culture</span>
+                            <strong>@Model.SelectedCulture.Name</strong>
+                            <span>@Model.SelectedCulture.CultureGroupNames.Count <span data-i18n="culture-group-memberships">groups</span></span>
+                        </div>
+                        <div class="content-chip-row">
+                            <span class="type-chip @(Model.SelectedCulture.IsArchived ? "archived-chip" : null)"
+                                  data-i18n="@(Model.SelectedCulture.IsArchived ? "country-status-archived" : "country-status-active")">
+                                @(Model.SelectedCulture.IsArchived ? "Archived" : "Active")
+                            </span>
+                        </div>
+                    </div>
+                    <div class="effect-detail-list">
+                        @foreach (var groupName in Model.SelectedCulture.CultureGroupNames)
+                        {
+                            <div class="effect-detail-item">@groupName</div>
+                        }
+                    </div>
+                    @if (Model.HasWriteAccess)
+                    {
+                        <div class="content-chip-row">
+                            <button type="button" class="material-button ghost-button" data-edit-content-button data-bs-toggle="modal" data-bs-target="#addContentModal">
+                                <span data-i18n="edit-culture">Edit culture</span>
+                            </button>
+                            @if (Model.SelectedCulture.IsArchived)
+                            {
+                                <form asp-action="RestoreLibraryEntry" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="library" value="@Model.ActiveLibrary" />
+                                    <input type="hidden" name="contentId" value="@Model.SelectedCulture.Id" />
+                                    <button type="submit" class="material-button primary-button">
+                                        <span data-i18n="restore-culture">Restore culture</span>
+                                    </button>
+                                </form>
+                            }
+                            else
+                            {
+                                <form asp-action="ArchiveLibraryEntry" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="library" value="@Model.ActiveLibrary" />
+                                    <input type="hidden" name="contentId" value="@Model.SelectedCulture.Id" />
+                                    <button type="submit" class="material-button danger-button">
+                                        <span data-i18n="archive-culture">Archive culture</span>
+                                    </button>
+                                </form>
+                            }
+                        </div>
+                    }
+                </div>
+            }
         }
     </aside>
 
     <section class="planner-pane pane-content">
         <div class="pane-header">
             <div>
-                <p class="pane-kicker" data-i18n="content-kicker">Country content</p>
+                <p class="pane-kicker" data-i18n="@(Model.ActiveLibrary == "CultureGroups" ? "culture-group-content-kicker" : Model.ActiveLibrary == "Cultures" ? "cultures-title" : "content-kicker")">Country content</p>
                 <h2>
-                    @if (Model.SelectedCountry is null)
+                    @if (Model.ActiveLibrary == "Countries")
                     {
-                        <span data-i18n="content-title-empty">Pick a country</span>
+                        @if (Model.SelectedCountry is null)
+                        {
+                            <span data-i18n="content-title-empty">Pick a country</span>
+                        }
+                        else
+                        {
+                            <span>@Model.SelectedCountry.Tag</span>
+                        }
+                    }
+                    else if (Model.ActiveLibrary == "CultureGroups")
+                    {
+                        @if (Model.SelectedCultureGroup is null)
+                        {
+                            <span data-i18n="culture-groups-title">Culture Groups</span>
+                        }
+                        else
+                        {
+                            <span>@Model.SelectedCultureGroup.Name</span>
+                        }
                     }
                     else
                     {
-                        <span>@Model.SelectedCountry.Tag</span>
+                        @if (Model.SelectedCulture is null)
+                        {
+                            <span data-i18n="cultures-title">Cultures</span>
+                        }
+                        else
+                        {
+                            <span>@Model.SelectedCulture.Name</span>
+                        }
                     }
                 </h2>
             </div>
-            <button type="button"
-                    class="material-button primary-button"
-                    data-bs-toggle="modal"
-                    data-bs-target="#addContentModal"
-                    data-add-content-button
-                    disabled="@(Model.SelectedCountry is null)">
-                <span data-i18n="add-content">Add content</span>
-            </button>
+            @if (Model.ActiveLibrary != "Cultures")
+            {
+                <button type="button"
+                        class="material-button primary-button"
+                        data-bs-toggle="modal"
+                        data-bs-target="#addContentModal"
+                        data-add-content-button
+                        disabled="@(((Model.ActiveLibrary == "Countries" && Model.SelectedCountry is null) || (Model.ActiveLibrary == "CultureGroups" && Model.SelectedCultureGroup is null)) || !Model.HasWriteAccess)">
+                    <span data-i18n="add-content">Add content</span>
+                </button>
+            }
         </div>
 
-        @if (Model.SelectedCountry is null)
+        @if (Model.ActiveLibrary == "Countries" && Model.SelectedCountry is null)
         {
             <div class="empty-panel">
                 <p data-i18n="select-country-empty">Create or select a country to manage its unique content.</p>
             </div>
         }
+        else if (Model.ActiveLibrary == "CultureGroups" && Model.SelectedCultureGroup is null)
+        {
+            <div class="empty-panel">
+                <p data-i18n="culture-group-select-empty">Select a culture group to manage its shared content.</p>
+            </div>
+        }
+        else if (Model.ActiveLibrary == "Cultures")
+        {
+            <div class="empty-panel">
+                <p data-i18n="cultures-detail-empty">Cultures are shared reference entities. Select one to inspect its memberships.</p>
+            </div>
+        }
         else if (Model.SelectedCountryContent.Count == 0)
         {
             <div class="empty-panel">
-                <p data-i18n="content-empty">This country has no unique content yet.</p>
+                <p data-i18n="@(Model.ActiveLibrary == "CultureGroups" ? "culture-group-content-empty" : "content-empty")">This country has no unique content yet.</p>
             </div>
         }
         else
@@ -96,11 +536,13 @@
                     var isSelected = Model.SelectedContent?.Id == item.Id;
                     <a class="content-tile @(isSelected ? "is-selected" : null)"
                        asp-action="Index"
-                       asp-route-countryId="@Model.SelectedCountry.Id"
+                       asp-route-library="@Model.ActiveLibrary"
+                       asp-route-countryId="@Model.SelectedCountry?.Id"
+                       asp-route-cultureGroupId="@Model.SelectedCultureGroup?.Id"
                        asp-route-contentId="@item.Id">
                         <div class="content-meta">
                             <div class="content-chip-row">
-                                <span class="type-chip" data-i18n="@item.TypeTranslationKey">@(item.Type switch { Eu5ModPlanner.Models.ContentType.Reform => "Reform", Eu5ModPlanner.Models.ContentType.DefaultEstateRename => "Default Estate Rename", Eu5ModPlanner.Models.ContentType.CustomEstate => "Custom Estate", Eu5ModPlanner.Models.ContentType.Privilege => "Privilege", Eu5ModPlanner.Models.ContentType.Law => "Law", Eu5ModPlanner.Models.ContentType.Value => "Value", Eu5ModPlanner.Models.ContentType.Building => "Building", Eu5ModPlanner.Models.ContentType.Event => "Event", _ => "Advance" })</span>
+                                <span class="type-chip" data-i18n="@item.TypeTranslationKey">@(item.Type switch { Eu5ModPlanner.Models.ContentType.Reform => "Reform", Eu5ModPlanner.Models.ContentType.DefaultEstateRename => "Default Estate Rename", Eu5ModPlanner.Models.ContentType.CustomEstate => "Custom Estate", Eu5ModPlanner.Models.ContentType.Privilege => "Privilege", Eu5ModPlanner.Models.ContentType.Law => "Law", Eu5ModPlanner.Models.ContentType.Value => "Value", Eu5ModPlanner.Models.ContentType.Building => "Building", Eu5ModPlanner.Models.ContentType.Event => "Event", Eu5ModPlanner.Models.ContentType.Situation => "Situation", Eu5ModPlanner.Models.ContentType.Culture => "Culture", Eu5ModPlanner.Models.ContentType.CultureGroup => "Culture Group", _ => "Advance" })</span>
                                 @if (item.Type == Eu5ModPlanner.Models.ContentType.Reform && item.IsMajorReform)
                                 {
                                     <span class="type-chip major-chip" data-i18n="major-reform">Major Reform</span>
@@ -115,50 +557,81 @@
     </section>
 
     <aside class="planner-pane pane-detail">
-        <div class="pane-header">
+        <div class="pane-header pane-header-stacked">
             <div>
                 <p class="pane-kicker" data-i18n="detail-kicker">Details</p>
                 <h2 data-i18n="detail-title">Selected content</h2>
             </div>
-            @if (Model.SelectedCountry is not null && Model.SelectedContent is not null)
+            @if (Model.SelectedContent is not null && Model.ActiveLibrary != "Cultures")
             {
-                <div class="content-chip-row">
-                    <button type="button" class="material-button ghost-button" data-edit-content-button data-bs-toggle="modal" data-bs-target="#addContentModal">
-                        <span data-i18n="edit-content">Edit</span>
-                    </button>
-                    <form asp-action="DeleteContent" method="post">
-                        @Html.AntiForgeryToken()
-                        <input type="hidden" name="countryId" value="@Model.SelectedCountry.Id" />
-                        <input type="hidden" name="contentId" value="@Model.SelectedContent.Id" />
-                        <button type="submit" class="material-button danger-button">
-                            <span data-i18n="delete-content">Delete</span>
+                <div class="pane-header-actions">
+                    @if (Model.HasWriteAccess && Model.SelectedContent.Type is not Eu5ModPlanner.Models.ContentType.CultureGroup)
+                    {
+                        <button type="button" class="material-button ghost-button" data-edit-content-button data-bs-toggle="modal" data-bs-target="#addContentModal">
+                            <span data-i18n="edit-content">Edit</span>
                         </button>
-                    </form>
+                        <form asp-action="DeleteContent" method="post">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="library" value="@Model.ActiveLibrary" />
+                            <input type="hidden" name="countryId" value="@Model.SelectedCountry?.Id" />
+                            <input type="hidden" name="cultureId" value="@Model.SelectedCulture?.Id" />
+                            <input type="hidden" name="cultureGroupId" value="@Model.SelectedCultureGroup?.Id" />
+                            <input type="hidden" name="contentId" value="@Model.SelectedContent.Id" />
+                            <button type="submit" class="material-button danger-button">
+                                <span data-i18n="delete-content">Delete</span>
+                            </button>
+                        </form>
+                    }
                 </div>
             }
         </div>
 
-        @if (Model.SelectedContent is null)
+        @if (Model.SelectedContent is null && Model.SelectedCultureGroup is null)
         {
             <div class="empty-panel">
                 <p data-i18n="detail-empty">Select a content piece to inspect its effect.</p>
             </div>
         }
-        else
+        else if (Model.SelectedContent is null && Model.SelectedCultureGroup is not null)
         {
             <div class="detail-card">
                 <div class="detail-topline">
                     <div class="content-chip-row">
-                        <span class="type-chip" data-i18n="@Model.SelectedContent.TypeTranslationKey">@(Model.SelectedContent.Type switch { Eu5ModPlanner.Models.ContentType.Reform => "Reform", Eu5ModPlanner.Models.ContentType.DefaultEstateRename => "Default Estate Rename", Eu5ModPlanner.Models.ContentType.CustomEstate => "Custom Estate", Eu5ModPlanner.Models.ContentType.Privilege => "Privilege", Eu5ModPlanner.Models.ContentType.Law => "Law", Eu5ModPlanner.Models.ContentType.Value => "Value", Eu5ModPlanner.Models.ContentType.Building => "Building", Eu5ModPlanner.Models.ContentType.Event => "Event", _ => "Advance" })</span>
-                        @if (Model.SelectedContent.Type == Eu5ModPlanner.Models.ContentType.Reform && Model.SelectedContent.IsMajorReform)
+                        <span class="type-chip" data-i18n="type-culture-group">Culture Group</span>
+                    </div>
+                    <h3>@Model.SelectedCultureGroup.Name</h3>
+                </div>
+                <div class="effect-detail-list">
+                    @foreach (var effect in Model.SelectedCultureGroup.DisplayLines)
+                    {
+                        <div class="effect-detail-item">@effect</div>
+                    }
+                </div>
+            </div>
+        }
+        else
+        {
+            var selectedContent = Model.SelectedContent!;
+            <div class="detail-card">
+                <div class="detail-topline">
+                    <div class="content-chip-row">
+                        <span class="type-chip" data-i18n="@selectedContent.TypeTranslationKey">@(selectedContent.Type switch { Eu5ModPlanner.Models.ContentType.Reform => "Reform", Eu5ModPlanner.Models.ContentType.DefaultEstateRename => "Default Estate Rename", Eu5ModPlanner.Models.ContentType.CustomEstate => "Custom Estate", Eu5ModPlanner.Models.ContentType.Privilege => "Privilege", Eu5ModPlanner.Models.ContentType.Law => "Law", Eu5ModPlanner.Models.ContentType.Value => "Value", Eu5ModPlanner.Models.ContentType.Building => "Building", Eu5ModPlanner.Models.ContentType.Event => "Event", Eu5ModPlanner.Models.ContentType.Situation => "Situation", Eu5ModPlanner.Models.ContentType.Culture => "Culture", Eu5ModPlanner.Models.ContentType.CultureGroup => "Culture Group", _ => "Advance" })</span>
+                        @if (selectedContent.Type is Eu5ModPlanner.Models.ContentType.Culture or Eu5ModPlanner.Models.ContentType.CultureGroup)
+                        {
+                            <span class="type-chip @(selectedContent.IsArchived ? "archived-chip" : null)"
+                                  data-i18n="@(selectedContent.IsArchived ? "country-status-archived" : "country-status-active")">
+                                @(selectedContent.IsArchived ? "Archived" : "Active")
+                            </span>
+                        }
+                        @if (selectedContent.Type == Eu5ModPlanner.Models.ContentType.Reform && selectedContent.IsMajorReform)
                         {
                             <span class="type-chip major-chip" data-i18n="major-reform">Major Reform</span>
                         }
                     </div>
-                    <h3>@Model.SelectedContent.Name</h3>
+                    <h3>@selectedContent.Name</h3>
                 </div>
                 <div class="effect-detail-list">
-                    @foreach (var effect in Model.SelectedContent.DisplayLines)
+                    @foreach (var effect in selectedContent.DisplayLines)
                     {
                         <div class="effect-detail-item">@effect</div>
                     }
@@ -168,6 +641,145 @@
     </aside>
 </section>
 
+@if (Model.CanManageWriteAccess)
+{
+<div class="modal fade" id="loginModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content planner-modal">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" data-i18n="auth-login-title">Sign in</h2>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form asp-action="Login" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="library" value="@Model.ActiveLibrary" />
+                <input type="hidden" name="countryId" value="@Model.SelectedCountry?.Id" />
+                <input type="hidden" name="cultureId" value="@Model.SelectedCulture?.Id" />
+                <input type="hidden" name="cultureGroupId" value="@Model.SelectedCultureGroup?.Id" />
+                <input type="hidden" name="contentId" value="@Model.SelectedContent?.Id" />
+                <div class="modal-body modal-form">
+                    <label>
+                        <span data-i18n="auth-username">Username</span>
+                        <input asp-for="LoginForm.Username" class="form-control" autocomplete="username" />
+                    </label>
+                    <label>
+                        <span data-i18n="auth-password">Password</span>
+                        <input asp-for="LoginForm.Password" class="form-control" type="password" autocomplete="current-password" />
+                    </label>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="material-button ghost-button" data-bs-dismiss="modal" data-i18n="cancel">Cancel</button>
+                    <button type="submit" class="material-button primary-button" data-i18n="auth-login-submit">Sign in</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+}
+
+@if (Model.CanManageUsers)
+{
+<div class="modal fade" id="usersModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content planner-modal">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" data-i18n="users-modal-title">Manage users</h2>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="buff-library-panel">
+                    <div class="buff-library-list">
+                        @foreach (var user in Model.Users)
+                        {
+                            <article class="buff-library-card">
+                                <div class="buff-library-card-header">
+                                    <div>
+                                        <strong>@user.DisplayName</strong>
+                                        <div class="helper-copy">@user.Username</div>
+                                    </div>
+                                    <div class="content-chip-row">
+                                        <span class="content-type-chip">@user.Role</span>
+                                        <span class="content-type-chip">@(user.IsActive ? "Active" : "Inactive")</span>
+                                    </div>
+                                </div>
+                                <div class="content-chip-row">
+                                    <button type="button"
+                                            class="material-button ghost-button small-button"
+                                            data-user-edit-button
+                                            data-user-id="@user.Id"
+                                            data-user-username="@user.Username"
+                                            data-user-display-name="@user.DisplayName"
+                                            data-user-role="@user.Role">
+                                        <span data-i18n="edit-user">Edit user</span>
+                                    </button>
+                                    <form asp-action="SetUserActive" method="post">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="library" value="@Model.ActiveLibrary" />
+                                        <input type="hidden" name="countryId" value="@Model.SelectedCountry?.Id" />
+                                        <input type="hidden" name="cultureId" value="@Model.SelectedCulture?.Id" />
+                                        <input type="hidden" name="cultureGroupId" value="@Model.SelectedCultureGroup?.Id" />
+                                        <input type="hidden" name="contentId" value="@Model.SelectedContent?.Id" />
+                                        <input type="hidden" name="userId" value="@user.Id" />
+                                        <input type="hidden" name="isActive" value="@(!user.IsActive)" />
+                                        <button type="submit" class="material-button ghost-button small-button">
+                                            <span data-i18n="@(user.IsActive ? "deactivate-user" : "activate-user")">@(user.IsActive ? "Deactivate" : "Activate")</span>
+                                        </button>
+                                    </form>
+                                </div>
+                            </article>
+                        }
+                    </div>
+                    <form asp-action="SaveUser" method="post" class="modal-form" data-user-form>
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="library" value="@Model.ActiveLibrary" />
+                        <input type="hidden" name="countryId" value="@Model.SelectedCountry?.Id" />
+                        <input type="hidden" name="cultureId" value="@Model.SelectedCulture?.Id" />
+                        <input type="hidden" name="cultureGroupId" value="@Model.SelectedCultureGroup?.Id" />
+                        <input type="hidden" name="contentId" value="@Model.SelectedContent?.Id" />
+                        <input asp-for="UserForm.Id" type="hidden" data-user-form-id />
+                        <div class="effects-editor-header">
+                            <h3 data-user-form-title data-i18n="new-user">New user</h3>
+                            <button type="button" class="material-button ghost-button small-button" data-user-new-button>
+                                <span data-i18n="new-user">New user</span>
+                            </button>
+                        </div>
+                        <label>
+                            <span data-i18n="auth-username">Username</span>
+                            <input asp-for="UserForm.Username" class="form-control" autocomplete="username" data-user-form-username />
+                        </label>
+                        <label>
+                            <span data-i18n="user-display-name">Display name</span>
+                            <input asp-for="UserForm.DisplayName" class="form-control" autocomplete="name" data-user-form-display-name />
+                        </label>
+                        <label>
+                            <span data-i18n="user-role">Role</span>
+                            <select asp-for="UserForm.Role" class="form-select" data-user-form-role>
+                                <option value="Viewer" data-i18n-option="user-role-viewer">Viewer</option>
+                                <option value="Editor" data-i18n-option="user-role-editor">Editor</option>
+                                <option value="Admin" data-i18n-option="user-role-admin">Admin</option>
+                            </select>
+                        </label>
+                        <label>
+                            <span data-i18n="auth-password">Password</span>
+                            <input asp-for="UserForm.Password" class="form-control" type="password" autocomplete="new-password" data-user-form-password />
+                        </label>
+                        <label>
+                            <span data-i18n="user-confirm-password">Confirm password</span>
+                            <input asp-for="UserForm.ConfirmPassword" class="form-control" type="password" autocomplete="new-password" data-user-form-confirm-password />
+                        </label>
+                        <div class="modal-footer">
+                            <button type="submit" class="material-button primary-button" data-user-form-submit data-i18n="create-user">Create user</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+}
+
+@if (Model.HasWriteAccess)
+{
 <div class="modal fade" id="addCountryModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content planner-modal">
@@ -180,11 +792,11 @@
                 <div class="modal-body modal-form">
                     <label>
                         <span data-i18n="country-name">Country name</span>
-                        <input asp-for="CountryForm.Name" class="form-control" data-i18n-placeholder="country-name-placeholder" />
+                        <input name="CountryForm.Name" class="form-control" data-i18n-placeholder="country-name-placeholder" />
                     </label>
                     <label>
                         <span data-i18n="country-tag">Country tag</span>
-                        <input asp-for="CountryForm.Tag" class="form-control text-uppercase" maxlength="12" data-i18n-placeholder="country-tag-placeholder" />
+                        <input name="CountryForm.Tag" class="form-control text-uppercase" maxlength="12" data-i18n-placeholder="country-tag-placeholder" />
                     </label>
                 </div>
                 <div class="modal-footer">
@@ -196,6 +808,143 @@
     </div>
 </div>
 
+@if (Model.ArchivedCountries.Count > 0)
+{
+<div class="modal fade" id="archivedCountriesModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content planner-modal">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" data-i18n="countries-archived-title">Archived tags</h2>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="country-stack">
+                    @foreach (var country in Model.ArchivedCountries)
+                    {
+                        var isSelected = Model.SelectedCountry?.Id == country.Id;
+                        <a class="country-tile country-tile-archived @(isSelected ? "is-selected" : null)"
+                           asp-action="Index"
+                           asp-route-library="Countries"
+                           asp-route-countryId="@country.Id">
+                            <div class="country-tag">@country.Tag</div>
+                            <div class="country-copy">
+                                <strong>@country.Name</strong>
+                                <span><span data-i18n="country-status-archived">Archived</span> · @country.ContentEntryIds.Count <span data-i18n="content-label-inline">entries</span></span>
+                            </div>
+                        </a>
+                    }
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="material-button ghost-button" data-bs-dismiss="modal" data-i18n="close-archived-tags">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+}
+
+@if (Model.ArchivedCultureGroups.Count > 0)
+{
+<div class="modal fade" id="archivedCultureGroupsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content planner-modal">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" data-i18n="archived-culture-groups-button">Archived culture groups</h2>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="country-stack">
+                    @foreach (var group in Model.ArchivedCultureGroups)
+                    {
+                        var isSelected = Model.SelectedCultureGroup?.Id == group.Id;
+                        <a class="country-tile country-tile-archived @(isSelected ? "is-selected" : null)"
+                           asp-action="Index"
+                           asp-route-library="CultureGroups"
+                           asp-route-cultureGroupId="@group.Id">
+                            <div class="country-tag">CG</div>
+                            <div class="country-copy">
+                                <strong>@group.Name</strong>
+                                <span><span data-i18n="country-status-archived">Archived</span> · @group.CultureGroupContentEntryIds.Count <span data-i18n="content-label-inline">entries</span></span>
+                            </div>
+                        </a>
+                    }
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="material-button ghost-button" data-bs-dismiss="modal" data-i18n="close-archived-tags">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+}
+
+@if (Model.ArchivedCultures.Count > 0)
+{
+<div class="modal fade" id="archivedCulturesModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content planner-modal">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" data-i18n="archived-cultures-button">Archived cultures</h2>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="country-stack">
+                    @foreach (var culture in Model.ArchivedCultures)
+                    {
+                        var isSelected = Model.SelectedCulture?.Id == culture.Id;
+                        <a class="country-tile country-tile-archived @(isSelected ? "is-selected" : null)"
+                           asp-action="Index"
+                           asp-route-library="Cultures"
+                           asp-route-cultureId="@culture.Id">
+                            <div class="country-tag">CU</div>
+                            <div class="country-copy">
+                                <strong>@culture.Name</strong>
+                                <span><span data-i18n="country-status-archived">Archived</span> · @culture.CultureGroupNames.Count <span data-i18n="culture-group-memberships">groups</span></span>
+                            </div>
+                        </a>
+                    }
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="material-button ghost-button" data-bs-dismiss="modal" data-i18n="close-archived-tags">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+}
+
+@if (Model.SelectedCountry is not null)
+{
+<div class="modal fade" id="editCountryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content planner-modal">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" data-i18n="country-modal-title-edit">Edit tag</h2>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form asp-action="UpdateCountry" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="CountryForm.Id" value="@Model.SelectedCountry.Id" />
+                <div class="modal-body modal-form">
+                    <label>
+                        <span data-i18n="country-name">Country name</span>
+                        <input name="CountryForm.Name" class="form-control" value="@Model.SelectedCountry.Name" data-i18n-placeholder="country-name-placeholder" />
+                    </label>
+                    <label>
+                        <span data-i18n="country-tag">Country tag</span>
+                        <input name="CountryForm.Tag" class="form-control text-uppercase" maxlength="12" value="@Model.SelectedCountry.Tag" data-i18n-placeholder="country-tag-placeholder" />
+                    </label>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="material-button ghost-button" data-bs-dismiss="modal" data-i18n="cancel">Cancel</button>
+                    <button type="submit" class="material-button primary-button" data-i18n="save-country-edit">Save changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+}
+
 <div class="modal fade" id="addContentModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content planner-modal">
@@ -203,12 +952,13 @@
                 <h2 class="modal-title fs-5" data-i18n="content-modal-title" data-content-modal-title data-add-title-key="content-modal-title" data-edit-title-key="content-modal-title-edit">Add new content</h2>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form asp-action="AddContent" method="post" id="contentForm" data-add-action="@Url.Action("AddContent", "Planner")" data-edit-action="@Url.Action("EditContent", "Planner")">
+            <form asp-action="AddContent" method="post" id="contentForm" data-add-action="@Url.Action("AddContent", "Planner")" data-edit-action="@Url.Action("EditContent", "Planner")" data-active-library="@Model.ActiveLibrary">
                 @Html.AntiForgeryToken()
                 <input asp-for="AdvanceForm.ContentId" type="hidden" data-content-id-input />
-                <input asp-for="AdvanceForm.CountryId" type="hidden" value="@Model.SelectedCountry?.Id" />
+                <input asp-for="AdvanceForm.CountryId" type="hidden" value="@(Model.SelectedCountry?.Id ?? Guid.Empty)" />
+                <input asp-for="AdvanceForm.CultureGroupId" type="hidden" value="@Model.SelectedCultureGroup?.Id" />
                 <div class="modal-body modal-form">
-                    <label>
+                    <label data-content-type-row>
                         <span data-i18n="content-type">Content type</span>
                         <select asp-for="AdvanceForm.Type" class="form-select" data-content-type-select>
                             <option value="@Eu5ModPlanner.Models.ContentType.Advance" data-i18n-option="type-advance">Advance</option>
@@ -220,6 +970,9 @@
                             <option value="@Eu5ModPlanner.Models.ContentType.Value" data-i18n-option="type-value">Value</option>
                             <option value="@Eu5ModPlanner.Models.ContentType.Building" data-i18n-option="type-building">Building</option>
                             <option value="@Eu5ModPlanner.Models.ContentType.Event" data-i18n-option="type-event">Event</option>
+                            <option value="@Eu5ModPlanner.Models.ContentType.Situation" data-i18n-option="type-situation">Situation</option>
+                            <option value="@Eu5ModPlanner.Models.ContentType.Culture" data-i18n-option="type-culture">Culture</option>
+                            <option value="@Eu5ModPlanner.Models.ContentType.CultureGroup" data-i18n-option="type-culture-group">Culture Group</option>
                         </select>
                     </label>
 
@@ -233,6 +986,35 @@
                             <input asp-for="AdvanceForm.IsMajorReform" class="form-check-input" type="checkbox" />
                             <span data-i18n="major-reform-toggle">Major Reform</span>
                         </label>
+                    </div>
+
+                    <div data-culture-panel hidden class="content-type-panel">
+                        <div class="effects-editor-header">
+                            <h3 data-i18n="culture-groups-field">Culture Groups</h3>
+                            <button type="button" class="material-button ghost-button" data-add-culture-membership>
+                                <span data-i18n="add-culture-membership">Add culture group</span>
+                            </button>
+                        </div>
+                        <p class="helper-copy" data-i18n="culture-groups-helper">Add one or more culture groups. Existing custom groups and built-in groups are both allowed.</p>
+                        <div data-culture-membership-container>
+                            @for (var i = 0; i < Model.AdvanceForm.CultureGroupMembershipNames.Count; i++)
+                            {
+                                <div class="effect-editor-card culture-membership-row" data-culture-membership-row>
+                                    <div class="effect-editor-grid">
+                                        <label class="effect-editor-wide">
+                                            <span data-i18n="culture-group-name">Culture Group name</span>
+                                            <input name="AdvanceForm.CultureGroupMembershipNames[@i]"
+                                                   class="form-control"
+                                                   value="@Model.AdvanceForm.CultureGroupMembershipNames[i]"
+                                                   data-i18n-placeholder="culture-group-name-placeholder" />
+                                        </label>
+                                    </div>
+                                    <button type="button" class="material-button danger-button small-button" data-remove-culture-membership>
+                                        <span data-i18n="remove-culture-membership">Remove</span>
+                                    </button>
+                                </div>
+                            }
+                        </div>
                     </div>
 
                     <div data-privilege-panel hidden class="content-type-panel">
@@ -745,6 +1527,84 @@
                         </div>
                     </div>
 
+                    <div data-situation-panel hidden class="content-type-panel">
+                        <label>
+                            <span data-i18n="situation-description">Description / narrative</span>
+                            <textarea asp-for="AdvanceForm.SituationDescription" class="form-control" rows="4" data-i18n-placeholder="situation-description-placeholder"></textarea>
+                        </label>
+
+                        <label>
+                            <span data-i18n="situation-monthly-spawn-chance">Monthly spawn chance (%)</span>
+                            <input asp-for="AdvanceForm.SituationMonthlySpawnChance" class="form-control" type="number" min="0" max="100" step="0.01" />
+                            <input name="__Invariant" type="hidden" value="AdvanceForm.SituationMonthlySpawnChance" />
+                        </label>
+
+                        <label>
+                            <span data-i18n="situation-can-start">Can start</span>
+                            <textarea asp-for="AdvanceForm.SituationCanStart" class="form-control" rows="4" data-i18n-placeholder="situation-can-start-placeholder"></textarea>
+                        </label>
+
+                        <label>
+                            <span data-i18n="situation-visible">Visible</span>
+                            <textarea asp-for="AdvanceForm.SituationVisible" class="form-control" rows="3" data-i18n-placeholder="situation-visible-placeholder"></textarea>
+                        </label>
+
+                        <label>
+                            <span data-i18n="situation-can-end">Can end</span>
+                            <textarea asp-for="AdvanceForm.SituationCanEnd" class="form-control" rows="4" data-i18n-placeholder="situation-can-end-placeholder"></textarea>
+                        </label>
+
+                        <div class="effects-editor">
+                            <div class="effects-editor-header">
+                                <h3 data-i18n="situation-on-start-effects">On start effects</h3>
+                                <button type="button" class="material-button ghost-button" data-add-situation-start-effect>
+                                    <span data-i18n="add-effect">Add effect</span>
+                                </button>
+                            </div>
+                            <div data-situation-start-effects-container></div>
+                        </div>
+
+                        <div class="effects-editor">
+                            <div class="effects-editor-header">
+                                <h3 data-i18n="situation-on-monthly-effects">Monthly effects</h3>
+                                <button type="button" class="material-button ghost-button" data-add-situation-monthly-effect>
+                                    <span data-i18n="add-effect">Add effect</span>
+                                </button>
+                            </div>
+                            <div data-situation-monthly-effects-container></div>
+                        </div>
+
+                        <div class="effects-editor">
+                            <div class="effects-editor-header">
+                                <h3 data-i18n="situation-on-ending-effects">On ending effects</h3>
+                                <button type="button" class="material-button ghost-button" data-add-situation-ending-effect>
+                                    <span data-i18n="add-effect">Add effect</span>
+                                </button>
+                            </div>
+                            <div data-situation-ending-effects-container></div>
+                        </div>
+
+                        <div class="effects-editor">
+                            <div class="effects-editor-header">
+                                <h3 data-i18n="situation-on-ended-effects">On ended effects</h3>
+                                <button type="button" class="material-button ghost-button" data-add-situation-ended-effect>
+                                    <span data-i18n="add-effect">Add effect</span>
+                                </button>
+                            </div>
+                            <div data-situation-ended-effects-container></div>
+                        </div>
+
+                        <div class="effects-editor">
+                            <div class="effects-editor-header">
+                                <h3 data-i18n="situation-actions">Situation actions</h3>
+                                <button type="button" class="material-button ghost-button" data-add-situation-action>
+                                    <span data-i18n="add-situation-action">Add action</span>
+                                </button>
+                            </div>
+                            <div data-situation-actions-container></div>
+                        </div>
+                    </div>
+
                     <div data-effects-panel class="content-type-panel">
                         <div class="effects-editor">
                             <div class="effects-editor-header">
@@ -877,6 +1737,7 @@
         </div>
     </div>
 </div>
+}
 
 <datalist id="effect-label-suggestions">
     @foreach (var label in Model.EffectLabelSuggestions)
@@ -1076,6 +1937,7 @@
                                     <option value="@Eu5ModPlanner.Models.EffectValueType.Numeric" data-i18n-option="effect-kind-numeric">Numeric</option>
                                     <option value="@Eu5ModPlanner.Models.EffectValueType.Boolean" data-i18n-option="effect-kind-boolean">Boolean</option>
                                     <option value="@Eu5ModPlanner.Models.EffectValueType.Text" data-i18n-option="effect-kind-text">Custom text</option>
+                                    <option value="@Eu5ModPlanner.Models.EffectValueType.Buff" data-i18n-option="effect-kind-buff">Timed buff</option>
                                 </select>
                             </label>
                             <label data-effect-numeric>
@@ -1097,6 +1959,32 @@
                                     <option value="false" selected data-i18n-option="bool-false">False</option>
                                 </select>
                             </label>
+                            <div data-effect-buff hidden class="effect-editor-wide">
+                                <input name="AdvanceForm.EventOptions[__OPTION_INDEX__].Effects[0].BuffId" type="hidden" data-buff-id-input />
+                                <input name="AdvanceForm.EventOptions[__OPTION_INDEX__].Effects[0].BuffName" type="hidden" data-buff-name-input />
+                                <div class="effect-editor-grid">
+                                    <label class="effect-editor-wide">
+                                        <span data-i18n="effect-buff">Buff</span>
+                                        <button type="button" class="material-button ghost-button" data-select-buff-button>
+                                            <span data-i18n="select-buff">Select buff</span>
+                                        </button>
+                                        <span class="helper-copy" data-selected-buff-name data-i18n="no-buff-selected">No buff selected.</span>
+                                    </label>
+                                    <label>
+                                        <span data-i18n="effect-buff-duration">Duration</span>
+                                        <input name="AdvanceForm.EventOptions[__OPTION_INDEX__].Effects[0].BuffDurationValue" class="form-control" type="number" min="1" step="1" value="1" />
+                                    </label>
+                                    <label>
+                                        <span data-i18n="effect-buff-duration-unit">Duration unit</span>
+                                        <select name="AdvanceForm.EventOptions[__OPTION_INDEX__].Effects[0].BuffDurationUnit" class="form-select">
+                                            <option value="@Eu5ModPlanner.Models.BuffDurationUnit.Days" data-i18n-option="duration-days">Days</option>
+                                            <option value="@Eu5ModPlanner.Models.BuffDurationUnit.Months" data-i18n-option="duration-months">Months</option>
+                                            <option value="@Eu5ModPlanner.Models.BuffDurationUnit.Years" data-i18n-option="duration-years">Years</option>
+                                            <option value="@Eu5ModPlanner.Models.BuffDurationUnit.UntilEndOfGame" data-i18n-option="duration-end-of-game">Until the end of the game</option>
+                                        </select>
+                                    </label>
+                                </div>
+                            </div>
                         </div>
                         <button type="button" class="material-button danger-button small-button" data-remove-effect>
                             <span data-i18n="remove-effect">Remove</span>
@@ -1105,6 +1993,74 @@
                 </div>
             </div>
         </div>
+    </div>
+</template>
+
+<template id="situation-effect-row-template">
+    <div class="effect-editor-card" data-effect-row>
+        <div class="effect-editor-grid">
+            <label class="effect-editor-wide">
+                <span data-i18n="effect-label">Effect label</span>
+                <input name="__GROUP_NAME__[__INDEX__].Label" class="form-control" data-i18n-placeholder="effect-label-placeholder" list="effect-label-suggestions" />
+            </label>
+            <label>
+                <span data-i18n="effect-value-type">Effect kind</span>
+                <select name="__GROUP_NAME__[__INDEX__].ValueType" class="form-select" data-effect-value-type>
+                    <option value="@Eu5ModPlanner.Models.EffectValueType.Numeric" data-i18n-option="effect-kind-numeric">Numeric</option>
+                    <option value="@Eu5ModPlanner.Models.EffectValueType.Boolean" data-i18n-option="effect-kind-boolean">Boolean</option>
+                    <option value="@Eu5ModPlanner.Models.EffectValueType.Text" data-i18n-option="effect-kind-text">Custom text</option>
+                    <option value="@Eu5ModPlanner.Models.EffectValueType.Buff" data-i18n-option="effect-kind-buff">Timed buff</option>
+                </select>
+            </label>
+            <label data-effect-numeric>
+                <span data-i18n="advance-modifier-amount">Modifier amount</span>
+                <input name="__GROUP_NAME__[__INDEX__].NumericAmount" class="form-control" type="number" step="0.01" value="0" />
+                <input name="__Invariant" type="hidden" value="__GROUP_NAME__[__INDEX__].NumericAmount" />
+            </label>
+            <label data-effect-numeric>
+                <span data-i18n="advance-modifier-unit">Value type</span>
+                <select name="__GROUP_NAME__[__INDEX__].NumericUnit" class="form-select">
+                    <option value="@Eu5ModPlanner.Models.ModifierUnit.Flat" data-i18n-option="unit-flat">Flat value</option>
+                    <option value="@Eu5ModPlanner.Models.ModifierUnit.Percent" data-i18n-option="unit-percent">Percentage</option>
+                </select>
+            </label>
+            <label data-effect-boolean hidden>
+                <span data-i18n="bool-value">Boolean value</span>
+                <select name="__GROUP_NAME__[__INDEX__].BoolValue" class="form-select">
+                    <option value="true" data-i18n-option="bool-true">True</option>
+                    <option value="false" selected data-i18n-option="bool-false">False</option>
+                </select>
+            </label>
+            <div data-effect-buff hidden class="effect-editor-wide">
+                <input name="__GROUP_NAME__[__INDEX__].BuffId" type="hidden" data-buff-id-input />
+                <input name="__GROUP_NAME__[__INDEX__].BuffName" type="hidden" data-buff-name-input />
+                <div class="effect-editor-grid">
+                    <label class="effect-editor-wide">
+                        <span data-i18n="effect-buff">Buff</span>
+                        <button type="button" class="material-button ghost-button" data-select-buff-button>
+                            <span data-i18n="select-buff">Select buff</span>
+                        </button>
+                        <span class="helper-copy" data-selected-buff-name data-i18n="no-buff-selected">No buff selected.</span>
+                    </label>
+                    <label>
+                        <span data-i18n="effect-buff-duration">Duration</span>
+                        <input name="__GROUP_NAME__[__INDEX__].BuffDurationValue" class="form-control" type="number" min="1" step="1" value="1" />
+                    </label>
+                    <label>
+                        <span data-i18n="effect-buff-duration-unit">Duration unit</span>
+                        <select name="__GROUP_NAME__[__INDEX__].BuffDurationUnit" class="form-select">
+                            <option value="@Eu5ModPlanner.Models.BuffDurationUnit.Days" data-i18n-option="duration-days">Days</option>
+                            <option value="@Eu5ModPlanner.Models.BuffDurationUnit.Months" data-i18n-option="duration-months">Months</option>
+                            <option value="@Eu5ModPlanner.Models.BuffDurationUnit.Years" data-i18n-option="duration-years">Years</option>
+                            <option value="@Eu5ModPlanner.Models.BuffDurationUnit.UntilEndOfGame" data-i18n-option="duration-end-of-game">Until the end of the game</option>
+                        </select>
+                    </label>
+                </div>
+            </div>
+        </div>
+        <button type="button" class="material-button danger-button small-button" data-remove-effect>
+            <span data-i18n="remove-effect">Remove</span>
+        </button>
     </div>
 </template>
 
@@ -1142,6 +2098,206 @@
                     <option value="false" selected data-i18n-option="bool-false">False</option>
                 </select>
             </label>
+            <div data-effect-buff hidden class="effect-editor-wide">
+                <input name="AdvanceForm.EventOptions[__OPTION_INDEX__].Effects[__INDEX__].BuffId" type="hidden" data-buff-id-input />
+                <input name="AdvanceForm.EventOptions[__OPTION_INDEX__].Effects[__INDEX__].BuffName" type="hidden" data-buff-name-input />
+                <div class="effect-editor-grid">
+                    <label class="effect-editor-wide">
+                        <span data-i18n="effect-buff">Buff</span>
+                        <button type="button" class="material-button ghost-button" data-select-buff-button>
+                            <span data-i18n="select-buff">Select buff</span>
+                        </button>
+                        <span class="helper-copy" data-selected-buff-name data-i18n="no-buff-selected">No buff selected.</span>
+                    </label>
+                    <label>
+                        <span data-i18n="effect-buff-duration">Duration</span>
+                        <input name="AdvanceForm.EventOptions[__OPTION_INDEX__].Effects[__INDEX__].BuffDurationValue" class="form-control" type="number" min="1" step="1" value="1" />
+                    </label>
+                    <label>
+                        <span data-i18n="effect-buff-duration-unit">Duration unit</span>
+                        <select name="AdvanceForm.EventOptions[__OPTION_INDEX__].Effects[__INDEX__].BuffDurationUnit" class="form-select">
+                            <option value="@Eu5ModPlanner.Models.BuffDurationUnit.Days" data-i18n-option="duration-days">Days</option>
+                            <option value="@Eu5ModPlanner.Models.BuffDurationUnit.Months" data-i18n-option="duration-months">Months</option>
+                            <option value="@Eu5ModPlanner.Models.BuffDurationUnit.Years" data-i18n-option="duration-years">Years</option>
+                            <option value="@Eu5ModPlanner.Models.BuffDurationUnit.UntilEndOfGame" data-i18n-option="duration-end-of-game">Until the end of the game</option>
+                        </select>
+                    </label>
+                </div>
+            </div>
+        </div>
+        <button type="button" class="material-button danger-button small-button" data-remove-effect>
+            <span data-i18n="remove-effect">Remove</span>
+        </button>
+    </div>
+</template>
+
+<template id="situation-action-template">
+    <div class="effect-editor-card" data-situation-action-row>
+        <div class="effects-editor">
+            <div class="effects-editor-header">
+                <h3 data-i18n="situation-action-title">Action</h3>
+                <button type="button" class="material-button danger-button small-button" data-remove-situation-action>
+                    <span data-i18n="remove-action">Remove action</span>
+                </button>
+            </div>
+            <label>
+                <span data-i18n="situation-action-name">Action name</span>
+                <input name="AdvanceForm.SituationActions[__ACTION_INDEX__].Name" class="form-control" data-i18n-placeholder="situation-action-name-placeholder" />
+            </label>
+            <label>
+                <span data-i18n="situation-action-requirements">Requirements</span>
+                <textarea name="AdvanceForm.SituationActions[__ACTION_INDEX__].Requirements" class="form-control" rows="3" data-i18n-placeholder="situation-action-requirements-placeholder"></textarea>
+            </label>
+            <div class="effect-editor-grid">
+                <label>
+                    <span data-i18n="situation-action-cost">Cost</span>
+                    <input name="AdvanceForm.SituationActions[__ACTION_INDEX__].Cost" class="form-control" data-i18n-placeholder="situation-action-cost-placeholder" />
+                </label>
+                <label>
+                    <span data-i18n="situation-action-cooldown">Cooldown</span>
+                    <input name="AdvanceForm.SituationActions[__ACTION_INDEX__].Cooldown" class="form-control" data-i18n-placeholder="situation-action-cooldown-placeholder" />
+                </label>
+            </div>
+            <div class="effects-editor">
+                <div class="effects-editor-header">
+                    <h3 data-i18n="situation-action-effects">Action effects</h3>
+                    <button type="button" class="material-button ghost-button" data-add-situation-action-effect>
+                        <span data-i18n="add-effect">Add effect</span>
+                    </button>
+                </div>
+                <div data-situation-action-effects-container>
+                    <div class="effect-editor-card" data-effect-row>
+                        <div class="effect-editor-grid">
+                            <label class="effect-editor-wide">
+                                <span data-i18n="effect-label">Effect label</span>
+                                <input name="AdvanceForm.SituationActions[__ACTION_INDEX__].Effects[0].Label" class="form-control" data-i18n-placeholder="effect-label-placeholder" list="effect-label-suggestions" />
+                            </label>
+                            <label>
+                                <span data-i18n="effect-value-type">Effect kind</span>
+                                <select name="AdvanceForm.SituationActions[__ACTION_INDEX__].Effects[0].ValueType" class="form-select" data-effect-value-type>
+                                    <option value="@Eu5ModPlanner.Models.EffectValueType.Numeric" data-i18n-option="effect-kind-numeric">Numeric</option>
+                                    <option value="@Eu5ModPlanner.Models.EffectValueType.Boolean" data-i18n-option="effect-kind-boolean">Boolean</option>
+                                    <option value="@Eu5ModPlanner.Models.EffectValueType.Text" data-i18n-option="effect-kind-text">Custom text</option>
+                                    <option value="@Eu5ModPlanner.Models.EffectValueType.Buff" data-i18n-option="effect-kind-buff">Timed buff</option>
+                                </select>
+                            </label>
+                            <label data-effect-numeric>
+                                <span data-i18n="advance-modifier-amount">Modifier amount</span>
+                                <input name="AdvanceForm.SituationActions[__ACTION_INDEX__].Effects[0].NumericAmount" class="form-control" type="number" step="0.01" value="0" />
+                                <input name="__Invariant" type="hidden" value="AdvanceForm.SituationActions[__ACTION_INDEX__].Effects[0].NumericAmount" />
+                            </label>
+                            <label data-effect-numeric>
+                                <span data-i18n="advance-modifier-unit">Value type</span>
+                                <select name="AdvanceForm.SituationActions[__ACTION_INDEX__].Effects[0].NumericUnit" class="form-select">
+                                    <option value="@Eu5ModPlanner.Models.ModifierUnit.Flat" data-i18n-option="unit-flat">Flat value</option>
+                                    <option value="@Eu5ModPlanner.Models.ModifierUnit.Percent" data-i18n-option="unit-percent">Percentage</option>
+                                </select>
+                            </label>
+                            <label data-effect-boolean hidden>
+                                <span data-i18n="bool-value">Boolean value</span>
+                                <select name="AdvanceForm.SituationActions[__ACTION_INDEX__].Effects[0].BoolValue" class="form-select">
+                                    <option value="true" data-i18n-option="bool-true">True</option>
+                                    <option value="false" selected data-i18n-option="bool-false">False</option>
+                                </select>
+                            </label>
+                            <div data-effect-buff hidden class="effect-editor-wide">
+                                <input name="AdvanceForm.SituationActions[__ACTION_INDEX__].Effects[0].BuffId" type="hidden" data-buff-id-input />
+                                <input name="AdvanceForm.SituationActions[__ACTION_INDEX__].Effects[0].BuffName" type="hidden" data-buff-name-input />
+                                <div class="effect-editor-grid">
+                                    <label class="effect-editor-wide">
+                                        <span data-i18n="effect-buff">Buff</span>
+                                        <button type="button" class="material-button ghost-button" data-select-buff-button>
+                                            <span data-i18n="select-buff">Select buff</span>
+                                        </button>
+                                        <span class="helper-copy" data-selected-buff-name data-i18n="no-buff-selected">No buff selected.</span>
+                                    </label>
+                                    <label>
+                                        <span data-i18n="effect-buff-duration">Duration</span>
+                                        <input name="AdvanceForm.SituationActions[__ACTION_INDEX__].Effects[0].BuffDurationValue" class="form-control" type="number" min="1" step="1" value="1" />
+                                    </label>
+                                    <label>
+                                        <span data-i18n="effect-buff-duration-unit">Duration unit</span>
+                                        <select name="AdvanceForm.SituationActions[__ACTION_INDEX__].Effects[0].BuffDurationUnit" class="form-select">
+                                            <option value="@Eu5ModPlanner.Models.BuffDurationUnit.Days" data-i18n-option="duration-days">Days</option>
+                                            <option value="@Eu5ModPlanner.Models.BuffDurationUnit.Months" data-i18n-option="duration-months">Months</option>
+                                            <option value="@Eu5ModPlanner.Models.BuffDurationUnit.Years" data-i18n-option="duration-years">Years</option>
+                                            <option value="@Eu5ModPlanner.Models.BuffDurationUnit.UntilEndOfGame" data-i18n-option="duration-end-of-game">Until the end of the game</option>
+                                        </select>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" class="material-button danger-button small-button" data-remove-effect>
+                            <span data-i18n="remove-effect">Remove</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
+
+<template id="situation-action-effect-row-template">
+    <div class="effect-editor-card" data-effect-row>
+        <div class="effect-editor-grid">
+            <label class="effect-editor-wide">
+                <span data-i18n="effect-label">Effect label</span>
+                <input name="AdvanceForm.SituationActions[__ACTION_INDEX__].Effects[__INDEX__].Label" class="form-control" data-i18n-placeholder="effect-label-placeholder" list="effect-label-suggestions" />
+            </label>
+            <label>
+                <span data-i18n="effect-value-type">Effect kind</span>
+                <select name="AdvanceForm.SituationActions[__ACTION_INDEX__].Effects[__INDEX__].ValueType" class="form-select" data-effect-value-type>
+                    <option value="@Eu5ModPlanner.Models.EffectValueType.Numeric" data-i18n-option="effect-kind-numeric">Numeric</option>
+                    <option value="@Eu5ModPlanner.Models.EffectValueType.Boolean" data-i18n-option="effect-kind-boolean">Boolean</option>
+                    <option value="@Eu5ModPlanner.Models.EffectValueType.Text" data-i18n-option="effect-kind-text">Custom text</option>
+                    <option value="@Eu5ModPlanner.Models.EffectValueType.Buff" data-i18n-option="effect-kind-buff">Timed buff</option>
+                </select>
+            </label>
+            <label data-effect-numeric>
+                <span data-i18n="advance-modifier-amount">Modifier amount</span>
+                <input name="AdvanceForm.SituationActions[__ACTION_INDEX__].Effects[__INDEX__].NumericAmount" class="form-control" type="number" step="0.01" value="0" />
+                <input name="__Invariant" type="hidden" value="AdvanceForm.SituationActions[__ACTION_INDEX__].Effects[__INDEX__].NumericAmount" />
+            </label>
+            <label data-effect-numeric>
+                <span data-i18n="advance-modifier-unit">Value type</span>
+                <select name="AdvanceForm.SituationActions[__ACTION_INDEX__].Effects[__INDEX__].NumericUnit" class="form-select">
+                    <option value="@Eu5ModPlanner.Models.ModifierUnit.Flat" data-i18n-option="unit-flat">Flat value</option>
+                    <option value="@Eu5ModPlanner.Models.ModifierUnit.Percent" data-i18n-option="unit-percent">Percentage</option>
+                </select>
+            </label>
+            <label data-effect-boolean hidden>
+                <span data-i18n="bool-value">Boolean value</span>
+                <select name="AdvanceForm.SituationActions[__ACTION_INDEX__].Effects[__INDEX__].BoolValue" class="form-select">
+                    <option value="true" data-i18n-option="bool-true">True</option>
+                    <option value="false" selected data-i18n-option="bool-false">False</option>
+                </select>
+            </label>
+            <div data-effect-buff hidden class="effect-editor-wide">
+                <input name="AdvanceForm.SituationActions[__ACTION_INDEX__].Effects[__INDEX__].BuffId" type="hidden" data-buff-id-input />
+                <input name="AdvanceForm.SituationActions[__ACTION_INDEX__].Effects[__INDEX__].BuffName" type="hidden" data-buff-name-input />
+                <div class="effect-editor-grid">
+                    <label class="effect-editor-wide">
+                        <span data-i18n="effect-buff">Buff</span>
+                        <button type="button" class="material-button ghost-button" data-select-buff-button>
+                            <span data-i18n="select-buff">Select buff</span>
+                        </button>
+                        <span class="helper-copy" data-selected-buff-name data-i18n="no-buff-selected">No buff selected.</span>
+                    </label>
+                    <label>
+                        <span data-i18n="effect-buff-duration">Duration</span>
+                        <input name="AdvanceForm.SituationActions[__ACTION_INDEX__].Effects[__INDEX__].BuffDurationValue" class="form-control" type="number" min="1" step="1" value="1" />
+                    </label>
+                    <label>
+                        <span data-i18n="effect-buff-duration-unit">Duration unit</span>
+                        <select name="AdvanceForm.SituationActions[__ACTION_INDEX__].Effects[__INDEX__].BuffDurationUnit" class="form-select">
+                            <option value="@Eu5ModPlanner.Models.BuffDurationUnit.Days" data-i18n-option="duration-days">Days</option>
+                            <option value="@Eu5ModPlanner.Models.BuffDurationUnit.Months" data-i18n-option="duration-months">Months</option>
+                            <option value="@Eu5ModPlanner.Models.BuffDurationUnit.Years" data-i18n-option="duration-years">Years</option>
+                            <option value="@Eu5ModPlanner.Models.BuffDurationUnit.UntilEndOfGame" data-i18n-option="duration-end-of-game">Until the end of the game</option>
+                        </select>
+                    </label>
+                </div>
+            </div>
         </div>
         <button type="button" class="material-button danger-button small-button" data-remove-effect>
             <span data-i18n="remove-effect">Remove</span>
@@ -1162,6 +2318,7 @@
                     <option value="@Eu5ModPlanner.Models.EffectValueType.Numeric" data-i18n-option="effect-kind-numeric">Numeric</option>
                     <option value="@Eu5ModPlanner.Models.EffectValueType.Boolean" data-i18n-option="effect-kind-boolean">Boolean</option>
                     <option value="@Eu5ModPlanner.Models.EffectValueType.Text" data-i18n-option="effect-kind-text">Custom text</option>
+                    <option value="@Eu5ModPlanner.Models.EffectValueType.Buff" data-i18n-option="effect-kind-buff">Timed buff</option>
                 </select>
             </label>
             <label data-effect-numeric>
@@ -1231,7 +2388,69 @@
     </div>
 </template>
 
+<template id="buff-effect-row-template">
+    <div class="effect-editor-card" data-effect-row>
+        <div class="effect-editor-grid">
+            <label class="effect-editor-wide">
+                <span data-i18n="effect-label">Effect label</span>
+                <input name="BuffForm.Effects[__INDEX__].Label" class="form-control" data-i18n-placeholder="effect-label-placeholder" list="effect-label-suggestions" />
+            </label>
+            <label>
+                <span data-i18n="effect-value-type">Effect kind</span>
+                <select name="BuffForm.Effects[__INDEX__].ValueType" class="form-select" data-effect-value-type>
+                    <option value="@Eu5ModPlanner.Models.EffectValueType.Numeric" data-i18n-option="effect-kind-numeric">Numeric</option>
+                    <option value="@Eu5ModPlanner.Models.EffectValueType.Boolean" data-i18n-option="effect-kind-boolean">Boolean</option>
+                    <option value="@Eu5ModPlanner.Models.EffectValueType.Text" data-i18n-option="effect-kind-text">Custom text</option>
+                </select>
+            </label>
+            <label data-effect-numeric>
+                <span data-i18n="advance-modifier-amount">Modifier amount</span>
+                <input name="BuffForm.Effects[__INDEX__].NumericAmount" class="form-control" type="number" step="0.01" value="0" />
+                <input name="__Invariant" type="hidden" value="BuffForm.Effects[__INDEX__].NumericAmount" />
+            </label>
+            <label data-effect-numeric>
+                <span data-i18n="advance-modifier-unit">Value type</span>
+                <select name="BuffForm.Effects[__INDEX__].NumericUnit" class="form-select">
+                    <option value="@Eu5ModPlanner.Models.ModifierUnit.Flat" data-i18n-option="unit-flat">Flat value</option>
+                    <option value="@Eu5ModPlanner.Models.ModifierUnit.Percent" data-i18n-option="unit-percent">Percentage</option>
+                </select>
+            </label>
+            <label data-effect-boolean hidden>
+                <span data-i18n="bool-value">Boolean value</span>
+                <select name="BuffForm.Effects[__INDEX__].BoolValue" class="form-select">
+                    <option value="true" data-i18n-option="bool-true">True</option>
+                    <option value="false" selected data-i18n-option="bool-false">False</option>
+                </select>
+            </label>
+        </div>
+        <button type="button" class="material-button danger-button small-button" data-remove-effect>
+            <span data-i18n="remove-effect">Remove</span>
+        </button>
+    </div>
+</template>
+
+<template id="culture-membership-row-template">
+    <div class="effect-editor-card culture-membership-row" data-culture-membership-row>
+        <div class="effect-editor-grid">
+            <label class="effect-editor-wide">
+                <span data-i18n="culture-group-name">Culture Group name</span>
+                <input name="AdvanceForm.CultureGroupMembershipNames[__INDEX__]"
+                       class="form-control"
+                       data-i18n-placeholder="culture-group-name-placeholder" />
+            </label>
+        </div>
+        <button type="button" class="material-button danger-button small-button" data-remove-culture-membership>
+            <span data-i18n="remove-culture-membership">Remove</span>
+        </button>
+    </div>
+</template>
+
 @if (Model.SelectedContentPayloadJson is not null)
 {
     <script type="application/json" id="selected-content-payload">@Html.Raw(Model.SelectedContentPayloadJson)</script>
+}
+
+@if (Model.AvailableBuffsPayloadJson is not null)
+{
+    <script type="application/json" id="available-buffs-payload">@Html.Raw(Model.AvailableBuffsPayloadJson)</script>
 }

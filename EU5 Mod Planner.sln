@@ -4,6 +4,8 @@ VisualStudioVersion = 17.5.2.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Eu5ModPlanner", "Eu5ModPlanner.csproj", "{696A71E0-3C4A-3F83-52A8-506415BD8C01}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Eu5ModPlanner.Tests", "Tests\Eu5ModPlanner.Tests\Eu5ModPlanner.Tests.csproj", "{B2703A1D-8C7A-4E17-98CF-57B8EA7941A2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -14,6 +16,10 @@ Global
 		{696A71E0-3C4A-3F83-52A8-506415BD8C01}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{696A71E0-3C4A-3F83-52A8-506415BD8C01}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{696A71E0-3C4A-3F83-52A8-506415BD8C01}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B2703A1D-8C7A-4E17-98CF-57B8EA7941A2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B2703A1D-8C7A-4E17-98CF-57B8EA7941A2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B2703A1D-8C7A-4E17-98CF-57B8EA7941A2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B2703A1D-8C7A-4E17-98CF-57B8EA7941A2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

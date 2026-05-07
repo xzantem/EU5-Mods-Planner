@@ -4,23 +4,50 @@ namespace Eu5ModPlanner.Models;
 
 public sealed class PlannerIndexViewModel
 {
+    public required string ActiveLibrary { get; init; }
     public required IReadOnlyList<Country> Countries { get; init; }
+    public required IReadOnlyList<Country> ActiveCountries { get; init; }
+    public required IReadOnlyList<Country> ArchivedCountries { get; init; }
+    public required IReadOnlyList<ContentEntry> AvailableCultures { get; init; }
+    public required IReadOnlyList<ContentEntry> ArchivedCultures { get; init; }
+    public required IReadOnlyList<ContentEntry> AvailableCultureGroups { get; init; }
+    public required IReadOnlyList<ContentEntry> ArchivedCultureGroups { get; init; }
     public required IReadOnlyList<ContentEntry> SelectedCountryContent { get; init; }
     public required IReadOnlyList<string> EffectLabelSuggestions { get; init; }
+    public required IReadOnlyList<Buff> AvailableBuffs { get; init; }
+    public required IReadOnlyList<PlannerUser> Users { get; init; }
     public required CountryInputModel CountryForm { get; init; }
     public required AdvanceInputModel AdvanceForm { get; init; }
+    public required BuffInputModel BuffForm { get; init; }
+    public required UserLoginInputModel LoginForm { get; init; }
+    public required UserAccountInputModel UserForm { get; init; }
+    public bool HasWriteAccess { get; init; }
+    public bool HasAnyAccounts { get; init; }
+    public bool CanManageWriteAccess { get; init; }
+    public bool CanManageUsers { get; init; }
+    public bool IsAuthenticatedUser { get; init; }
+    public bool IsCultureGroupScope { get; init; }
+    public string CurrentUserDisplayName { get; init; } = string.Empty;
+    public string CurrentUserRoleName { get; init; } = string.Empty;
     public Country? SelectedCountry { get; init; }
+    public ContentEntry? SelectedCulture { get; init; }
+    public ContentEntry? SelectedCultureGroup { get; init; }
     public ContentEntry? SelectedContent { get; init; }
     public string? SelectedContentPayloadJson { get; init; }
+    public string? AvailableBuffsPayloadJson { get; init; }
 }
 
 public sealed class CountryInputModel
 {
+    public Guid? Id { get; set; }
+
     [Required, StringLength(80)]
     public string Name { get; set; } = string.Empty;
 
     [Required, StringLength(12)]
     public string Tag { get; set; } = string.Empty;
+
+    public bool IsArchived { get; set; }
 }
 
 public sealed class AdvanceInputModel
@@ -29,6 +56,8 @@ public sealed class AdvanceInputModel
 
     [Required]
     public Guid CountryId { get; set; }
+
+    public Guid? CultureGroupId { get; set; }
 
     [Required]
     public ContentType Type { get; set; } = ContentType.Advance;
@@ -142,6 +171,29 @@ public sealed class AdvanceInputModel
     public List<EventRequirementInputModel> EventRequirements { get; set; } = [new()];
     public List<EventOptionInputModel> EventOptions { get; set; } = [new()];
     public List<Guid> EventPrerequisiteIds { get; set; } = [];
+
+    [StringLength(4000)]
+    public string? SituationDescription { get; set; }
+
+    [StringLength(8000)]
+    public string? SituationCanStart { get; set; }
+
+    [StringLength(8000)]
+    public string? SituationVisible { get; set; }
+
+    [StringLength(8000)]
+    public string? SituationCanEnd { get; set; }
+
+    [Range(0, 100)]
+    public decimal? SituationMonthlySpawnChance { get; set; }
+
+    public List<AdvanceEffectInputModel> SituationStartEffects { get; set; } = [new()];
+    public List<AdvanceEffectInputModel> SituationMonthlyEffects { get; set; } = [new()];
+    public List<AdvanceEffectInputModel> SituationEndingEffects { get; set; } = [new()];
+    public List<AdvanceEffectInputModel> SituationEndedEffects { get; set; } = [new()];
+    public List<SituationActionInputModel> SituationActions { get; set; } = [new()];
+    public List<Guid> CultureGroupIds { get; set; } = [];
+    public List<string> CultureGroupMembershipNames { get; set; } = [string.Empty];
 }
 
 public sealed class AdvanceEffectInputModel
@@ -159,6 +211,16 @@ public sealed class AdvanceEffectInputModel
     public ModifierUnit NumericUnit { get; set; } = ModifierUnit.Flat;
 
     public bool BoolValue { get; set; }
+
+    public Guid? BuffId { get; set; }
+
+    [StringLength(150)]
+    public string? BuffName { get; set; }
+
+    [Range(0, 999999)]
+    public int BuffDurationValue { get; set; }
+
+    public BuffDurationUnit BuffDurationUnit { get; set; } = BuffDurationUnit.Days;
 }
 
 public sealed class ResourceAmountInputModel
@@ -189,6 +251,33 @@ public sealed class EventOptionInputModel
 {
     [StringLength(250)]
     public string? Text { get; set; }
+
+    public List<AdvanceEffectInputModel> Effects { get; set; } = [new()];
+}
+
+public sealed class SituationActionInputModel
+{
+    [StringLength(150)]
+    public string? Name { get; set; }
+
+    [StringLength(4000)]
+    public string? Requirements { get; set; }
+
+    [StringLength(500)]
+    public string? Cost { get; set; }
+
+    [StringLength(200)]
+    public string? Cooldown { get; set; }
+
+    public List<AdvanceEffectInputModel> Effects { get; set; } = [new()];
+}
+
+public sealed class BuffInputModel
+{
+    public Guid? Id { get; set; }
+
+    [Required, StringLength(150)]
+    public string Name { get; set; } = string.Empty;
 
     public List<AdvanceEffectInputModel> Effects { get; set; } = [new()];
 }
