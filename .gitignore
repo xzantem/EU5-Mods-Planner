@@ -40,6 +40,12 @@ ScaffoldingReadMe.txt
 ~$*
 *~
 CodeCoverage/
+App_Data/
+*.log
+*.out.log
+*.err.log
+build-output.txt
+.env
 
 # MSBuild Binary and Structured Log
 *.binlog
